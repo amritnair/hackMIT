@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 import mergemind
-from mergemind import agent, backfill, branches, merge, store
+from mergemind import agent, backfill, branches, llm, merge, store
 
 FIXTURE = {
     "api/middleware.py": (
@@ -100,8 +100,54 @@ def main():
         check_branches(root, repo)
         check_backfill(root)
         check_brief(repo)
+        check_llm(repo)
 
     print("ok")
+
+
+class StubProvider:
+    """Answers with one real file and one that does not exist."""
+    name, model = "stub", "stub-1"
+
+    def __init__(self, payload):
+        self.payload = payload
+        self.seen = None
+
+    def complete(self, stable, volatile, max_tokens=1500):
+        self.seen = (stable, volatile)
+        return self.payload
+
+
+def check_llm(repo):
+    """A model may not name a file into existence."""
+    provider = StubProvider(
+        'Sure! ```json\n{"files":['
+        '{"path":"api/middleware.py","why":"throttling lives here","confidence":0.9},'
+        '{"path":"api/ratelimit/redis_backend.py","why":"invented","confidence":0.8}'
+        ']}\n```'
+    )
+    out = llm.semantic_predict(repo, "throttle incoming requests", provider)
+    assert [f["file"] for f in out["files"]] == ["api/middleware.py"], out
+    assert out["invented"] == ["api/ratelimit/redis_backend.py"], out
+    assert "stub" in out["files"][0]["evidence"][0]
+    assert out["files"][0]["source"] == "model"
+
+    # the model was shown the real inventory, and the task went after it
+    stable, volatile = provider.seen
+    assert "api/middleware.py" in stable and "rate_limit" in stable
+    assert "throttle" in volatile and "throttle" not in stable
+    assert stable == llm.inventory(repo)  # byte-stable, so it stays cached
+
+    # merging keeps repository evidence ahead of model inference
+    lexical = mergemind.predict(repo, "Charge the customer an invoice")
+    merged = llm.merge_forecasts(lexical, out)
+    assert merged["files"][0]["source"] == "repo", merged["files"]
+    assert merged["files"][-1]["source"] == "model"
+    assert "1 invented path(s) dropped" in merged["grounding"], merged["grounding"]
+
+    # a model that answers with nothing usable is not an error
+    empty = llm.semantic_predict(repo, "anything", StubProvider("no idea, sorry"))
+    assert empty["files"] == [] and empty["invented"] == []
 
 
 def check_brief(repo):

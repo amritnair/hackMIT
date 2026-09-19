@@ -7,6 +7,7 @@ import shlex
 import sys
 
 from . import store
+from . import github, llm
 from .agent import brief, request_skeleton
 from .backfill import replay, report
 from .branches import as_forecast, branches
@@ -23,6 +24,11 @@ def build_parser():
     parser.add_argument("-C", "--repo", default=".", help="repository to analyse")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     parser.add_argument("--base", default="main", help="branch to compare against")
+    parser.add_argument("--llm", action="store_true",
+                        help="also ask a model where the work lands; "
+                             "costs tokens, off by default")
+    parser.add_argument("--provider", choices=sorted(llm.PROVIDERS),
+                        help="which model provider --llm should use")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("scan", help="summarise what is in the repo")
@@ -33,6 +39,12 @@ def build_parser():
     plan.add_argument("task")
 
     sub.add_parser("predict", help="risks between the branches that already exist")
+
+    pr = sub.add_parser("pr", help="check open pull requests against each other")
+    pr.add_argument("numbers", nargs="*", type=int,
+                    help="specific PRs; default is every open one")
+    pr.add_argument("--comment", type=int, metavar="N",
+                    help="post the findings as a comment on PR N")
 
     sim = sub.add_parser("simulate", help="check several tasks against each other")
     sim.add_argument("tasks", nargs="*")
@@ -126,11 +138,78 @@ def cmd_status(repo, args, db):
     return {"base": args.base, "branches": found, "risks": solo}
 
 
+def _forecast(repo, task, args):
+    """Lexical always; the model only when asked, and never silently."""
+    lexical = predict(repo, task)
+    if not getattr(args, "llm", False):
+        return lexical
+    try:
+        provider = llm.get_provider(args.provider)
+        semantic = llm.semantic_predict(repo, task, provider)
+    except llm.NoProvider as exc:
+        print(f"no model used: {exc}", file=sys.stderr)
+        return lexical
+    except Exception as exc:
+        print(f"model call failed, falling back to repository evidence: {exc}",
+              file=sys.stderr)
+        return lexical
+    return llm.merge_forecasts(lexical, semantic)
+
+
 def cmd_plan(repo, args, db):
-    forecast = predict(repo, args.task)
+    forecast = _forecast(repo, args.task, args)
     if not args.json:
         _print_forecast(forecast)
     return forecast
+
+
+def cmd_pr(repo, args, db):
+    try:
+        open_prs = github.pull_requests(repo["repo"])
+    except github.GitHubUnavailable as exc:
+        print(f"github unavailable: {exc}", file=sys.stderr)
+        return {"error": str(exc)}
+
+    wanted = [p for p in open_prs if not args.numbers or p["number"] in args.numbers]
+    if not wanted:
+        if not args.json:
+            print("no open pull requests" if not open_prs
+                  else f"none of {args.numbers} are open")
+        return {"pull_requests": open_prs, "risks": []}
+
+    forecasts = []
+    for pull in wanted:
+        try:
+            forecasts.append(github.forecast(repo["repo"], pull))
+        except Exception as exc:
+            print(f"could not read PR #{pull['number']}: {exc}", file=sys.stderr)
+    found = risks(repo, forecasts)
+    store.save_risks(db, found)
+
+    if args.comment:
+        body = github.comment_body(args.comment, found, repo["sha"])
+        url = github.post_comment(repo["repo"], args.comment, body)
+        if not args.json:
+            print(f"commented on #{args.comment}: {url}")
+        return {"commented": args.comment, "body": body, "risks": found}
+
+    if not args.json:
+        print(f"{len(wanted)} open pull request(s)")
+        for pull in wanted:
+            print(f"  #{pull['number']} {pull['title']}"
+                  f"  ({(pull.get('author') or {}).get('login', '?')}"
+                  f"{', draft' if pull.get('isDraft') else ''})")
+        print(f"\n{len(found)} predicted risk(s) between them")
+        for r in found:
+            print(f"\n  {MARK[r['risk_level']]} [{r['id']}] {r['risk_type']}")
+            print(f"     {'  <->  '.join(r['tasks'])}")
+            for line in r["evidence"]:
+                print(f"     - {line}")
+            print(f"     -> {r['recommendation']}")
+        if found:
+            print("\nto leave this on a pull request: "
+                  f"mergemind pr --comment {wanted[0]['number']}")
+    return {"pull_requests": wanted, "risks": found}
 
 
 def cmd_predict(repo, args, db):
@@ -141,7 +220,7 @@ def cmd_predict(repo, args, db):
 
 def cmd_simulate(repo, args, db):
     found = branches(repo["repo"], args.base)
-    forecasts = [predict(repo, t) for t in args.tasks]
+    forecasts = [_forecast(repo, t, args) for t in args.tasks]
     forecasts += [as_forecast(found[n]) for n in args.branch if n in found]
     if not forecasts:
         print("give me some tasks, or --branch <name>", file=sys.stderr)
@@ -369,13 +448,18 @@ def _print_forecast(forecast):
         print(f"  tests: {', '.join(forecast['tests'])}")
     if forecast["unsupported_terms"]:
         print(f"  no repo evidence for: {', '.join(forecast['unsupported_terms'])}")
+    if forecast.get("grounding"):
+        print(f"  {forecast['grounding']}")
+    if forecast.get("model_invented"):
+        print(f"  model named files that do not exist, dropped: "
+              f"{', '.join(forecast['model_invented'])}")
 
 
 COMMANDS = {
     "scan": cmd_scan, "status": cmd_status, "plan": cmd_plan,
     "predict": cmd_predict, "simulate": cmd_simulate, "context": cmd_context,
     "explain": cmd_explain, "verify": cmd_verify, "insights": cmd_insights,
-    "backfill": cmd_backfill, "brief": cmd_brief,
+    "backfill": cmd_backfill, "brief": cmd_brief, "pr": cmd_pr,
 }
 
 if __name__ == "__main__":
