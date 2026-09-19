@@ -4,8 +4,11 @@ These are predicted risks. Nothing here has been merged or run, so a high
 score means "two people should talk", not "this will break".
 """
 
+import hashlib
 from itertools import combinations
 from pathlib import Path
+
+STALE_BEHIND = 20  # commits behind base before divergence is worth mentioning
 
 LEVELS = ((0.66, "high"), (0.33, "medium"), (0.0, "low"))
 
@@ -16,12 +19,49 @@ def _level(score):
 
 def risks(repo, forecasts):
     found = []
+    for forecast in forecasts:
+        found += _solo_risks(repo, forecast)
     for a, b in combinations(forecasts, 2):
         found += _pair_risks(repo, a, b)
     found.sort(key=lambda r: -r["risk_score"])
-    for i, risk in enumerate(found, 1):
-        risk["id"] = f"R{i}"
     return found
+
+
+def _solo_risks(repo, forecast):
+    """Risks visible in one branch on its own, without a second task to hit."""
+    out = []
+    for change in forecast.get("signature_changes", []):
+        callers = repo["callers"].get(change["file"], [])
+        score = 0.4 + min(0.4, 0.08 * len(callers))
+        evidence = [
+            f"{change['symbol']} in {change['file']} changed from "
+            f"{change['before']} to {change['after']}",
+        ]
+        if callers:
+            evidence.append(
+                f"{len(callers)} file(s) import {change['file']}: "
+                f"{', '.join(callers[:4])}"
+            )
+        else:
+            evidence.append(f"no tracked file imports {change['file']}")
+        out.append(_risk(
+            "api_signature_change", score, evidence,
+            f"Check the {len(callers)} caller(s) of {change['symbol']} before merging."
+            if callers else
+            f"Signature of {change['symbol']} changed; no callers found in this repo.",
+            (forecast["task"],), repo,
+        ))
+
+    behind = forecast.get("behind", 0)
+    if behind >= STALE_BEHIND:
+        out.append(_risk(
+            "branch_divergence", min(0.3 + behind / 200, 0.7),
+            [f"{forecast['task']} is {behind} commit(s) behind its base "
+             f"and {forecast.get('ahead', 0)} ahead"],
+            "Rebase before this drifts further; the merge gets harder from here.",
+            (forecast["task"],), repo,
+        ))
+    return out
 
 
 def _pair_risks(repo, a, b):
@@ -102,7 +142,11 @@ def _test_risk(a, b, pair, repo):
 
 def _risk(kind, score, evidence, recommendation, pair, repo):
     score = round(min(score, 0.95), 2)
+    # id is a hash of what the risk is about, so the same risk keeps the same
+    # id between runs and `mergemind explain <id>` stays valid.
+    seed = "|".join([kind, *sorted(pair), evidence[0], repo["sha"]])
     return {
+        "id": "R" + hashlib.blake2s(seed.encode(), digest_size=3).hexdigest(),
         "risk_type": kind,
         "risk_score": score,
         "risk_level": _level(score),
@@ -171,9 +215,10 @@ def capsule(repo, forecast, found):
     if mine:
         lines += ["", "## Coordination"]
         for r in mine:
-            other = [t for t in r["tasks"] if t != forecast["task"]][0]
+            other = [t for t in r["tasks"] if t != forecast["task"]]
+            against = f' against "{other[0]}"' if other else ""
             lines.append(
-                f"- **{r['risk_level']}** ({r['risk_type']}) against \"{other}\": "
+                f"- **{r['risk_level']}** ({r['risk_type']}){against}: "
                 f"{r['recommendation']}"
             )
 

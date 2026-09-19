@@ -1,0 +1,240 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mergemind</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f25; --line: #2b3038; --ink: #e6e8eb;
+    --dim: #8b929c; --accent: #7aa2f7; --high: #f7768e; --med: #e0af68;
+    --low: #6a7381;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  header {
+    display: flex; gap: 20px; align-items: baseline;
+    padding: 14px 20px; border-bottom: 1px solid var(--line);
+  }
+  h1 { font-size: 15px; margin: 0; letter-spacing: .04em; }
+  #sha { color: var(--dim); font-size: 12px; }
+  nav { margin-left: auto; display: flex; gap: 4px; }
+  nav button {
+    background: none; border: 1px solid transparent; color: var(--dim);
+    padding: 4px 10px; cursor: pointer; font: inherit; border-radius: 3px;
+  }
+  nav button[aria-selected=true] { color: var(--ink); border-color: var(--line); background: var(--panel); }
+  main { padding: 20px; max-width: 1100px; }
+  section[hidden] { display: none; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--dim); margin: 0 0 10px; font-weight: 500; }
+  input[type=text] {
+    width: 100%; background: var(--bg); border: 1px solid var(--line);
+    color: var(--ink); padding: 8px 10px; font: inherit; border-radius: 3px;
+  }
+  input:focus { outline: 1px solid var(--accent); }
+  .risk { border-left: 2px solid var(--low); padding: 6px 0 6px 12px; margin: 10px 0; }
+  .risk.high { border-color: var(--high); }
+  .risk.medium { border-color: var(--med); }
+  .risk .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .id { color: var(--dim); font-size: 12px; }
+  .type { color: var(--accent); }
+  .risk ul { margin: 6px 0; padding-left: 18px; color: var(--dim); }
+  .rec { color: var(--ink); }
+  .hint { color: var(--dim); font-size: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  td, th { text-align: left; padding: 4px 10px 4px 0; vertical-align: top; }
+  th { color: var(--dim); font-weight: 500; }
+  code { color: var(--accent); }
+  .ev { color: var(--dim); font-size: 12px; }
+  circle.test { fill: var(--low); }
+  circle.schema { fill: var(--med); }
+  pre { white-space: pre-wrap; color: var(--dim); font-size: 12px; }
+  .spin { color: var(--dim); }
+</style>
+
+<header>
+  <h1>mergemind</h1>
+  <span id="sha"></span>
+  <nav>
+    <button data-tab="overview" aria-selected="true">overview</button>
+    <button data-tab="task">task</button>
+    <button data-tab="simulate">simulate</button>
+    <button data-tab="insights">insights</button>
+  </nav>
+</header>
+
+<main>
+  <section id="overview">
+    <div class="panel"><h2>repository</h2><div id="repo" class="spin">reading…</div></div>
+    <div class="panel"><h2>dependencies</h2>
+      <svg id="graph" viewBox="0 0 900 420" style="width:100%;height:420px"></svg>
+      <p class="hint">Bigger dot means more files import it. Those are the ones
+        two people should not rewrite in the same week.</p>
+    </div>
+    <div class="panel"><h2>branches</h2><div id="branches" class="spin">reading…</div></div>
+  </section>
+
+  <section id="task" hidden>
+    <div class="panel"><h2>describe work that does not exist yet</h2>
+      <input type="text" id="taskInput" placeholder="Add rate limiting to the API"
+             autocomplete="off">
+      <p class="hint">Enter to forecast. No branch needed, no code needed.</p>
+    </div>
+    <div class="panel"><h2>predicted impact</h2><div id="taskOut" class="hint">waiting for a task.</div></div>
+  </section>
+
+  <section id="simulate" hidden>
+    <div class="panel"><h2>two or more pieces of work, one per line</h2>
+      <input type="text" id="simA" placeholder="Add rate limiting to the API" autocomplete="off">
+      <br><br>
+      <input type="text" id="simB" placeholder="Add authentication middleware" autocomplete="off">
+      <br><br>
+      <input type="text" id="simC" placeholder="(optional third)" autocomplete="off">
+      <p class="hint">Enter in any box to run it.</p>
+    </div>
+    <div class="panel"><h2>collisions</h2><div id="simOut" class="hint">nothing run yet.</div></div>
+    <div class="panel"><h2>ways to sequence it</h2><div id="stratOut" class="hint">—</div></div>
+  </section>
+
+  <section id="insights" hidden>
+    <div class="panel"><h2>what this repo has taught us</h2><div id="insOut" class="spin">reading…</div></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+const api = (cmd, params={}) => {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params))
+    (Array.isArray(v) ? v : [v]).filter(Boolean).forEach(x => q.append(k, x));
+  return fetch(`/api/${cmd}?${q}`).then(r => r.json());
+};
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x =>
+    x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main section').forEach(s =>
+    s.hidden = s.id !== b.dataset.tab);
+  if (b.dataset.tab === 'insights') loadInsights();
+});
+
+function riskHTML(r) {
+  return `<div class="risk ${r.risk_level}">
+    <div class="head">
+      <span class="id">[${r.id}]</span>
+      <span class="type">${esc(r.risk_type)}</span>
+      <span class="id">${r.risk_score} · confidence ${r.confidence}</span>
+    </div>
+    <div>${r.tasks.map(esc).join('  ↔  ')}</div>
+    <ul>${r.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
+    <div class="rec">→ ${esc(r.recommendation)}</div>
+  </div>`;
+}
+
+function forecastHTML(f) {
+  if (!f.files.length) return `<p class="hint">Nothing in this repo matched "${esc(f.task)}".</p>`;
+  return `<p>"${esc(f.task)}" · confidence ${f.confidence}</p>
+    <table><tr><th>score</th><th>file</th><th>why</th></tr>
+    ${f.files.map(x => `<tr><td>${x.score}</td><td><code>${esc(x.file)}</code></td>
+      <td class="ev">${esc(x.evidence[0] || '')}</td></tr>`).join('')}</table>
+    ${f.unsupported_terms.length ? `<p class="hint">No repo evidence for:
+      ${f.unsupported_terms.map(esc).join(', ')} — either new ground, or a miss.</p>` : ''}`;
+}
+
+function drawGraph(graph) {
+  const svg = $('#graph');
+  const top = graph.nodes.filter(n => n.depended_on_by || n.symbols)
+    .sort((a, b) => b.depended_on_by - a.depended_on_by).slice(0, 24);
+  const pos = {}, cx = 450, cy = 210;
+  top.forEach((n, i) => {
+    const a = (i / top.length) * Math.PI * 2 - Math.PI / 2;
+    pos[n.id] = [cx + Math.cos(a) * 320, cy + Math.sin(a) * 165];
+  });
+  const edges = graph.edges.filter(e => pos[e.from] && pos[e.to]);
+  svg.innerHTML =
+    edges.map(e => `<line x1="${pos[e.from][0]}" y1="${pos[e.from][1]}"
+        x2="${pos[e.to][0]}" y2="${pos[e.to][1]}" stroke="#2b3038"/>`).join('') +
+    top.map(n => {
+      const [x, y] = pos[n.id], r = 4 + Math.min(n.depended_on_by * 2.5, 12);
+      const cls = n.is_schema ? 'schema' : n.is_test ? 'test' : '';
+      const right = x > cx;
+      return `<circle cx="${x}" cy="${y}" r="${r}" class="${cls}" fill="#7aa2f7"/>
+        <text x="${right ? x + r + 5 : x - r - 5}" y="${y + 4}" fill="#8b929c"
+          font-size="11" text-anchor="${right ? 'start' : 'end'}"
+          font-family="ui-monospace,monospace">${esc(n.id)}</text>`;
+    }).join('');
+}
+
+api('status').then(d => {
+  $('#sha').textContent = `${d.base} · ${Object.keys(d.branches).length} other branch(es)`;
+  drawGraph(d.graph);
+  const bs = Object.values(d.branches).filter(b => !b.error);
+  $('#branches').innerHTML = bs.length ? `<table>
+    <tr><th>branch</th><th>±</th><th>files</th><th>signature changes</th><th>who</th></tr>
+    ${bs.map(b => `<tr><td><code>${esc(b.name)}</code></td>
+      <td>+${b.ahead}/-${b.behind}</td><td>${b.changed_files.length}</td>
+      <td class="ev">${b.signature_changes.map(c =>
+        esc(`${c.before} → ${c.after}`)).join('<br>') || '—'}</td>
+      <td class="ev">${esc(b.author)}, ${esc(b.last_commit)}</td></tr>`).join('')}</table>
+    ${d.risks.length ? '<h2 style="margin-top:16px">risks from branches alone</h2>'
+      + d.risks.map(riskHTML).join('') : ''}`
+    : '<p class="hint">Only one branch here. Make another and this fills in.</p>';
+});
+
+api('scan').then(d => {
+  $('#repo').innerHTML = `<table>
+    <tr><td>path</td><td><code>${esc(d.repo)}</code></td></tr>
+    <tr><td>commit</td><td><code>${esc(d.sha.slice(0, 10))}</code> on
+      <code>${esc(d.branch)}</code></td></tr>
+    <tr><td>code files</td><td>${d.file_count}</td></tr>
+    <tr><td>schema/migrations</td><td>${d.schema_files.length || '—'}</td></tr>
+    <tr><td>manifests</td><td>${d.manifests.map(esc).join(', ') || '—'}</td></tr>
+  </table>`;
+});
+
+$('#taskInput').onkeydown = e => {
+  if (e.key !== 'Enter' || !e.target.value.trim()) return;
+  $('#taskOut').innerHTML = '<span class="spin">forecasting…</span>';
+  api('plan', { task: e.target.value.trim() })
+    .then(f => $('#taskOut').innerHTML = forecastHTML(f));
+};
+
+function runSim() {
+  const tasks = ['#simA', '#simB', '#simC'].map(s => $(s).value.trim()).filter(Boolean);
+  if (tasks.length < 2) return;
+  $('#simOut').innerHTML = '<span class="spin">comparing…</span>';
+  api('simulate', { task: tasks }).then(d => {
+    $('#simOut').innerHTML = (d.risks.length
+      ? `<p>${d.risks.length} predicted risk(s). Predicted — nothing has been
+         merged or run.</p>` + d.risks.map(riskHTML).join('')
+      : '<p class="hint">No overlap found between these. Either they are genuinely '
+        + 'independent, or they share no vocabulary with the code they touch.</p>')
+      + d.forecasts.map(forecastHTML).join('<hr style="border-color:#2b3038">');
+    $('#stratOut').innerHTML = d.strategies.map(s => `<div class="risk">
+      <div class="head"><span class="type">${esc(s.strategy)}</span>
+      <span class="id">${s.open_risks} risk(s) left open</span></div>
+      <ul>${s.coordination_steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      <div class="ev">${esc(s.note)}</div></div>`).join('');
+  });
+}
+['#simA', '#simB', '#simC'].forEach(s =>
+  $(s).onkeydown = e => { if (e.key === 'Enter') runSim(); });
+
+function loadInsights() {
+  api('insights').then(d => $('#insOut').innerHTML = `<table>
+    <tr><td>snapshots</td><td>${d.snapshots}</td></tr>
+    <tr><td>risks recorded</td><td>${d.risks_recorded}</td></tr>
+    <tr><td>merges run</td><td>${d.merges_run} (${d.merged_clean} clean)</td></tr>
+    </table>
+    <p>by type:</p><table>${Object.entries(d.by_type).map(([k, n]) =>
+      `<tr><td>${n}</td><td>${esc(k)}</td></tr>`).join('') || '<tr><td>—</td></tr>'}</table>
+    <p class="hint">forecast accuracy: ${esc(d.accuracy)}. Numbers here stay
+      absent until there is enough history to mean anything.</p>`);
+}
+</script>

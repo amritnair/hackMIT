@@ -76,7 +76,9 @@ def main():
         assert top["risk_type"] == "shared_file", top
         assert top["risk_level"] == "medium", top
         assert any("import" in e for e in top["evidence"]), top["evidence"]
-        assert top["id"] == "R1"
+        # ids are content hashes, so they survive a rerun and `explain` keeps working
+        assert top["id"] == mergemind.risks(repo, [rate, auth])[0]["id"]
+        assert top["id"].startswith("R") and len(top["id"]) == 7
 
         # same function in scope for both -> contract risk, and it outranks the above
         reauth = mergemind.predict(repo, "Refactor how requests authenticate")
