@@ -223,7 +223,12 @@ def check_branches(root, repo):
     assert store.get_risk(db, "Rnope") is None
     store.save_outcome(db, repo, outcome, result)
     assert store.insights(db)["merges_run"] == 1
-    assert "not enough" in store.insights(db)["accuracy"]
+    # a merge run by hand is not history; only backfill can grade the forecast
+    assert store.insights(db)["merges_replayed"] == 0
+    assert "no history replayed yet" in store.insights(db)["accuracy"]
+    store.save_outcome(db, repo, outcome, result, source="backfill")
+    assert store.insights(db)["merges_run"] == 1
+    assert store.insights(db)["merges_replayed"] == 1
 
 
 if __name__ == "__main__":

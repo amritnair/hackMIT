@@ -260,6 +260,7 @@ def cmd_backfill(repo, args, db):
             {"tests_passed": None, "predicted_and_conflicted": run["caught"],
              "conflicted_unpredicted": run["missed"],
              "predicted_no_conflict": run["flagged_no_conflict"], "notes": []},
+            source="backfill",
         )
     if not args.json:
         print(f"\n{summary['merges_replayed']} merge(s) replayed, "
@@ -289,7 +290,9 @@ def cmd_insights(repo, args, db):
               f"{data['risks_recorded']} risk(s) recorded")
         for kind, n in data["by_type"].items():
             print(f"  {n:>3}  {kind}")
-        print(f"\n{data['merges_run']} merge run(s), {data['merged_clean']} clean")
+        print(f"\n{data['merges_run']} merge(s) run by hand, "
+              f"{data['merged_clean']} clean")
+        print(f"{data['merges_replayed']} merge(s) replayed from history")
         print(f"forecast accuracy: {data['accuracy']}")
         if data["recurring"]:
             print("\nrisks that keep coming back:")

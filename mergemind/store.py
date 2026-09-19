@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS risks (
 CREATE TABLE IF NOT EXISTS outcomes (
     id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, base TEXT, branch TEXT,
     merged_clean INT, tests_passed INT, detail TEXT,
+    source TEXT DEFAULT 'verify',
     ran_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 """
@@ -33,6 +34,10 @@ def connect(repo_path):
     db = sqlite3.connect(directory / "mergemind.db")
     db.row_factory = sqlite3.Row
     db.executescript(SCHEMA)
+    try:  # databases written before outcomes knew where they came from
+        db.execute("ALTER TABLE outcomes ADD COLUMN source TEXT DEFAULT 'verify'")
+    except sqlite3.OperationalError:
+        pass
     return db
 
 
@@ -60,14 +65,14 @@ def save_risks(db, found):
     db.commit()
 
 
-def save_outcome(db, repo, outcome, comparison):
+def save_outcome(db, repo, outcome, comparison, source="verify"):
     db.execute(
-        "INSERT INTO outcomes (sha, base, branch, merged_clean, tests_passed, detail)"
-        " VALUES (?,?,?,?,?,?)",
+        "INSERT INTO outcomes (sha, base, branch, merged_clean, tests_passed,"
+        " detail, source) VALUES (?,?,?,?,?,?,?)",
         (repo["sha"], outcome["base"], outcome["branch"],
          int(outcome["merged_clean"]),
          -1 if comparison["tests_passed"] is None else int(comparison["tests_passed"]),
-         json.dumps(comparison)),
+         json.dumps(comparison), source),
     )
     db.commit()
 
@@ -91,7 +96,11 @@ def insights(db):
     }
     merges = db.execute(
         "SELECT COUNT(*) n, SUM(merged_clean) clean FROM outcomes"
+        " WHERE source = 'verify'"
     ).fetchone()
+    replayed = db.execute(
+        "SELECT COUNT(*) n FROM outcomes WHERE source = 'backfill'"
+    ).fetchone()["n"]
     repeats = [
         dict(row) for row in db.execute(
             "SELECT id, risk_type, tasks, first_seen, last_seen FROM risks"
@@ -104,11 +113,17 @@ def insights(db):
         "by_type": counts,
         "merges_run": merges["n"] or 0,
         "merged_clean": merges["clean"] or 0,
+        "merges_replayed": replayed,
         "recurring": repeats,
     }
-    # Accuracy over three merges is noise dressed as a number.
+    # Accuracy over three merges is noise dressed as a number. The real
+    # figures come from replaying history, not from the handful of merges
+    # somebody happened to run by hand.
     out["accuracy"] = (
-        "not enough merge runs yet (need at least 10, have "
-        f"{out['merges_run']})" if out["merges_run"] < 10 else "see outcomes table"
+        f"{replayed} merge(s) replayed by backfill — run `mergemind backfill` "
+        "for the scored breakdown."
+        if replayed else
+        "no history replayed yet. `mergemind backfill` grades the forecast "
+        "against merges that already happened; nothing else here can."
     )
     return out
