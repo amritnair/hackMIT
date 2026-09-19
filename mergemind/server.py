@@ -56,6 +56,9 @@ class Handler(BaseHTTPRequestHandler):
         repo = scan(path)
         if name == "file":
             return _file_detail(repo, query.get("path", [""])[0])
+        if name == "mcp_config":
+            from .mcp import config_snippet
+            return {"config": config_snippet(path), "repo": path}
         if name not in COMMANDS:
             return {"error": f"unknown command {name}"}
         db = store.connect(path)
@@ -76,6 +79,8 @@ class Handler(BaseHTTPRequestHandler):
             agent=query.get("agent", [None])[0],
             file=query.get("file", [""])[0],
             text=query.get("text", [""])[0],
+            dry=query.get("dry", ["0"])[0] in ("1", "true"),
+            config=False,
             limit=int(query.get("limit", ["25"])[0]),
             ref=query.get("ref", ["HEAD"])[0],
         )

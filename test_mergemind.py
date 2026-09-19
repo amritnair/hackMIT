@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 import mergemind
-from mergemind import agent, backfill, branches, llm, merge, store
+from mergemind import agent, backfill, branches, llm, mcp, merge, store
 
 FIXTURE = {
     "api/middleware.py": (
@@ -102,8 +102,72 @@ def main():
         check_brief(repo)
         check_llm(repo)
         check_sharing(root, repo)
+        check_mcp(root)
 
     print("ok")
+
+
+def rpc(root, *calls):
+    """Drive the MCP server the way a client does: JSON-RPC lines in and out."""
+    import io, json as _json
+    lines = "\n".join(_json.dumps(c) for c in calls) + "\n"
+    out = io.StringIO()
+    mcp.serve(root, stdin=io.StringIO(lines), stdout=out)
+    return [_json.loads(l) for l in out.getvalue().splitlines()]
+
+
+def check_mcp(root):
+    """An agent joins, learns something, and the next agent is told — over the
+    wire, not by calling the functions directly."""
+    init, listed = rpc(root,
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    )
+    assert init["result"]["serverInfo"]["name"] == "mergemind"
+    names = {t["name"] for t in listed["result"]["tools"]}
+    assert names == {"join_repo_session", "share_finding", "check_overlap",
+                     "leave_repo_session"}, names
+
+    def call(tool, **args):
+        reply = rpc(root, {"jsonrpc": "2.0", "id": 9, "method": "tools/call",
+                           "params": {"name": tool, "arguments": args}})[0]
+        assert "error" not in reply, reply
+        return reply["result"]["content"][0]["text"]
+
+    first = call("join_repo_session", agent="ada",
+                 task="Add rate limiting to the API")
+    assert "api/middleware.py" in first
+    assert "Live right now" not in first  # nobody else had joined yet
+
+    call("share_finding", agent="ada", file="api/middleware.py",
+         finding="rate_limit is a stub that always returns True")
+
+    second = call("join_repo_session", agent="grace",
+                  task="Add rate limiting to the API")
+    assert "always returns True" in second, "ada's finding did not reach grace"
+    assert "Live right now" in second and "ada" in second
+
+    # a path the repo does not have is refused rather than recorded
+    refused = call("share_finding", agent="ada", file="nope/nothing.py",
+                   finding="...")
+    assert "not a code file" in refused
+
+    overlap = call("check_overlap", agent="grace")
+    assert "ada" in overlap or "Overlapping" in overlap, overlap
+
+    # reconnecting is the same session, not a second one
+    db = store.connect(root)
+    call("join_repo_session", agent="ada", task="Add rate limiting to the API")
+    live = store.live_sessions(db)
+    assert sorted(s["agent"] for s in live) == ["ada", "grace"], live
+
+    call("leave_repo_session", agent="ada")
+    assert [s["agent"] for s in store.live_sessions(db)] == ["grace"]
+
+    # an unknown method answers with an error, not a crash
+    bad = rpc(root, {"jsonrpc": "2.0", "id": 3, "method": "nonsense"})[0]
+    assert bad["error"]["code"] == -32000
 
 
 def check_sharing(root, repo):

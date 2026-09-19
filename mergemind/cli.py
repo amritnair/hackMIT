@@ -76,6 +76,12 @@ def build_parser():
 
     sub.add_parser("usage", help="how agents used this and what sharing saved")
 
+    fleet = sub.add_parser("fleet",
+                           help="find the work in flight and brief everyone on it")
+    fleet.add_argument("tasks", nargs="*", help="extra work not yet in a branch")
+    fleet.add_argument("--dry", action="store_true",
+                       help="describe what would happen without recording anything")
+
     explain = sub.add_parser("explain", help="show one risk in full")
     explain.add_argument("risk_id")
 
@@ -89,6 +95,13 @@ def build_parser():
                       help="how many merge commits to replay")
     back.add_argument("--ref", default="HEAD", help="history to walk")
 
+    mcp_cmd = sub.add_parser(
+        "mcp", help="run as an MCP server so agents can reach this mid-session")
+    mcp_cmd.add_argument("--config", action="store_true",
+                         help="print the client config instead of running")
+
+    sub.add_parser("sessions", help="which agents are working here right now")
+
     serve = sub.add_parser("serve", help="dashboard on localhost")
     serve.add_argument("--port", type=int, default=8000)
     return parser
@@ -96,6 +109,12 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    if args.cmd == "mcp":
+        from .mcp import config_snippet, serve as serve_mcp
+        if args.config:
+            print(json.dumps(config_snippet(args.repo), indent=2))
+            return 0
+        return serve_mcp(args.repo)
     if args.cmd == "serve":
         from .server import serve
         return serve(args.repo, args.port)
@@ -326,6 +345,171 @@ def cmd_brief(repo, args, db):
     return data
 
 
+def _work_in_flight(repo, args):
+    """Find who is already working here, without being told.
+
+    Branches and open pull requests are the work that exists. Anything typed
+    in is added on top. Each gets an owner, because the point is to know who
+    to talk to, not just which file is busy.
+    """
+    work = []
+    for name, info in branches(repo["repo"], args.base).items():
+        if "error" in info or not info["changed_files"]:
+            continue
+        shaped = as_forecast(info)
+        work.append({
+            "agent": info.get("author") or name,
+            "label": f"branch {name}",
+            "kind": "branch",
+            "forecast": shaped,
+        })
+    try:
+        for pull in github.pull_requests(repo["repo"]):
+            shaped = github.forecast(repo["repo"], pull)
+            work.append({
+                "agent": shaped["pull_request"]["author"],
+                "label": f"PR #{pull['number']} {pull['title']}",
+                "kind": "pull_request",
+                "forecast": shaped,
+            })
+    except Exception:
+        pass  # no GitHub here; branches alone are plenty
+    for task in getattr(args, "tasks", []) or []:
+        work.append({
+            "agent": task[:24], "label": task, "kind": "task",
+            "forecast": predict(repo, task),
+        })
+    return work
+
+
+def cmd_fleet(repo, args, db):
+    work = _work_in_flight(repo, args)
+    if not work:
+        message = ("Nothing is in flight here — no branches with changes, no "
+                   "open pull requests. Name some work and I will plan for it.")
+        if not args.json:
+            print(message)
+        return {"work": [], "summary": [message]}
+
+    forecasts = [w["forecast"] for w in work]
+    found = risks(repo, forecasts)
+
+    # Key overlap on the work, not the person. One developer running two
+    # agents on the same file is the exact case this is for, and keying on
+    # who owns the branch makes that collision disappear.
+    touching = {}
+    for w in work:
+        for f in w["forecast"]["files"]:
+            touching.setdefault(f["file"], []).append(w)
+    overlap = sorted(
+        ({"file": path, "work": [w["label"] for w in items],
+          "agents": sorted({w["agent"] for w in items})}
+         for path, items in touching.items() if len(items) > 1),
+        key=lambda o: (-len(o["work"]), o["file"]),
+    )
+
+    data = brief(repo, forecasts, found,
+                 db=None if args.dry else db,
+                 agent=None if args.dry else work[0]["agent"],
+                 store=None if args.dry else store)
+    if not args.dry:
+        store.save_risks(db, found)
+        for w, suffix in zip(work[1:], data["suffixes"][1:]):
+            store.record_brief(
+                db, repo["sha"], w["agent"], w["forecast"]["task"],
+                data["prefix_hash"], data["prefix_tokens"], suffix["tokens"],
+                data["economics"]["repo_if_each_agent_reads_every_file"]
+                // max(1, len(work)),
+            )
+
+    e = data["economics"]
+    people = sorted({w["agent"] for w in work})
+    shared_risks = [r for r in found if len(r["tasks"]) == 2]
+    high_shared = [r for r in shared_risks if r["risk_level"] == "high"]
+    solo_high = [r for r in found
+                 if len(r["tasks"]) == 1 and r["risk_level"] == "high"]
+    summary = [
+        f"{len(work)} piece(s) of work in flight here, from "
+        f"{len(people)} person or agent: {', '.join(people[:5])}.",
+        (f"{len(overlap)} file(s) are being changed by more than one of them: "
+         + ", ".join(o["file"] for o in overlap[:3]) + ".")
+        if overlap else "Nobody is changing the same file as anyone else.",
+    ]
+    if high_shared:
+        summary.append(
+            f"{len(high_shared)} of those overlaps are worth sorting out "
+            "before the work lands, rather than at merge time."
+        )
+    if solo_high:
+        summary.append(
+            f"Separately, {len(solo_high)} change(s) alter an interface other "
+            "files depend on, which affects whoever imports them."
+        )
+    summary.append(
+        f"Everyone here needs the same {data['prefix_tokens']:,} tokens of "
+        "background about this repository. Sent once and cached, each agent "
+        f"then costs about {e['brief_per_later_call']:,} tokens a turn instead "
+        f"of the {e['repo_if_each_agent_reads_every_file']:,} it takes to read "
+        "the repo from scratch."
+    )
+    if not data["cacheable"]:
+        summary.append(
+            "This repository is small enough that the shared half lands under "
+            "the size a model will cache, so treat the saving as a briefing "
+            "convenience rather than a billing one."
+        )
+
+    out = {
+        "work": [{k: v for k, v in w.items() if k != "forecast"} for w in work],
+        "assignments": [
+            {"agent": w["agent"], "label": w["label"], "kind": w["kind"],
+             "files": [f["file"] for f in w["forecast"]["files"]],
+             "tokens": suffix["tokens"],
+             "notes_pulled": suffix.get("notes_pulled", 0)}
+            for w, suffix in zip(work, data["suffixes"])
+        ],
+        "overlap": overlap,
+        "risks": found,
+        "economics": e,
+        "prefix_tokens": data["prefix_tokens"],
+        "cacheable": data["cacheable"],
+        "recorded": not args.dry,
+        "summary": summary,
+    }
+    if not args.json:
+        for line in summary:
+            print(line)
+        print()
+        for row in out["assignments"]:
+            print(f"  {row['agent'][:22]:<22} {row['label'][:40]:<40} "
+                  f"{len(row['files'])} file(s)")
+        if overlap:
+            print("\n  shared ground:")
+            for item in overlap:
+                print(f"    {item['file']:<44} {', '.join(item['agents'])}")
+        if args.dry:
+            print("\nNothing recorded. Run without --dry to brief them.")
+    return out
+
+
+def cmd_sessions(repo, args, db):
+    live = store.live_sessions(db)
+    events = store.feed(db, 15)
+    if not args.json:
+        if not live:
+            print("No agent sessions are live here. Start one with "
+                  "`mergemind mcp` wired into an agent, or see `mcp --config`.")
+        for row in live:
+            print(f"  {row['agent'][:20]:<20} {row['task'][:46]:<46} "
+                  f"since {row['joined_at']}")
+        if events:
+            print("\n  recent")
+            for e in reversed(events):
+                print(f"    {e['at']}  {e['kind']:<8} {e['agent'][:16]:<16} "
+                      f"{e['detail'][:60]}")
+    return {"live": live, "events": events}
+
+
 def cmd_note(repo, args, db):
     if args.file not in repo["files"]:
         print(f"{args.file} is not a code file in this repo", file=sys.stderr)
@@ -516,7 +700,8 @@ COMMANDS = {
     "predict": cmd_predict, "simulate": cmd_simulate, "context": cmd_context,
     "explain": cmd_explain, "verify": cmd_verify, "insights": cmd_insights,
     "backfill": cmd_backfill, "brief": cmd_brief, "pr": cmd_pr,
-    "note": cmd_note, "usage": cmd_usage,
+    "note": cmd_note, "usage": cmd_usage, "fleet": cmd_fleet,
+    "sessions": cmd_sessions,
 }
 
 if __name__ == "__main__":

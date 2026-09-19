@@ -29,6 +29,15 @@ CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, agent TEXT, file TEXT,
     note TEXT, written_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY, sha TEXT, agent TEXT, task TEXT, client TEXT,
+    joined_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    last_seen TEXT DEFAULT CURRENT_TIMESTAMP, left_at TEXT
+);
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, kind TEXT, agent TEXT,
+    detail TEXT, tokens INT DEFAULT 0, at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS outcomes (
     id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, base TEXT, branch TEXT,
     merged_clean INT, tests_passed INT, detail TEXT,
@@ -176,6 +185,56 @@ def usage(db):
         "note": "Reuse is counted by identical prefix bytes on one commit — "
                 "what a cache could serve, not confirmation that it did.",
     }
+
+
+def log(db, sha, kind, agent, detail, tokens=0):
+    """One line in the feed. The feed is the demo and the audit trail both."""
+    db.execute(
+        "INSERT INTO events (sha, kind, agent, detail, tokens) VALUES (?,?,?,?,?)",
+        (sha, kind, agent, detail, tokens),
+    )
+    db.commit()
+
+
+def join_session(db, session_id, sha, agent, task, client=""):
+    db.execute(
+        "INSERT INTO sessions (id, sha, agent, task, client) VALUES (?,?,?,?,?)"
+        " ON CONFLICT(id) DO UPDATE SET task=excluded.task,"
+        " last_seen=CURRENT_TIMESTAMP, left_at=NULL",
+        (session_id, sha, agent, task, client),
+    )
+    db.commit()
+
+
+def touch_session(db, session_id):
+    db.execute("UPDATE sessions SET last_seen=CURRENT_TIMESTAMP WHERE id=?",
+               (session_id,))
+    db.commit()
+
+
+def leave_session(db, session_id):
+    db.execute("UPDATE sessions SET left_at=CURRENT_TIMESTAMP WHERE id=?",
+               (session_id,))
+    db.commit()
+
+
+def live_sessions(db, minutes=30):
+    """Sessions that have not left and were heard from recently.
+
+    A crashed agent never says goodbye, so anything quiet for longer than the
+    window is treated as gone rather than left hanging in the list.
+    """
+    return [dict(r) for r in db.execute(
+        "SELECT * FROM sessions WHERE left_at IS NULL"
+        f" AND last_seen > datetime('now', '-{int(minutes)} minutes')"
+        " ORDER BY joined_at"
+    )]
+
+
+def feed(db, limit=40):
+    return [dict(r) for r in db.execute(
+        "SELECT * FROM events ORDER BY id DESC LIMIT ?", (limit,)
+    )]
 
 
 def get_risk(db, risk_id):

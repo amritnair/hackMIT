@@ -297,6 +297,62 @@
     border: 1px solid var(--line); padding: 15px; border-radius: 9px;
     color: #C3CBDD;
   }
+  .stats {
+    display: grid; gap: 12px; margin: 4px 0 18px;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+  .stat {
+    background: var(--surface); background-image: var(--glass);
+    border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+  }
+  .stat b {
+    display: block; font: 700 clamp(22px, 3vw, 30px)/1 var(--display);
+    letter-spacing: -.03em; color: var(--observed);
+    text-shadow: 0 0 28px rgba(63,199,168,.28); font-variant-numeric: tabular-nums;
+  }
+  .stat span {
+    display: block; margin-top: 7px; font: 400 11px/1.4 var(--mono);
+    color: var(--muted);
+  }
+  .row { display: flex; gap: 9px; }
+  .dot-live {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--observed); margin-right: 8px;
+    box-shadow: 0 0 9px var(--observed); animation: pulse 2.4s ease-in-out infinite;
+  }
+  .feed { border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .feed-row {
+    display: grid; grid-template-columns: 22px 110px 1fr auto; gap: 10px;
+    padding: 8px 12px; font: 400 12px/1.5 var(--mono);
+    border-bottom: 1px solid var(--line); align-items: baseline;
+  }
+  .feed-row:last-child { border-bottom: 0; }
+  .feed-row .mark { color: var(--muted); text-align: center; }
+  .feed-row .who { color: var(--text); }
+  .feed-row .what { color: var(--muted); }
+  .feed-row .when { font-size: 11px; }
+  .feed-row.overlap .mark, .feed-row.overlap .what { color: var(--high); }
+  .feed-row.shared .mark, .feed-row.shared .what { color: var(--observed); }
+  .agent-row { display: flex; gap: 9px; align-items: flex-start; }
+  .agent-row .field { margin-bottom: 9px; }
+  .agent-row button {
+    flex: 0 0 auto; margin-top: 1px; background: var(--raised);
+    border: 1px solid var(--line); color: var(--muted); cursor: pointer;
+    border-radius: 8px; padding: 11px 12px; font: 400 12px/1 var(--mono);
+  }
+  .agent-row button:hover { color: var(--high); border-color: var(--high); }
+  .agent-card {
+    border: 1px solid var(--line); border-radius: 11px; padding: 14px 16px;
+    margin-bottom: 12px; background: var(--void);
+  }
+  .agent-card h5 {
+    margin: 0 0 4px; font: 600 13px/1.4 var(--mono); color: var(--text);
+    display: flex; gap: 10px; align-items: baseline; justify-content: space-between;
+  }
+  .agent-card .files { margin: 10px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .status { font: 400 12px/1.5 var(--mono); }
+  .status.good { color: var(--observed); }
+  .status.bad { color: var(--high); }
   .money { font: 600 16px/1 var(--mono); color: var(--text); }
   .money.good { color: var(--observed); text-shadow: 0 0 22px rgba(63,199,168,.35); }
   .stagger { animation: rise .34s cubic-bezier(.2,.8,.3,1) both; }
@@ -324,19 +380,19 @@
     <button type="submit">analyze</button>
   </form>
   <nav>
-    <button data-tab="overview" aria-selected="true">overview</button>
-    <button data-tab="task">task</button>
-    <button data-tab="simulate">simulate</button>
+    <button data-tab="agents" aria-selected="true">agents</button>
+    <button data-tab="task">forecast</button>
+    <button data-tab="simulate">collisions</button>
     <button data-tab="prs">pull requests</button>
-    <button data-tab="agents">agents</button>
-    <button data-tab="history">history</button>
+    <button data-tab="overview">repo map</button>
+    <button data-tab="history">evidence</button>
   </nav>
 </header>
 
 <main>
   <p class="banner" id="banner" hidden></p>
 
-  <section id="overview">
+  <section id="overview" hidden>
     <div class="thesis">
       <p class="eyebrow" id="heroEyebrow">reading the repository</p>
       <h2 id="heroLine" class="loading">scanning</h2>
@@ -353,7 +409,7 @@
         <span><i class="contested"></i> contested by two branches</span>
         <span><i class="plain"></i> source file</span>
         <span><i class="test"></i> test file</span>
-        <span class="dim">drag to move · click for detail</span>
+        <span class="dim">click to focus · click again to reset · drag to move</span>
       </div>
     </div>
 
@@ -421,62 +477,125 @@
 
   <section id="prs" hidden>
     <div class="thesis">
-      <p class="eyebrow">work already in review</p>
-      <h2>Open pull requests, checked against each other.</h2>
-      <p>A pull request is a branch with a description attached, so the same
-        engine reads it. Heads are fetched into refs mergemind owns — your
-        checkout is never switched.</p>
+      <p class="eyebrow">github</p>
+      <h2>Two pull requests, one file, nobody told.</h2>
+      <p>mergemind reads your open pull requests the same way it reads
+        branches, and tells you where two of them are heading for the same
+        code. It reads only — nothing is posted unless you ask for it.</p>
     </div>
+
     <div class="panel">
-      <h3>open pull requests <span class="tag observed">observed</span>
-        <button class="ghost" id="loadPrs">load</button></h3>
-      <div class="body" id="prList"><p class="empty">Not loaded.</p></div>
+      <h3>connection</h3>
+      <div class="body" id="prSetup"><p class="loading">checking</p></div>
     </div>
-    <div class="panel">
-      <h3>between them <span class="tag predicted">predicted</span></h3>
-      <div class="body flush" id="prRisks"><p class="empty" style="padding:18px">—</p></div>
+
+    <div class="panel" id="prListPanel" hidden>
+      <h3>open pull requests <span class="tag observed">from github</span>
+        <button class="ghost" id="loadPrs">refresh</button></h3>
+      <div class="body" id="prList"></div>
+    </div>
+
+    <div class="panel" id="prRiskPanel" hidden>
+      <h3>where they overlap <span class="tag predicted">predicted</span></h3>
+      <div class="body flush" id="prRisks"></div>
+    </div>
+
+    <div class="panel" id="prCommentPanel" hidden>
+      <h3>the comment mergemind would leave
+        <span class="tag predicted">not posted</span></h3>
+      <div class="body">
+        <p class="hint" style="margin:0 0 12px">Nothing here has been sent to
+          GitHub. Copy it, or run the command shown underneath — posting is
+          yours to do.</p>
+        <pre id="prComment">—</pre>
+        <p class="hint"><code id="prCommand"></code></p>
+      </div>
     </div>
   </section>
 
-  <section id="agents" hidden>
+  <section id="agents">
     <div class="thesis">
-      <p class="eyebrow">several agents, one repo</p>
-      <h2>Pay for the repo once, not once per agent.</h2>
-      <p>Caching is a prefix match rendered tools → system → messages, so one
-        changed byte near the front invalidates everything after it. The repo
-        half of the context is identical for every agent on this commit, so it
-        goes in front of the breakpoint. Each task goes behind it.</p>
+      <p class="eyebrow">agent orchestration</p>
+      <h2 id="fleetLine">Point several agents at one repo without paying for it twice.</h2>
+      <p>Every agent working here needs the same facts about the repository.
+        Send those once, in the half of the prompt that caches, and give each
+        agent only what is different: its files, its risks, and whatever the
+        other agents have already worked out.</p>
     </div>
+
+    <div class="stats" id="fleetStats" hidden>
+      <div class="stat"><b id="statSaved">—</b><span>tokens not sent</span></div>
+      <div class="stat"><b id="statReuse">—</b><span>prefix reuse</span></div>
+      <div class="stat"><b id="statNotes">—</b><span>findings passed between agents</span></div>
+      <div class="stat"><b id="statCost">—</b><span>per later call</span></div>
+    </div>
+
     <div class="panel">
-      <h3>what each agent is working on</h3>
+      <h3>live right now <span class="tag observed">connected agents</span>
+        <button class="ghost" id="refreshLive">refresh</button></h3>
+      <div class="body" id="liveOut"><p class="loading">looking</p></div>
+    </div>
+
+    <div class="panel">
+      <h3>connect your agents <span class="tag predicted">one-time setup</span>
+        <button class="ghost" data-copy="mcp">copy config</button></h3>
       <div class="body">
-        <input class="field" id="agA" autocomplete="off" placeholder="Add rate limiting to the API">
-        <input class="field" id="agB" autocomplete="off" placeholder="Refactor request handling">
-        <input class="field" id="agC" autocomplete="off" placeholder="third agent, optional">
-        <button class="act" id="runBrief">build the briefs</button>
+        <p class="hint" style="margin:0 0 12px">mergemind speaks MCP, so an
+          agent can ask it things while it works rather than only at startup.
+          Paste this into your agent client's MCP config and every session in
+          this repo joins automatically.</p>
+        <pre id="mcpConfig" class="empty">—</pre>
+        <p class="hint">It gives agents four tools: join the repo, share a
+          finding, check who else is in the same files, and leave.</p>
       </div>
     </div>
+
     <div class="panel">
-      <h3>shared findings <span class="tag observed">between agents</span></h3>
+      <h3>the fleet <span class="tag predicted">one row per agent</span>
+        <button class="ghost" id="addAgent">+ add agent</button></h3>
       <div class="body">
-        <p class="hint" style="margin:0 0 12px">What one agent works out about
-          a file, the next agent sent there is told — in the task half, so the
-          cached prefix stays byte-identical.</p>
-        <div id="usageOut"><p class="empty">No briefs issued yet.</p></div>
+        <div id="fleet"></div>
+        <button class="act" id="runFleet">brief the fleet</button>
+        <p class="hint">Each agent gets its own task section. The repository
+          section is identical for all of them, so it is sent once.</p>
       </div>
     </div>
-    <div class="panel">
-      <h3>token arithmetic</h3>
-      <div class="body" id="briefMath"><p class="empty">Nothing built yet.</p></div>
+
+    <div class="panel" id="collisionPanel" hidden>
+      <h3>agents heading for the same code <span class="tag predicted">predicted</span></h3>
+      <div class="body flush" id="fleetRisks"></div>
     </div>
+
     <div class="panel">
-      <h3>cached prefix <span class="tag observed">same for every agent</span>
+      <h3>what each agent was sent</h3>
+      <div class="body" id="fleetOut"><p class="empty">No briefs built yet.</p></div>
+    </div>
+
+    <div class="panel">
+      <h3>pass a finding to the next agent <span class="tag observed">shared</span></h3>
+      <div class="body">
+        <p class="hint" style="margin:0 0 12px">Record what an agent learned
+          about a file. The next agent sent to that file is told, in the task
+          half — so the cached half never moves.</p>
+        <div class="row">
+          <input class="field" id="noteAgent" placeholder="which agent" style="flex:0 0 150px">
+          <input class="field" id="noteFile" placeholder="path/to/file.py" style="flex:1">
+        </div>
+        <input class="field" id="noteText" placeholder="what it found">
+        <button class="act" id="saveNote">share it</button>
+        <div id="noteOut"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>how the fleet has been used</h3>
+      <div class="body" id="usageOut"><p class="empty">No briefs issued yet.</p></div>
+    </div>
+
+    <div class="panel">
+      <h3>the repository half <span class="tag observed">sent once, cached</span>
         <button class="ghost" data-copy="prefix">copy</button></h3>
       <div class="body"><pre id="briefPrefix" class="empty">—</pre></div>
-    </div>
-    <div class="panel">
-      <h3>after the breakpoint <span class="tag predicted">one per agent</span></h3>
-      <div class="body" id="briefSuffixes"><p class="empty">—</p></div>
     </div>
   </section>
 
@@ -543,7 +662,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
   if (b.dataset.tab === 'history') loadInsights();
-  if (b.dataset.tab === 'agents') loadUsage();
+  if (b.dataset.tab === 'agents') { loadUsage(); loadLive(); }
+  if (b.dataset.tab === 'prs') checkGitHub();
 });
 
 /* ── repo picker ──────────────────────────────────────────── */
@@ -633,6 +753,7 @@ function openFile(path) {
 const closeDrawer = () => {
   $('#drawer').classList.remove('open');
   $('#drawer').setAttribute('aria-hidden', 'true');
+  if (G.focus) { G.focus = null; applyFocus(); }
 };
 $('#drawerClose').onclick = closeDrawer;
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
@@ -657,6 +778,7 @@ function layout(graph) {
   G.links = graph.edges.filter(e => ids.has(e.from) && ids.has(e.to))
     .map(e => ({ s: index[e.from], t: index[e.to] }));
   G.W = W; G.H = H;
+  G.focus = null;
   run(220);
 }
 
@@ -727,30 +849,45 @@ function draw() {
         <title>${esc(n.id)} — imported by ${n.depended_on_by}</title>
       </g>`;
     }).join('');
+  applyFocus();
 }
 
-/* hover lights up a file and everything that imports it */
-$('#graph').addEventListener('mouseover', e => {
-  const g = e.target.closest('.node');
-  if (!g) return;
-  const id = g.dataset.id;
+/* Click to focus a file and everything that imports it. Click it again, or
+   click the empty canvas, to put the graph back. Hover deliberately does
+   nothing: the picture should only change when you ask it to. */
+function applyFocus() {
+  const svg = $('#graph');
+  const id = G.focus;
+  if (!id) {
+    svg.querySelectorAll('.node').forEach(n => n.classList.remove('faded', 'lit'));
+    svg.querySelectorAll('.edge').forEach(l => l.classList.remove('lit'));
+    return;
+  }
   const near = new Set([id]);
   G.links.forEach(l => {
     if (l.s.id === id) near.add(l.t.id);
     if (l.t.id === id) near.add(l.s.id);
   });
-  $('#graph').querySelectorAll('.node').forEach(n =>
-    n.classList.toggle('faded', !near.has(n.dataset.id)));
-  $('#graph').querySelectorAll('.node').forEach(n =>
-    n.classList.toggle('lit', near.has(n.dataset.id)));
-  $('#graph').querySelectorAll('.edge').forEach(l =>
+  svg.querySelectorAll('.node').forEach(n => {
+    const close = near.has(n.dataset.id);
+    n.classList.toggle('faded', !close);
+    n.classList.toggle('lit', close);
+  });
+  svg.querySelectorAll('.edge').forEach(l =>
     l.classList.toggle('lit', l.dataset.s === id || l.dataset.t === id));
-});
-$('#graph').addEventListener('mouseleave', () => {
-  $('#graph').querySelectorAll('.node').forEach(n =>
-    n.classList.remove('faded', 'lit'));
-  $('#graph').querySelectorAll('.edge').forEach(l => l.classList.remove('lit'));
-});
+}
+
+function toggleFocus(id) {
+  if (G.focus === id) {          // same node again: back to normal
+    G.focus = null;
+    applyFocus();
+    closeDrawer();
+    return;
+  }
+  G.focus = id;
+  applyFocus();
+  openFile(id);
+}
 
 /* drag a node; the rest of the graph reacts */
 $('#graph').addEventListener('pointerdown', e => {
@@ -770,7 +907,12 @@ $('#graph').addEventListener('pointermove', e => {
   run(40);
 });
 $('#graph').addEventListener('pointerup', e => {
-  if (G.drag && !G.moved) openFile(G.drag.id);
+  if (G.drag && !G.moved) {
+    toggleFocus(G.drag.id);
+  } else if (!G.drag && !e.target.closest('.node')) {
+    G.focus = null;
+    applyFocus();
+  }
   G.drag = null;
   $('#graph').classList.remove('dragging');
   run(60);
@@ -928,98 +1070,238 @@ $('#runSim').onclick = runSim;
 
 /* ── history ──────────────────────────────────────────────── */
 let BRIEF = null;
+let FLEET = [];
 
-function runBrief() {
-  const tasks = ['#agA', '#agB', '#agC'].map(s => $(s).value.trim()).filter(Boolean);
-  if (!tasks.length) { showBanner('Give at least one agent something to do.'); return; }
-  hideBanner();
-  $('#runBrief').disabled = true;
-  $('#briefMath').innerHTML = '<p class="loading">building</p>';
-  api('brief', { task: tasks }).then(d => {
-    BRIEF = d;
-    const e = d.economics;
-    $('#briefMath').innerHTML = `<table><tbody>
-      <tr><td>cached prefix</td><td class="num">${d.prefix_tokens}</td>
-        <td class="dim">${d.cacheable ? 'over the cache floor' : 'under the cache floor'}</td></tr>
-      ${d.suffixes.map(s => `<tr><td>${esc(s.task)}</td>
-        <td class="num">${s.tokens}</td><td class="dim">sent every call</td></tr>`).join('')}
-      <tr><td>${e.agents} agent(s) reading every code file</td>
-        <td class="num">${e.repo_if_each_agent_reads_every_file.toLocaleString()}</td>
-        <td class="dim">what this replaces</td></tr>
-      <tr><td>brief, first call</td><td class="num">${e.brief_first_call.toLocaleString()}</td>
-        <td class="dim">writes the cache at 1.25×</td></tr>
-      <tr><td><b>brief, cache warm</b></td>
-        <td class="num"><b>${e.brief_per_later_call.toLocaleString()}</b></td>
-        <td class="dim">reads it back at 0.1×</td></tr>
-      </tbody></table>
-      <p style="margin-top:14px"><span class="money good">
-        $${e.dollars_per_later_call}</span>
-        <span class="dim"> per later call, against </span>
-        <span class="money">$${e.dollars_if_each_agent_reads_every_file}</span></p>
-      <p class="hint">${esc(e.note)}</p>
-      ${(d.warnings || []).map(w => `<p class="banner" style="margin-top:12px">${esc(w)}</p>`).join('')}`;
-    $('#briefPrefix').textContent = d.prefix;
-    $('#briefPrefix').className = '';
-    $('#briefSuffixes').innerHTML = d.suffixes.map((s, i) => `
-      <h4 class="eyebrow" style="margin:${i ? '22px' : '0'} 0 8px">
-        ${esc(s.task)} — ${s.tokens} tokens
-        <button class="ghost" data-copy="suffix:${i}">copy</button></h4>
-      <pre>${esc(s.text)}</pre>`).join('');
-    loadUsage();
-  }).catch(() => {
-    $('#briefMath').innerHTML = '<p class="empty">Could not build briefs for that repo.</p>';
-  }).finally(() => { $('#runBrief').disabled = false; });
+/* ── the fleet ──────────────────────────────────────────────── */
+function drawFleet() {
+  $('#fleet').innerHTML = FLEET.map((a, i) => `
+    <div class="agent-row">
+      <input class="field" style="flex:0 0 150px" data-fleet="name" data-i="${i}"
+             value="${esc(a.name)}" placeholder="agent name" autocomplete="off">
+      <input class="field" style="flex:1" data-fleet="task" data-i="${i}"
+             value="${esc(a.task)}" placeholder="what it is working on"
+             autocomplete="off">
+      <button data-remove="${i}" aria-label="remove agent"
+        ${FLEET.length === 1 ? 'disabled' : ''}>remove</button>
+    </div>`).join('');
 }
-$('#runBrief').onclick = runBrief;
-['#agA', '#agB', '#agC'].forEach(s =>
-  $(s).onkeydown = e => { if (e.key === 'Enter') runBrief(); });
 
+function seedFleet() {
+  FLEET = [
+    { name: 'agent-a', task: '' },
+    { name: 'agent-b', task: '' },
+  ];
+  drawFleet();
+}
+
+$('#addAgent').onclick = () => {
+  FLEET.push({ name: `agent-${String.fromCharCode(97 + FLEET.length)}`, task: '' });
+  drawFleet();
+};
+document.addEventListener('input', e => {
+  const f = e.target.closest('[data-fleet]');
+  if (!f) return;
+  FLEET[Number(f.dataset.i)][f.dataset.fleet] = f.target ? '' : f.value;
+  FLEET[Number(f.dataset.i)][f.dataset.fleet] = f.value;
+});
 document.addEventListener('click', e => {
-  const b = e.target.closest('[data-copy]');
-  if (!b || !BRIEF) return;
-  const key = b.dataset.copy;
-  const text = key === 'prefix' ? BRIEF.prefix
-    : BRIEF.suffixes[Number(key.split(':')[1])].text;
-  navigator.clipboard.writeText(text).then(() => {
-    const was = b.textContent;
-    b.textContent = 'copied';
-    setTimeout(() => { b.textContent = was; }, 1200);
-  });
+  const r = e.target.closest('[data-remove]');
+  if (!r) return;
+  FLEET.splice(Number(r.dataset.remove), 1);
+  drawFleet();
 });
 
-$('#loadPrs').onclick = () => {
-  $('#loadPrs').disabled = true;
-  $('#prList').innerHTML = '<p class="loading">asking github</p>';
+$('#runFleet').onclick = () => {
+  const live = FLEET.filter(a => a.task.trim());
+  if (!live.length) { showBanner('Give at least one agent something to do.'); return; }
+  hideBanner();
+  $('#runFleet').disabled = true;
+  $('#fleetOut').innerHTML = '<p class="loading">briefing the fleet</p>';
+
+  // one call per agent, so each is recorded under its own name and is handed
+  // what the others already found
+  const calls = live.map(a =>
+    api('brief', { task: a.task, agent: a.name }).then(d => ({ agent: a, data: d })));
+
+  Promise.all(calls).then(results => {
+    BRIEF = results[0].data;
+    const e = BRIEF.economics;
+    $('#briefPrefix').textContent = BRIEF.prefix;
+    $('#briefPrefix').className = '';
+
+    $('#fleetOut').innerHTML = results.map(({ agent, data }) => {
+      const s = data.suffixes[0];
+      return `<div class="agent-card">
+        <h5>${esc(agent.name)}
+          <span class="dim" style="font-weight:400">${s.tokens} task tokens</span></h5>
+        <div class="dim" style="font:400 12px/1.5 var(--sans)">${esc(agent.task)}</div>
+        ${s.notes_pulled ? `<p class="hint" style="color:var(--observed)">
+          handed ${s.notes_pulled} finding(s) from other agents — it does not
+          have to rediscover them</p>` : ''}
+        <div class="files">${(data.suffixes[0].files || []).map(f =>
+          `<button class="chip" data-file="${esc(f)}">${esc(f)}</button>`).join('')}</div>
+        <p class="hint"><button class="ghost" data-showbrief="${esc(agent.name)}">
+          see what it was sent</button></p>
+        <pre hidden id="brief-${esc(agent.name)}">${esc(s.text)}</pre>
+      </div>`;
+    }).join('');
+
+    $('#fleetStats').hidden = false;
+    $('#statSaved').textContent = e.saved_per_later_call.toLocaleString();
+    $('#statCost').textContent = '$' + e.dollars_per_later_call;
+    $('#statNotes').textContent = results
+      .reduce((n, r) => n + (r.data.suffixes[0].notes_pulled || 0), 0);
+    $('#fleetLine').textContent = live.length + ' agents, one repository, '
+      + e.brief_per_later_call.toLocaleString() + ' tokens a turn.';
+
+    // agents about to edit the same code
+    api('simulate', { task: live.map(a => a.task) }).then(d => {
+      const risks = d.risks || [];
+      $('#collisionPanel').hidden = !risks.length;
+      $('#fleetRisks').innerHTML = risks.map(riskHTML).join('');
+    }).catch(() => {});
+
+    loadUsage();
+  }).catch(() => {
+    $('#fleetOut').innerHTML = '<p class="empty">Could not brief that repo.</p>';
+  }).finally(() => { $('#runFleet').disabled = false; });
+};
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-showbrief]');
+  if (!b) return;
+  const pre = $(`#brief-${CSS.escape(b.dataset.showbrief)}`);
+  pre.hidden = !pre.hidden;
+  b.textContent = pre.hidden ? 'see what it was sent' : 'hide';
+});
+
+$('#saveNote').onclick = () => {
+  const agent = $('#noteAgent').value.trim();
+  const file = $('#noteFile').value.trim();
+  const text = $('#noteText').value.trim();
+  if (!agent || !file || !text) {
+    $('#noteOut').innerHTML = '<p class="status bad">All three fields, please.</p>';
+    return;
+  }
+  api('note', { agent, file, text }).then(d => {
+    $('#noteOut').innerHTML = d.error
+      ? `<p class="status bad">${esc(d.error)}</p>`
+      : `<p class="status good">Saved. The next agent sent to
+         ${esc(file)} gets it.</p>`;
+    $('#noteText').value = '';
+    loadUsage();
+  }).catch(() => {
+    $('#noteOut').innerHTML = '<p class="status bad">That file is not in this repo.</p>';
+  });
+};
+
+/* ── github, in plain words ─────────────────────────────────── */
+function checkGitHub() {
+  $('#prSetup').innerHTML = '<p class="loading">checking</p>';
   api('pr').then(d => {
     const prs = d.pull_requests || [];
-    $('#prList').innerHTML = prs.length ? `<table>
-      <thead><tr><th>#</th><th>title</th><th>author</th><th>base</th></tr></thead>
-      <tbody>${prs.map(p => `<tr><td class="num">${p.number}</td>
-        <td>${esc(p.title)}${p.isDraft ? ' <span class="tag predicted">draft</span>' : ''}</td>
-        <td class="dim">${esc((p.author || {}).login || '?')}</td>
-        <td class="dim">${esc(p.baseRefName || '')}</td></tr>`).join('')}</tbody></table>`
-      : `<p class="empty">No open pull requests on this repo.</p>`;
-    $('#prRisks').innerHTML = (d.risks || []).length
-      ? d.risks.map(riskHTML).join('')
-      : '<p class="empty" style="padding:18px">Nothing overlapping between them.</p>';
-  }).catch(e => {
-    $('#prList').innerHTML = `<p class="empty">GitHub is not reachable for this
-      repo. It needs an origin remote on GitHub and a logged-in gh CLI.</p>`;
-  }).finally(() => { $('#loadPrs').disabled = false; });
-};
+    $('#prSetup').innerHTML = `<p class="status good">Connected. Reading
+      ${prs.length} open pull request(s).</p>
+      <p class="hint">mergemind only reads. To leave a comment you run the
+        command yourself.</p>`;
+    $('#prListPanel').hidden = false;
+    renderPrs(d);
+  }).catch(() => {
+    $('#prSetup').innerHTML = `<p class="status bad">Not connected.</p>
+      <p class="hint">Two things are needed, both outside mergemind:</p>
+      <table style="margin-top:10px"><tbody>
+        <tr><td>a GitHub remote</td><td class="dim">
+          <code>git remote add origin git@github.com:you/repo.git</code></td></tr>
+        <tr><td>the gh CLI, logged in</td><td class="dim">
+          <code>brew install gh &amp;&amp; gh auth login</code></td></tr>
+      </tbody></table>
+      <p class="hint">Everything else on this page works without either.</p>`;
+    $('#prListPanel').hidden = true;
+    $('#prRiskPanel').hidden = true;
+  });
+}
+
+function renderPrs(d) {
+  const prs = d.pull_requests || [];
+  const risks = d.risks || [];
+  $('#prList').innerHTML = prs.length ? `<table>
+    <thead><tr><th>pr</th><th>title</th><th>opened by</th><th>into</th></tr></thead>
+    <tbody>${prs.map(p => `<tr>
+      <td class="num">#${p.number}</td>
+      <td>${esc(p.title)}${p.isDraft ? ' <span class="tag predicted">draft</span>' : ''}</td>
+      <td class="dim">${esc((p.author || {}).login || '?')}</td>
+      <td class="dim">${esc(p.baseRefName || '')}</td></tr>`).join('')}</tbody></table>`
+    : `<p class="empty">No pull requests are open on this repo right now.
+       Open one and it shows up here.</p>`;
+
+  $('#prRiskPanel').hidden = !prs.length;
+  $('#prRisks').innerHTML = risks.length
+    ? risks.map(riskHTML).join('')
+    : `<p class="empty" style="padding:18px">None of these pull requests touch
+       the same code. That is about files and symbols, not behaviour — a clean
+       report is not a promise that nothing breaks.</p>`;
+
+  if (prs.length) {
+    const n = prs[0].number;
+    $('#prCommentPanel').hidden = false;
+    $('#prComment').textContent = risks.length
+      ? risks.filter(r => r.tasks.some(t => t.includes('#' + n)))
+          .map(r => `**${r.risk_level}** \`${r.risk_type}\`\n`
+            + r.evidence.map(e => '- ' + e).join('\n')
+            + `\n\n> ${r.recommendation}`).join('\n\n') || 'No overlap with other open pull requests.'
+      : 'No overlap with other open pull requests.';
+    $('#prCommand').textContent = `mergemind pr --comment ${n}`;
+  }
+}
+$('#loadPrs').onclick = checkGitHub;
+
+const FEED_ICON = { joined: '\u2192', shared: '\u270E', overlap: '!', left: '\u2190' };
+
+function loadLive() {
+  api('sessions').then(d => {
+    const live = d.live || [], events = d.events || [];
+    $('#liveOut').innerHTML = (live.length ? `<table>
+      <thead><tr><th>agent</th><th>working on</th><th>joined</th></tr></thead>
+      <tbody>${live.map(x => `<tr>
+        <td><span class="dot-live"></span>${esc(x.agent)}</td>
+        <td>${esc(x.task || '\u2014')}</td>
+        <td class="dim">${esc((x.joined_at || '').slice(5))}</td></tr>`).join('')}
+      </tbody></table>`
+      : `<p class="empty">No agent sessions connected. Wire the config below
+         into an agent client and every session in this repo shows up here,
+         with what it is working on.</p>`)
+      + (events.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">feed</h4>
+        <div class="feed">${events.map(e => `<div class="feed-row ${esc(e.kind)}">
+          <span class="mark">${FEED_ICON[e.kind] || '\u00B7'}</span>
+          <span class="who">${esc(e.agent)}</span>
+          <span class="what">${esc(e.detail)}</span>
+          <span class="when dim">${esc((e.at || '').slice(11, 16))}</span>
+        </div>`).join('')}</div>` : '');
+  }).catch(() => {
+    $('#liveOut').innerHTML = '<p class="empty">No session history for this repo yet.</p>';
+  });
+}
 
 function loadUsage() {
   api('usage').then(d => {
-    if (!d.briefs) { $('#usageOut').innerHTML =
-      '<p class="empty">No briefs issued yet.</p>'; return; }
+    if (!d.briefs) {
+      $('#usageOut').innerHTML = '<p class="empty">No briefs issued yet.</p>';
+      return;
+    }
+    $('#statReuse').textContent = (d.reuse_rate * 100).toFixed(0) + '%';
+    $('#statSaved').textContent = d.tokens_avoided.toLocaleString();
+    $('#statNotes').textContent = d.notes_pulled;
+    $('#fleetStats').hidden = false;
     $('#usageOut').innerHTML = `<table><tbody>
       <tr><td>briefs issued</td><td class="num">${d.briefs}
         <span class="dim">to ${d.agents} agent(s)</span></td></tr>
-      <tr><td>prefix sent in full</td><td class="num">${d.prefix_first_time}</td></tr>
-      <tr><td>prefix already seen</td><td class="num">${d.prefix_reused}
+      <tr><td>repository half sent in full</td>
+        <td class="num">${d.prefix_first_time}</td></tr>
+      <tr><td>repository half already seen</td><td class="num">${d.prefix_reused}
         <span class="dim">${(d.reuse_rate * 100).toFixed(0)}% reuse</span></td></tr>
-      <tr><td>tokens actually sent</td><td class="num">${d.tokens_sent.toLocaleString()}</td></tr>
-      <tr><td><b>tokens avoided</b></td>
+      <tr><td>tokens actually sent</td>
+        <td class="num">${d.tokens_sent.toLocaleString()}</td></tr>
+      <tr><td><b>tokens not sent</b></td>
         <td class="num"><b>${d.tokens_avoided.toLocaleString()}</b></td></tr>
       <tr><td>findings shared</td><td class="num">${d.notes_written} written,
         ${d.notes_pulled} delivered</td></tr>
@@ -1041,6 +1323,14 @@ function loadUsage() {
       <p class="hint">${esc(d.note)}</p>`;
   }).catch(() => {});
 }
+
+$('#refreshLive').onclick = loadLive;
+
+api('mcp_config').then(d => {
+  window.__mcp = JSON.stringify(d.config, null, 2);
+  $('#mcpConfig').textContent = window.__mcp;
+  $('#mcpConfig').className = '';
+}).catch(() => {});
 
 function loadInsights() {
   api('insights').then(d => {
@@ -1099,6 +1389,9 @@ $('#runBackfill').onclick = () => {
 };
 
 /* ── boot ─────────────────────────────────────────────────── */
+seedFleet();
+loadLive();
+setInterval(loadLive, 8000);
 api('scan').then(d => {
   if (!REPO) { REPO = d.repo; localStorage.setItem('mergemind.repo', REPO); }
   $('#repoPath').value = REPO;
