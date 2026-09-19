@@ -1,0 +1,13 @@
+[project]
+name = "mergemind"
+version = "0.1.0"
+description = "Forecast which parts of a repo a planned task will touch, and where two tasks collide."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+mergemind = "mergemind.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
