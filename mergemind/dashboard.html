@@ -641,12 +641,27 @@ $('#repoPath').addEventListener('change', e => {
 api('repos').then(d => { REPOS = d.repos || []; fillRepoList(); }).catch(() => {});
 
 /* ── risk rendering ───────────────────────────────────────── */
+// plain names for the risk types; the machine name stays in the JSON and the
+// CLI, but nobody reading a dashboard needs to see shared_api_contract
+const RISK_NAME = {
+  shared_api_contract: 'same function, widely used',
+  shared_symbol: 'same function',
+  shared_file: 'same file',
+  api_signature_change: 'a function is changing shape',
+  symbols_relocated: 'code is moving to another file',
+  schema_overlap: 'two database changes at once',
+  regenerated_file_overlap: 'a generated file, edited twice',
+  dependency_collision: 'both changing dependencies',
+  test_impact: 'the same tests',
+  branch_divergence: 'this branch has fallen behind',
+};
+
 function riskHTML(r) {
   const files = r.files || [];
   return `<details class="risk ${r.risk_level}">
     <summary>
       <i class="bar"></i>
-      <span class="headline"><b>${esc(r.risk_type.replace(/_/g, ' '))}</b>
+      <span class="headline"><b>${esc(RISK_NAME[r.risk_type] || r.risk_type.replace(/_/g, ' '))}</b>
         ${files.length ? '· ' + esc(base(files[0])) +
           (files.length > 1 ? ` +${files.length - 1}` : '') : ''}</span>
       <span class="meta">${r.risk_score} · ${r.id}</span>
@@ -1050,7 +1065,9 @@ function planHTML(d) {
       <td>${esc(a.agent)}</td>
       <td>${esc(a.label)}</td>
       <td class="num">${a.files.length}</td>
-      <td class="dim">${esc(a.kind.replace('_', ' '))}</td></tr>`).join('')}
+      <td class="dim">${esc({session: 'live agent', branch: 'branch',
+        pull_request: 'pull request', task: 'typed in'}[a.kind] || a.kind)}</td>
+      </tr>`).join('')}
     </tbody></table>` : ''}
 
     ${d.overlap.length ? `<h4 class="eyebrow" style="margin:14px 0 6px">shared ground</h4>
@@ -1267,7 +1284,7 @@ function loadInsights() {
       </tbody></table>
       ${types.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">by type</h4>
       <table><tbody>${types.map(([k, n]) =>
-        `<tr><td>${esc(k.replace(/_/g, ' '))}</td><td class="num">${n}</td></tr>`).join('')}
+        `<tr><td>${esc(RISK_NAME[k] || k.replace(/_/g, ' '))}</td><td class="num">${n}</td></tr>`).join('')}
       </tbody></table>` : ''}
       <p class="hint">${esc(d.accuracy)}</p>`;
   }).catch(() => { $('#insOut').innerHTML = '<p class="empty">No history for this repo.</p>'; });
