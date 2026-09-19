@@ -385,6 +385,7 @@ def analyze_change(repo, base, head, label="", agent=None, task=None,
                 "shared_files": shared,
             })
 
+    terms = contract_terms(repo, changed, repo_path, fork, head)
     scored = score_change(repo, change, failures, crit, overlap)
     hot = sorted(
         ((churn(repo_path, f), f) for f in changed if f in repo["files"]),
@@ -412,6 +413,7 @@ def analyze_change(repo, base, head, label="", agent=None, task=None,
         "potential_failures": sorted(
             failures, key=lambda f: -SEVERITY_WEIGHT.get(f["severity"], 0)),
         "concurrent_overlap": overlap,
+        "contract_terms": {k: sorted(v) for k, v in terms.items()},
         "history": [{"file": f, "commits": n} for n, f in hot if n],
         **scored,
         "recommendations": recommend(failures, overlap, contradictions),
@@ -441,6 +443,52 @@ def recommend(failures, overlap, contradictions):
     return out[:6]
 
 
+def contract_terms(repo, change_files, repo_path, base, head):
+    """Field names a change touches that also appear in stored-data files.
+
+    Two changes can meet without sharing a file or an import: one alters the
+    column, another stops sending it. The only thing they have in common is
+    the name of the field, so that is what this looks for — and only names
+    that really appear in a schema file, so it stays evidence rather than
+    word association.
+    """
+    schema_text = ""
+    for path in repo.get("schema_files", []):
+        try:
+            schema_text += (Path(repo["repo"]) / path).read_text(errors="replace")
+        except OSError:
+            continue
+    columns = set(re.findall(r"^\s*(\w+)\s+(?:TEXT|INTEGER|VARCHAR|BOOLEAN|"
+                             r"TIMESTAMP|INT|SERIAL|UUID|NUMERIC)",
+                             schema_text, re.M | re.I))
+    columns |= set(re.findall(r"\b(\w+)\s+(?:IS\s+NOT\s+NULL|SET\s+NOT\s+NULL|"
+                              r"IS\s+NULL)", schema_text, re.I))
+    if not columns:
+        return set()
+    def terms_in(paths):
+        if not paths:
+            return set()
+        try:
+            patch = git(repo_path, "diff", "--unified=0", f"{base}..{head}",
+                        "--", *paths)
+        except Exception:
+            return set()
+        changed_lines = "\n".join(
+            line for line in patch.splitlines()
+            if line[:1] in "+-" and not line.startswith(("+++", "---"))
+        )
+        words = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", changed_lines))
+        return {c for c in columns if c in words}
+
+    stored = [f for f in change_files if f in repo.get("schema_files", [])]
+    return {
+        "mentioned": terms_in(list(change_files)),
+        # a field whose stored definition changed is the one that matters; the
+        # rest are just words that happen to appear in both diffs
+        "stored": terms_in(stored),
+    }
+
+
 def interactions(analyses):
     """Changes that are individually calm and jointly dangerous.
 
@@ -462,7 +510,15 @@ def interactions(analyses):
             b_reach = set(b["blast_radius"]["direct"]) | set(b["changed_files"])
             shared_reach = sorted(a_reach & b_reach)
 
-            if not (shared_files or shared_syms or shared_reach):
+            # both changes mention it, and at least one of them alters how it
+            # is stored — otherwise "id" and "name" match everything
+            mentioned = (set(a.get("contract_terms", {}).get("mentioned", ()))
+                         & set(b.get("contract_terms", {}).get("mentioned", ())))
+            anchored = (set(a.get("contract_terms", {}).get("stored", ()))
+                        | set(b.get("contract_terms", {}).get("stored", ())))
+            shared_contract = sorted(mentioned & anchored)
+
+            if not (shared_files or shared_syms or shared_reach or shared_contract):
                 continue
 
             worst = max(a["risk_score"], b["risk_score"])
@@ -481,6 +537,14 @@ def interactions(analyses):
                     "they do not touch the same files, but they meet at "
                     + ", ".join(shared_reach[:3])
                 )
+            if shared_contract:
+                combined += 14
+                evidence.append(
+                    "both touch "
+                    + ", ".join(shared_contract[:3])
+                    + ", and one of them changes how it is stored — they are "
+                    "approaching the same field from different sides"
+                )
             a_kinds = {f["title"].split()[0] for f in a["potential_failures"]}
             b_kinds = {f["title"].split()[0] for f in b["potential_failures"]}
             if "Stored" in a_kinds and "Stored" not in b_kinds and shared_reach:
@@ -490,17 +554,23 @@ def interactions(analyses):
                     "code that reads it"
                 )
 
-            combined = min(combined, 100)
+            # 100 would claim certainty the evidence does not support
+            combined = min(combined, 97)
             found.append({
                 "between": [a["label"], b["label"]],
                 "agents": [a.get("agent"), b.get("agent")],
                 "shared_files": shared_files,
                 "shared_symbols": shared_syms,
                 "meeting_points": shared_reach[:6],
+                "shared_contract": shared_contract,
                 "individual": [a["risk_score"], b["risk_score"]],
                 "combined_score": combined,
                 "combined_band": band(combined),
-                "escalates": band(combined) != band(worst),
+                # worse together than apart — either the band moves, or the
+                # score moves far enough that treating them separately would
+                # have understated it. Band alone misses 83 and 1 becoming 97.
+                "escalates": band(combined) != band(worst)
+                             or combined - worst >= 12,
                 "evidence": evidence,
             })
     return sorted(found, key=lambda i: -i["combined_score"])

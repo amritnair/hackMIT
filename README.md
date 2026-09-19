@@ -3,13 +3,13 @@
 Two people pick up two tickets on Monday. Nobody finds out they both rewrite
 the same auth helper until Thursday, when one of them rebases.
 
-mergemind tries to move that discovery to Monday. You give it a repo and a
+Prophecy tries to move that discovery to Monday. You give it a repo and a
 sentence describing work that does not exist yet — no branch, no diff, no
 code — and it tells you which files and functions that work will probably
 land on, and where two such sentences collide.
 
 ```
-$ mergemind simulate "Add rate limiting to the API" "Add authentication middleware"
+$ prophecy simulate "Add rate limiting to the API" "Add authentication middleware"
 
 "Add rate limiting to the API"  confidence 0.71
     5.0  api/middleware.py
@@ -125,30 +125,30 @@ Python 3.10 or newer, no dependencies.
 ```
 pip install -e .
 
-mergemind scan                     # what is in the repo
-mergemind status                   # what every branch is doing
-mergemind plan "Add SMS reminders" # forecast one task
-mergemind predict                  # risks between existing branches
-mergemind simulate "task one" "task two" --branch some-branch
-mergemind context "Add rate limiting" --against "Refactor request handling"
-mergemind brief "task one" "task two"   # cache-shaped context per agent
-mergemind brief "task" --request        # a Messages request, breakpoint placed
-mergemind explain R2fa01f          # one risk in full, from any earlier run
-mergemind verify some-branch --test "pytest"
-mergemind insights
-mergemind serve                    # dashboard on localhost:8000
+Prophecy scan                     # what is in the repo
+Prophecy status                   # what every branch is doing
+Prophecy plan "Add SMS reminders" # forecast one task
+Prophecy predict                  # risks between existing branches
+Prophecy simulate "task one" "task two" --branch some-branch
+Prophecy context "Add rate limiting" --against "Refactor request handling"
+Prophecy brief "task one" "task two"   # cache-shaped context per agent
+Prophecy brief "task" --request        # a Messages request, breakpoint placed
+Prophecy explain R2fa01f          # one risk in full, from any earlier run
+Prophecy verify some-branch --test "pytest"
+Prophecy insights
+Prophecy serve                    # dashboard on localhost:8000
 ```
 
 The dashboard is one HTML file served by the standard library. There is no
 build step and no node_modules. The repo field in its header takes any git
 repo on the machine, so you do not have to restart the server to look at a
-different one. State goes in `.mergemind/mergemind.db`.
+different one. State goes in `.prophecy/prophecy.db`.
 
 `-C <path>` points it at another repo. `--json` on any command gives you the
 whole structure instead of the summary.
 
 ```
-python test_mergemind.py
+python test_prophecy.py
 ```
 
 builds a small fixture repo in a temp directory and runs the pipeline over it.

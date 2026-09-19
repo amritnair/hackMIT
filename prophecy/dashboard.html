@@ -307,9 +307,7 @@
   </form>
   <nav id="tabs" hidden>
     <button data-tab="team" aria-selected="true">Team</button>
-    <button data-tab="task">Plan a task</button>
-    <button data-tab="simulate">Clashes</button>
-    <button data-tab="prs">Pull requests</button>
+    <button data-tab="changes">Changes</button>
     <button data-tab="overview">Code map</button>
     <button data-tab="history">Track record</button>
     <button data-tab="setup">Settings</button>
@@ -440,6 +438,12 @@
     </div>
 
     <div class="card">
+      <h3>The team <span class="tag observed" id="peopleCount"></span>
+        <button class="btn small secondary" id="managePeople">Add someone</button></h3>
+      <div class="body" id="teamRoster"><p class="loading">reading</p></div>
+    </div>
+
+    <div class="card">
       <h3>Who is working here <span class="tag observed">live</span>
         <button class="btn small secondary" id="refreshLive">Refresh</button></h3>
       <div class="body" id="liveOut"><p class="loading">looking</p></div>
@@ -463,85 +467,89 @@
     </div>
   </section>
 
-  <section id="task" hidden>
+  <section id="changes" hidden>
     <div class="hero" style="padding:42px 0 4px">
-      <p class="eyebrow">Product moment</p>
-      <h2 class="title">Where would this land?</h2>
-      <p class="lede">Describe work nobody has started. Prophecy matches it against
-        what is really in the project, and lists anything it cannot ground.</p>
+      <h2 class="title">What could this break?</h2>
+      <p class="lede">Every branch and pull request in flight, scored against
+        the rest of the codebase and against each other. Not "is there a bug in
+        this diff" — "given everything else happening here, what are the
+        consequences of this one".</p>
     </div>
+
+    <div class="headline-stat" id="repoRiskCard" hidden>
+      <div class="money" id="repoRisk">—
+        <small id="repoRiskLabel">across everything in flight</small></div>
+      <div class="sub-stats">
+        <div><b id="riskChanges">0</b><span>changes in flight</span></div>
+        <div><b id="riskMeets">0</b><span>places they meet</span></div>
+        <div><b id="riskEscalate">0</b><span>worse together than apart</span></div>
+      </div>
+    </div>
+
     <div class="card">
-      <h3>Describe the work</h3>
+      <h3>In flight now
+        <button class="btn small secondary" id="loadRisk">Analyze</button></h3>
+      <div class="body flush" id="changeList"><p class="empty"
+        style="padding:18px">Nothing analyzed yet.</p></div>
+    </div>
+
+    <div class="card" id="meetPanel" hidden>
+      <h3>Where they meet <span class="tag predicted">combined risk</span></h3>
+      <div class="body flush" id="meetList"></div>
+    </div>
+
+    <div class="card">
+      <h3>Check something specific</h3>
+      <div class="body">
+        <input class="field" id="analyzeTarget"
+               placeholder="a branch, a commit, or main...my-branch">
+        <button class="btn small" id="runAnalyze">Analyze it</button>
+        <p class="hint">The same thing an agent gets from
+          <code>analyze_change</code> before it commits.</p>
+        <div id="analyzeOut"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Work that has not started yet <span class="tag predicted">a guess</span></h3>
       <div class="body">
         <input class="field" id="taskInput" autocomplete="off"
                placeholder="Add rate limiting to the API">
-        <button class="btn small" id="runTask">Forecast</button>
+        <button class="btn small secondary" id="runTask">Forecast where it lands</button>
         <label class="toggle"><input type="checkbox" id="taskLlm">
           also ask a model</label>
+        <div id="taskOut" style="margin-top:12px"><p class="empty">Describe
+          something nobody has written yet and it will be matched against what
+          is really here.</p></div>
       </div>
     </div>
-    <div class="card">
-      <h3>Where it would land <span class="tag predicted">a guess</span></h3>
-      <div class="body" id="taskOut"><p class="empty">Nothing forecast yet.</p></div>
-    </div>
-  </section>
 
-  <section id="simulate" hidden>
-    <div class="hero" style="padding:42px 0 4px">
-      <p class="eyebrow">Demo moment</p>
-      <h2 class="title">Two changes, one collision</h2>
-      <p class="lede">Each is forecast on its own, then checked against the
-        others. Same file is worth knowing; the same function in a widely
-        imported module is worth a conversation.</p>
-    </div>
     <div class="card">
-      <h3>Things happening at once</h3>
-      <div class="body">
-        <input class="field" id="simA" placeholder="Add rate limiting to the API">
-        <input class="field" id="simB" placeholder="Add authentication middleware">
-        <input class="field" id="simC" placeholder="third thing, optional">
-        <button class="btn small" id="runSim">Compare</button>
-        <p class="hint" id="simBranchHint"></p>
-      </div>
-    </div>
-    <div class="card">
-      <h3>Where they clash <span class="tag predicted">a guess</span></h3>
-      <div class="body flush" id="simOut"><p class="empty" style="padding:18px">Nothing compared yet.</p></div>
-    </div>
-    <div class="card">
-      <h3>Ways to order the work</h3>
-      <div class="body" id="stratOut"><p class="empty">—</p></div>
-    </div>
-  </section>
-
-  <section id="prs" hidden>
-    <div class="hero" style="padding:42px 0 4px">
-      <h2 class="title">Open pull requests, compared</h2>
-      <p class="lede">A pull request is a branch with a description, so the same
-        engine reads it. Read-only: nothing is posted unless you run the
-        command yourself.</p>
-    </div>
-    <div class="card">
-      <h3>GitHub <button class="btn small secondary" id="loadPrs">Refresh</button></h3>
+      <h3>From GitHub <button class="btn small secondary" id="loadPrs">Refresh</button></h3>
       <div class="body" id="prSetup"><p class="loading">checking</p></div>
     </div>
     <div class="card" id="prListPanel" hidden>
-      <h3>Open pull requests <span class="tag observed">from GitHub</span></h3>
+      <h3>Open pull requests</h3>
       <div class="body" id="prList"></div>
     </div>
     <div class="card" id="prRiskPanel" hidden>
-      <h3>Where they overlap <span class="tag predicted">a guess</span></h3>
+      <h3>Where the pull requests overlap</h3>
       <div class="body flush" id="prRisks"></div>
     </div>
     <div class="card" id="prCommentPanel" hidden>
       <h3>The comment I would leave <span class="tag predicted">not posted</span></h3>
       <div class="body">
         <p class="hint" style="margin:0 0 12px">Nothing here has been sent to
-          GitHub. Copy it, or run the command below — posting is yours to do.</p>
+          GitHub. Posting is yours to do.</p>
         <pre id="prComment">—</pre>
         <p class="hint"><code id="prCommand"></code></p>
       </div>
     </div>
+
+    <div id="simOut" hidden></div><div id="stratOut" hidden></div>
+    <div id="simA" hidden></div><div id="simB" hidden></div>
+    <div id="simC" hidden></div><div id="simBranchHint" hidden></div>
+    <div id="runSim" hidden></div>
   </section>
 
   <section id="overview" hidden>
@@ -611,12 +619,12 @@ const base = n => n.split('/').pop();
 
 let REPO = new URLSearchParams(location.search).get('repo')
   || localStorage.getItem('prophecy.repo')
-  || localStorage.getItem('mergemind.repo') || '';
+  || localStorage.getItem('prophecy.repo') || '';
 let CONTESTED = new Set();
 
 function lsGet(key, fallback = null) {
   return localStorage.getItem('prophecy.' + key)
-    || localStorage.getItem('mergemind.' + key)
+    || localStorage.getItem('prophecy.' + key)
     || fallback;
 }
 function lsSet(key, value) {
@@ -644,9 +652,11 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
   if (b.dataset.tab === 'history') loadInsights();
-  if (b.dataset.tab === 'team') { loadUsage(); loadLive(); loadPlan(false); }
+  if (b.dataset.tab === 'team') {
+    loadUsage(); loadLive(); loadPlan(false); loadRoster();
+  }
   if (b.dataset.tab === 'setup') loadSetup();
-  if (b.dataset.tab === 'prs') checkGitHub();
+  if (b.dataset.tab === 'changes') { loadRisk(); checkGitHub(); }
 });
 
 /* ── repo picker ──────────────────────────────────────────────
@@ -705,7 +715,7 @@ function showApp(open) {
       x.setAttribute('aria-selected', String(x.dataset.tab === 'team')));
     document.querySelectorAll('main section').forEach(s =>
       s.hidden = s.id !== 'team');
-    loadUsage(); loadLive(); loadPlan(false);
+    loadUsage(); loadLive(); loadPlan(false); loadRoster();
   }
 }
 
@@ -1431,6 +1441,167 @@ function loadLive() {
     $('#liveOut').innerHTML = '<p class="empty">No session history for this repo yet.</p>';
   });
 }
+
+const RISK_CLASS = { critical: 'high', high: 'high', medium: 'medium', low: '' };
+
+function severityTag(sev) {
+  return `<span class="tag${sev === 'critical' || sev === 'high'
+    ? '' : ''}" style="color:${
+    sev === 'critical' ? 'var(--bad)' : sev === 'high' ? 'var(--bad)'
+    : sev === 'medium' ? 'var(--warn)' : 'var(--text-3)'}">${esc(sev)}</span>`;
+}
+
+function analysisHTML(a) {
+  return `<details class="risk ${RISK_CLASS[a.risk_band] || ''}">
+    <summary>
+      <i class="bar"></i>
+      <span class="headline"><b>${a.risk_score}</b> ${esc(a.risk_band)}
+        · ${esc(a.label)}</span>
+      <span class="meta">${a.risk_range.min}–${a.risk_range.max} ·
+        ${Math.round(a.confidence * 100)}% sure</span>
+      <span class="between">${esc(a.agent || 'unattributed')} ·
+        ${a.changed_files.length} file(s) ·
+        blast radius ${esc(a.blast_radius.size)}</span>
+    </summary>
+    <div class="detail">
+      ${a.intent_contradictions.length ? `<p class="rec" style="border-color:var(--bad)">
+        ${a.intent_contradictions.map(esc).join(' ')}</p>` : ''}
+      ${a.potential_failures.length ? `<h4 class="hint"
+        style="font-weight:600;color:var(--text-2);margin:4px 0 6px">What could break</h4>
+      <table><tbody>${a.potential_failures.map(f => `<tr>
+        <td style="width:88px">${severityTag(f.severity)}</td>
+        <td><b>${esc(f.title)}</b><div class="dim">${esc(f.detail)}</div>
+        ${f.affected.length ? `<div style="margin-top:5px">${f.affected.slice(0, 5)
+          .map(x => `<button class="chip" data-file="${esc(x)}">${esc(x)}</button>`)
+          .join(' ')}</div>` : ''}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${a.criticality_evidence.length ? `<h4 class="hint"
+        style="font-weight:600;color:var(--text-2);margin:14px 0 6px">Why this code matters</h4>
+        <ul>${a.criticality_evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
+      ${a.concurrent_overlap.length ? `<h4 class="hint"
+        style="font-weight:600;color:var(--text-2);margin:14px 0 6px">At the same time</h4>
+        <ul>${a.concurrent_overlap.map(o => `<li>${esc(o.agent)} on
+          ${esc(o.with)}: ${o.shared_files.slice(0, 3).map(esc).join(', ')}</li>`)
+          .join('')}</ul>` : ''}
+      <h4 class="hint" style="font-weight:600;color:var(--text-2);margin:14px 0 6px">
+        What is not known</h4>
+      <ul>${a.uncertainty.map(u => `<li>${esc(u)}</li>`).join('')}</ul>
+      ${a.recommendations.length ? a.recommendations.map(r =>
+        `<p class="rec">${esc(r)}</p>`).join('') : ''}
+    </div>
+  </details>`;
+}
+
+function renderRisk(d) {
+  const o = d.repository, changes = d.changes || [], meets = d.interactions || [];
+  $('#repoRiskCard').hidden = false;
+  $('#repoRisk').childNodes[0].nodeValue = o.score + ' ';
+  $('#repoRiskLabel').textContent = o.band + ' across everything in flight';
+  $('#riskChanges').textContent = o.changes || changes.length;
+  $('#riskMeets').textContent = meets.length;
+  $('#riskEscalate').textContent = o.escalating || 0;
+
+  $('#changeList').innerHTML = changes.length
+    ? changes.map(analysisHTML).join('')
+    : `<p class="empty" style="padding:18px">No branches in flight. Every
+       branch here matches the base.</p>`;
+
+  $('#meetPanel').hidden = !meets.length;
+  $('#meetList').innerHTML = meets.map(i => `<div class="risk ${
+    i.combined_band === 'critical' || i.combined_band === 'high' ? 'high'
+      : i.combined_band === 'medium' ? 'medium' : ''}">
+    <div style="padding:14px 20px 14px 23px">
+      <div class="headline"><b>${i.combined_score}</b> ${esc(i.combined_band)}
+        together ${i.escalates
+          ? '<span class="tag" style="color:var(--bad)">worse than apart</span>'
+          : ''}</div>
+      <div class="between" style="margin:3px 0 6px">
+        ${i.between.map(esc).join('  ·  ')} — on their own
+        ${i.individual.join(' and ')}</div>
+      <ul>${i.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
+    </div></div>`).join('');
+}
+
+function loadRisk() {
+  $('#loadRisk').disabled = true;
+  $('#changeList').innerHTML = '<p class="loading" style="padding:18px">reading every branch</p>';
+  api('risk').then(renderRisk).catch(() => {
+    $('#changeList').innerHTML = '<p class="empty" style="padding:18px">Could not read that project.</p>';
+  }).finally(() => { $('#loadRisk').disabled = false; });
+}
+$('#loadRisk').onclick = loadRisk;
+
+$('#runAnalyze').onclick = () => {
+  const target = $('#analyzeTarget').value.trim();
+  if (!target) { showBanner('Which branch or commit?'); return; }
+  hideBanner();
+  $('#analyzeOut').innerHTML = '<p class="loading">analyzing</p>';
+  api('analyze', { target }).then(a => {
+    $('#analyzeOut').innerHTML = `<div style="margin-top:12px">${analysisHTML(a)}</div>`;
+  }).catch(() => {
+    $('#analyzeOut').innerHTML = '<p class="empty">Could not read that.</p>';
+  });
+};
+$('#analyzeTarget').onkeydown = e => { if (e.key === 'Enter') $('#runAnalyze').click(); };
+
+function loadRoster() {
+  Promise.all([
+    api('people').catch(() => ({ people: [] })),
+    api('risk').catch(() => ({ changes: [] })),
+    api('sessions').catch(() => ({ live: [] })),
+  ]).then(([p, r, s]) => {
+    const people = p.people || [], changes = r.changes || [], live = s.live || [];
+    $('#peopleCount').textContent = people.length
+      ? `${people.length} on the project` : 'nobody added yet';
+
+    // everyone the project knows about, whether they were added by hand or
+    // just showed up in the git history
+    const seen = new Map();
+    people.forEach(x => seen.set(x.name, {
+      name: x.name, github: x.github, role: x.role, work: [], sessions: [],
+    }));
+    changes.forEach(c => {
+      const who = c.agent || 'unattributed';
+      if (!seen.has(who)) seen.set(who, { name: who, github: '', role: '',
+        work: [], sessions: [] });
+      seen.get(who).work.push(c);
+    });
+    live.forEach(x => {
+      if (!seen.has(x.agent)) seen.set(x.agent, { name: x.agent, github: '',
+        role: 'agent', work: [], sessions: [] });
+      seen.get(x.agent).sessions.push(x);
+    });
+
+    const rows = [...seen.values()];
+    $('#teamRoster').innerHTML = rows.length ? `<table>
+      <thead><tr><th>who</th><th>working on</th><th>riskiest</th>
+        <th>status</th></tr></thead>
+      <tbody>${rows.map(x => {
+        const worst = x.work.reduce((m, c) =>
+          !m || c.risk_score > m.risk_score ? c : m, null);
+        const items = [...x.work.map(c => c.label),
+                       ...x.sessions.map(c => c.task)];
+        return `<tr>
+          <td><b>${esc(x.name)}</b>${x.github
+            ? `<div class="dim mono">@${esc(x.github)}</div>` : ''}</td>
+          <td class="dim">${items.length
+            ? items.slice(0, 3).map(esc).join('<br>') : 'nothing in flight'}</td>
+          <td>${worst ? `<span style="color:${
+            worst.risk_band === 'critical' || worst.risk_band === 'high'
+              ? 'var(--bad)' : worst.risk_band === 'medium'
+              ? 'var(--warn)' : 'var(--text-3)'}">${worst.risk_score} ${
+            esc(worst.risk_band)}</span>` : '<span class="dim">—</span>'}</td>
+          <td class="dim">${x.sessions.length
+            ? '<span class="dot-live"></span>working now'
+            : x.role ? esc(x.role) : 'idle'}</td></tr>`;
+      }).join('')}</tbody></table>`
+      : `<p class="empty">Nobody yet. People show up here once they have a
+         branch, an open pull request, or a connected agent.</p>`;
+  });
+}
+$('#managePeople').onclick = () => {
+  document.querySelector('nav button[data-tab=setup]').click();
+  setTimeout(() => $('#personName') && $('#personName').focus(), 150);
+};
 
 function loadUsage() {
   api('usage').then(d => {

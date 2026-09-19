@@ -96,6 +96,8 @@ class Handler(BaseHTTPRequestHandler):
             name=query.get("name", [""])[0],
             github=query.get("github", [""])[0],
             role=query.get("role", [""])[0],
+            target=query.get("target", ["HEAD"])[0],
+            max=int(query.get("max", ["70"])[0]),
             config=False,
             limit=int(query.get("limit", ["25"])[0]),
             ref=query.get("ref", ["HEAD"])[0],

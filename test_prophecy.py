@@ -9,6 +9,7 @@ from pathlib import Path
 
 import prophecy
 from prophecy import agent, backfill, branches, llm, mcp, merge, store
+from prophecy import demo, risk_engine
 
 FIXTURE = {
     "api/middleware.py": (
@@ -106,6 +107,8 @@ def main():
         check_sharing(root, repo)
         check_mcp(root)
 
+    check_risk_engine()
+
     print("ok")
 
 
@@ -128,8 +131,12 @@ def check_mcp(root):
     )
     assert init["result"]["serverInfo"]["name"] == "prophecy"
     names = {t["name"] for t in listed["result"]["tools"]}
-    assert names == {"join_repo_session", "share_finding", "check_overlap",
-                     "leave_repo_session"}, names
+    assert {"join_repo_session", "share_finding", "check_overlap",
+            "leave_repo_session"} <= names, names
+    assert {"analyze_change", "get_repository_risk", "get_change_interactions",
+            "get_dependency_context"} <= names, names
+    for tool in listed["result"]["tools"]:
+        assert tool["description"].strip(), tool["name"]
 
     def call(tool, **args):
         reply = rpc(root, {"jsonrpc": "2.0", "id": 9, "method": "tools/call",
@@ -440,6 +447,78 @@ def check_branches(root, repo):
     assert store.insights(db)["merges_run"] == 1
     assert store.insights(db)["merges_replayed"] == 1
 
+
+
+
+def check_risk_engine():
+    """The four scenarios from the brief, against a repository built for them.
+
+    The one that matters most is the last: a tool that calls everything risky
+    is no more useful than one that calls nothing risky.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "app"
+        built = demo.build(root)
+        assert "error" not in built, built
+        repo = prophecy.scan(root)
+
+        # 1 — a field stops being optional while callers still omit it
+        a = risk_engine.analyze_change(repo, "main", "agent-a/require-email",
+                                       label="A", agent="ada")
+        assert a["risk_band"] == "critical", a["risk_score"]
+        assert a["risk_range"]["min"] < a["risk_score"] < a["risk_range"]["max"]
+        titles = " ".join(f["title"] for f in a["potential_failures"])
+        assert "create_user no longer accepts a missing email" in titles, titles
+        hit = next(f for f in a["potential_failures"] if "create_user" in f["title"])
+        assert "api/signup.py" in hit["affected"], hit
+        assert hit["severity"] == "critical"
+        # every score carries the evidence that produced it
+        assert a["criticality_evidence"] and a["uncertainty"]
+        assert 0 < a["confidence"] <= 0.92
+
+        # 2 — the message says one thing, the diff does another
+        contradicted = risk_engine.analyze_change(
+            repo, "main", "agent-a/require-email", label="A",
+            stated_intent="make email optional during signup")
+        assert contradicted["intent_contradictions"], contradicted["intent"]
+
+        # 3 — two changes that are quiet alone and loud together
+        b = risk_engine.analyze_change(repo, "main", "agent-b/signup-redesign",
+                                       label="B", agent="grace")
+        c = risk_engine.analyze_change(repo, "main", "agent-c/user-cleanup",
+                                       label="C", agent="linus")
+        assert b["risk_band"] == "low" and c["risk_band"] == "low", (b, c)
+        found = risk_engine.interactions([a, b, c])
+        assert found, "no interaction found between three related changes"
+        top = found[0]
+        assert top["combined_score"] > max(top["individual"])
+        assert top["escalates"], top
+        assert top["evidence"], top
+        # they meet without editing the same file, which is the whole point
+        pair = next((i for i in found if not i["shared_files"]), None)
+        assert pair and pair["meeting_points"], found
+
+        overall = risk_engine.repository_risk([a, b, c], found)
+        assert overall["band"] == "critical", overall
+        assert overall["drivers"]
+
+        # 4 — an isolated change stays quiet
+        run = lambda *args: subprocess.run(["git", "-C", str(root), *args],
+                                           check=True, capture_output=True)
+        run("checkout", "-qb", "quiet", "main")
+        (root / "README.md").write_text("# demo app\n\nA sentence.\n")
+        run("add", "-A")
+        run("commit", "-qm", "Reword the readme")
+        run("checkout", "-q", "main")
+        quiet = risk_engine.analyze_change(repo, "main", "quiet", label="quiet")
+        assert quiet["risk_band"] == "low", quiet
+        assert not quiet["potential_failures"], quiet["potential_failures"]
+
+        # the dependency picture behind the score
+        layers = risk_engine.blast_radius(repo, ["app/models.py"])
+        assert "api/signup.py" in layers[0]
+        crit, signals = risk_engine.criticality(repo, "app/models.py", layers)
+        assert crit > 0 and signals
 
 if __name__ == "__main__":
     main()

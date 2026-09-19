@@ -1,6 +1,6 @@
 # grading the forecast against real merge history
 
-`mergemind backfill` replays merges that already happened. For each two-parent
+`prophecy backfill` replays merges that already happened. For each two-parent
 merge commit it finds the point where the two sides diverged, scans the repo
 as it was *at that commit*, forecasts from the two sets of changes, and then
 re-runs the merge in a scratch worktree to see what git makes of it. The
@@ -116,7 +116,7 @@ nothing here predicts how.
 
 ```bash
 git clone https://github.com/pallets/flask.git
-mergemind -C flask backfill --limit 250
+prophecy -C flask backfill --limit 250
 ```
 
 About six minutes. Every intermediate merge runs in a temporary worktree and

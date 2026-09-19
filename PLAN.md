@@ -40,7 +40,7 @@ repo that actually has services.
 
 ## the calibration result, and what it costs us
 
-`mergemind backfill` is built, and it changed what this project can honestly
+`prophecy backfill` is built, and it changed what this project can honestly
 claim. See the README for how it works and `BACKFILL.md` for the run.
 
 The short version: against real merge history, the risk *level* does not
@@ -72,7 +72,7 @@ earned the word "calibrated", and the tool should keep saying so.
 ## absent
 
 **GitHub and Linear.** `verify` already does the hard part; a GitHub Action
-is `mergemind predict --json` plus a comment-posting step, and PR analysis is
+is `prophecy predict --json` plus a comment-posting step, and PR analysis is
 branch analysis with a different name. Linear is an API call that turns
 issues into the task strings `plan` already takes. Both are afternoon jobs
 and neither proves anything the CLI does not already prove, which is why they
@@ -106,7 +106,7 @@ Worth knowing before anyone tries: **the dashboard is static, the engine is
 not.** Everything interesting shells out to git against a real checkout, so
 it cannot run on a serverless host with no repo on disk. Three options:
 
-1. **Local, as designed.** `mergemind serve`. This is the honest demo.
+1. **Local, as designed.** `prophecy serve`. This is the honest demo.
 2. **Static dashboard on Vercel, data baked in.** Run the commands, dump the
    JSON, ship dashboard + JSON as a static site. Deploys free, demos fine,
    but it is a recording, not a tool.

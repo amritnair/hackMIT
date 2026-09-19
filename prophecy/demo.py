@@ -70,7 +70,7 @@ def signup(request):
     "web/signup_form.js": '''import { post } from "./client.js";
 
 export function submitSignup(form) {
-  return post("/signup", { id: form.id, name: form.name });
+  return post("/signup", { id: form.id, name: form.name, email: form.email });
 }
 ''',
     "web/client.js": '''export function post(path, body) {
@@ -125,8 +125,9 @@ BRANCHES = {
         "author": "grace",
         "edits": {
             "web/signup_form.js": lambda s: s.replace(
-                'return post("/signup", { id: form.id, name: form.name });',
-                'return post("/signup", { id: form.id });'),
+                'return post("/signup", { id: form.id, name: form.name, '
+                'email: form.email });',
+                'return post("/signup", { id: form.id, name: form.name });'),
             "api/signup.py": lambda s: s.replace(
                 'def signup(request):',
                 'def signup(request, source="web"):'),

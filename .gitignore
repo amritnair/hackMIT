@@ -1,5 +1,4 @@
-__pycache__/
 *.pyc
-.venv/
-.mergemind/
 .prophecy/
+.venv/
+__pycache__/
