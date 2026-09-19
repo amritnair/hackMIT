@@ -164,12 +164,14 @@ function forecastHTML(f) {
 
 function drawGraph(graph) {
   const svg = $('#graph');
-  const top = graph.nodes.filter(n => n.depended_on_by || n.symbols)
-    .sort((a, b) => b.depended_on_by - a.depended_on_by).slice(0, 24);
+  // Only the files anything actually depends on, and only enough of them to
+  // stay readable. A hairball of 80 nodes tells you nothing.
+  const top = graph.nodes.filter(n => n.depended_on_by > 0)
+    .sort((a, b) => b.depended_on_by - a.depended_on_by).slice(0, 16);
   const pos = {}, cx = 450, cy = 210;
   top.forEach((n, i) => {
     const a = (i / top.length) * Math.PI * 2 - Math.PI / 2;
-    pos[n.id] = [cx + Math.cos(a) * 320, cy + Math.sin(a) * 165];
+    pos[n.id] = [cx + Math.cos(a) * 300, cy + Math.sin(a) * 175];
   });
   const edges = graph.edges.filter(e => pos[e.from] && pos[e.to]);
   svg.innerHTML =
@@ -179,10 +181,12 @@ function drawGraph(graph) {
       const [x, y] = pos[n.id], r = 4 + Math.min(n.depended_on_by * 2.5, 12);
       const cls = n.is_schema ? 'schema' : n.is_test ? 'test' : '';
       const right = x > cx;
+      const label = n.id.length > 28 ? '…' + n.id.slice(-27) : n.id;
       return `<circle cx="${x}" cy="${y}" r="${r}" class="${cls}" fill="#7aa2f7"/>
+        <title>${esc(n.id)} — ${n.depended_on_by} importer(s)</title>
         <text x="${right ? x + r + 5 : x - r - 5}" y="${y + 4}" fill="#8b929c"
           font-size="11" text-anchor="${right ? 'start' : 'end'}"
-          font-family="ui-monospace,monospace">${esc(n.id)}</text>`;
+          font-family="ui-monospace,monospace">${esc(label)}</text>`;
     }).join('');
 }
 

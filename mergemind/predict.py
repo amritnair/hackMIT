@@ -51,27 +51,36 @@ def predict(repo, task, limit=8):
     scored = []
 
     for rel, info in repo["files"].items():
-        evidence, score = [], 0.0
-        path_tokens = tokens(rel)
-        for hit in sorted(overlap(task_tokens, path_tokens)):
-            score += 3.0
+        evidence = []
+        path_hits = overlap(task_tokens, tokens(rel))
+        for hit in sorted(path_hits):
             evidence.append(f"path {rel} contains '{hit}'")
 
-        symbols = []
+        # Distinct matched words, not match events. Scoring per event lets a
+        # 2000-line test file win on volume alone: forty functions whose
+        # docstrings all say "request" is not forty pieces of evidence.
+        symbol_hits, doc_hits, symbols = set(), set(), []
         for sym in info["symbols"]:
             matched = overlap(task_tokens, tokens(sym["name"]))
             if matched:
-                score += 2.0
+                symbol_hits |= matched
                 symbols.append(sym)
                 evidence.append(
                     f"symbol {sym['signature']} at {rel}:{sym['line']} "
                     f"matches '{', '.join(sorted(matched))}'"
                 )
-            elif sym["doc"] and overlap(task_tokens, tokens(sym["doc"])):
-                score += 0.5
+                continue
+            in_doc = overlap(task_tokens, tokens(sym["doc"])) if sym["doc"] else set()
+            if in_doc - doc_hits:
+                doc_hits |= in_doc
                 symbols.append(sym)
                 evidence.append(f"docstring of {sym['name']} in {rel} mentions the task")
 
+        score = (
+            3.0 * len(path_hits)
+            + 2.0 * min(len(symbol_hits), 3)
+            + 0.5 * min(len(doc_hits), 2)
+        )
         if not score:
             continue
         if info["is_test"]:
