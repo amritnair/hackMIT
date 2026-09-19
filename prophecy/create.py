@@ -14,7 +14,7 @@ README = """# {name}
 
 ## Working here with agents
 
-This project is set up with mergemind. Any agent that opens it can see what
+This project is set up with prophecy. Any agent that opens it can see what
 everyone else is working on, and will be told what other people have already
 worked out about a file before it changes it.
 
@@ -25,7 +25,7 @@ GITIGNORE = """__pycache__/
 *.pyc
 .venv/
 node_modules/
-.mergemind/
+.prophecy/
 """
 
 
@@ -50,17 +50,17 @@ def new_project(path, name=None, github=None, private=True):
     (root / ".gitignore").write_text(GITIGNORE)
     (root / ".mcp.json").write_text(json.dumps({
         "mcpServers": {
-            "mergemind": {
+            "prophecy": {
                 "command": sys.executable,
-                "args": ["-m", "mergemind.mcp", str(root)],
+                "args": ["-m", "prophecy.mcp", str(root)],
             }
         }
     }, indent=2) + "\n")
 
     run(root, "git", "init", "-q")
     run(root, "git", "add", "-A")
-    run(root, "git", "-c", "user.email=mergemind@local",
-        "-c", "user.name=mergemind", "commit", "-qm",
+    run(root, "git", "-c", "user.email=prophecy@local",
+        "-c", "user.name=prophecy", "commit", "-qm",
         "Start project, wired for agent coordination")
 
     result = {"path": str(root), "name": name, "remote": None}

@@ -114,7 +114,7 @@ def get_provider(name=None):
     raise NoProvider(
         "No model configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or "
         "pick one with MERGEMIND_LLM=anthropic|openai. Everything else in "
-        "mergemind works without it."
+        "prophecy works without it."
     )
 
 

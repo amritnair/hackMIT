@@ -59,7 +59,7 @@ def fetch(repo, number):
     the commits where we can diff them.
     """
     repo = Path(repo).resolve()
-    ref = f"refs/mergemind/pr-{number}"
+    ref = f"refs/prophecy/pr-{number}"
     subprocess.run(
         ["git", "-C", str(repo), "fetch", "-q", "origin",
          f"pull/{number}/head:{ref}", "--force"],
@@ -92,10 +92,10 @@ def forecast(repo, pr):
 
 
 def comment_body(number, risks, sha):
-    """The comment mergemind would leave, if asked to leave one."""
+    """The comment prophecy would leave, if asked to leave one."""
     mine = [r for r in risks if any(f"#{number}" in t for t in r["tasks"])]
     lines = [
-        "## mergemind",
+        "## prophecy",
         "",
         f"Checked against the other open pull requests at `{sha[:10]}`.",
         "",

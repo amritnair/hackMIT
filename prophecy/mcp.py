@@ -1,6 +1,6 @@
 """An MCP server, so a teammate's agent can reach this mid-session.
 
-The point of putting mergemind behind MCP rather than a CLI is timing. A CLI
+The point of putting prophecy behind MCP rather than a CLI is timing. A CLI
 gives an agent context when it starts. MCP lets it ask again at any moment —
 which matters because the thing worth knowing ("someone else just started
 editing the file you are in") arrives after you began.
@@ -18,6 +18,8 @@ import sys
 from . import store
 from .agent import brief, stable_prefix, volatile_suffix
 from .predict import predict
+from .risk_engine import (analyze_change, interactions,
+                          repository_risk)
 from .work import in_flight
 from .risk import risks
 from .scan import scan
@@ -81,6 +83,63 @@ def tools():
                     },
                 },
                 "required": ["agent"],
+            },
+        },
+        {
+            "name": "analyze_change",
+            "description": (
+                "Before you commit: what could this change break, how badly, "
+                "and why. Reads the dependency graph, the signature-level "
+                "diff, git history and everything else in flight, and returns "
+                "a risk range with the evidence behind it. Ask this instead of "
+                "guessing whether a change is safe."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "head": {"type": "string",
+                             "description": "Branch or commit to analyze. "
+                                            "Defaults to the working branch."},
+                    "base": {"type": "string",
+                             "description": "What to compare against. "
+                                            "Defaults to main."},
+                    "agent": {"type": "string"},
+                    "intent": {"type": "string",
+                               "description": "What you are trying to do, in "
+                                              "your own words. Used to check "
+                                              "the diff against the intent."},
+                },
+            },
+        },
+        {
+            "name": "get_repository_risk",
+            "description": (
+                "Risk across everything in flight: every branch and pull "
+                "request, scored, plus where they meet. Use it to see whether "
+                "now is a bad moment to touch a shared contract."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "get_change_interactions",
+            "description": (
+                "Pairs of changes that are calm on their own and dangerous "
+                "together — one side changing what is stored while another "
+                "changes the code that reads it, for example."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "get_dependency_context",
+            "description": (
+                "What reaches a file or symbol: direct importers, indirect "
+                "ones, how critical it looks and why. Ask before modifying "
+                "something you did not write."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
             },
         },
         {
@@ -196,8 +255,91 @@ class Server:
         store.log(db, repo["sha"], "left", agent, "finished up")
         return f"{agent} marked finished."
 
+    def analyze(self, args):
+        repo, db = self._open()
+        base = args.get("base") or "main"
+        head = args.get("head") or repo["branch"]
+        agent = args.get("agent")
+        concurrent = [w for w in in_flight(repo, base, db, store)
+                      if w["agent"] != agent and head not in w["label"]]
+        result = analyze_change(repo, base, head, label=head, agent=agent,
+                                concurrent=concurrent,
+                                stated_intent=args.get("intent", ""))
+        if agent:
+            store.log(db, repo["sha"], "analyzed", agent,
+                      f"checked {head}: {result['risk_score']}/100 "
+                      f"({result['risk_band']})")
+        return _render_analysis(result)
+
+    def repo_risk(self, args):
+        repo, db = self._open()
+        work = in_flight(repo, "main", db, store)
+        analyses = [
+            analyze_change(repo, "main", w["label"].split()[-1],
+                           label=w["label"], agent=w["agent"],
+                           concurrent=[o for o in work if o is not w])
+            for w in work if w["kind"] == "branch"
+        ]
+        found = interactions(analyses)
+        overall = repository_risk(analyses, found)
+        lines = [f"Repository risk {overall['score']}/100 "
+                 f"({overall['band']}), from {overall['changes']} change(s)."]
+        lines += [f"- {d}" for d in overall["drivers"]]
+        for a in sorted(analyses, key=lambda a: -a["risk_score"]):
+            lines.append(f"\n{a['label']} — {a['risk_score']}/100 "
+                         f"({a['risk_band']}), {a['agent']}")
+            for f in a["potential_failures"][:2]:
+                lines.append(f"  [{f['severity']}] {f['title']}")
+        return "\n".join(lines)
+
+    def change_interactions(self, args):
+        repo, db = self._open()
+        work = [w for w in in_flight(repo, "main", db, store)
+                if w["kind"] == "branch"]
+        analyses = [analyze_change(repo, "main", w["label"].split()[-1],
+                                   label=w["label"], agent=w["agent"])
+                    for w in work]
+        found = interactions(analyses)
+        if not found:
+            return "Nothing in flight meets anything else right now."
+        lines = []
+        for i in found:
+            lines.append(
+                f"{' and '.join(i['between'])}: alone "
+                f"{i['individual'][0]} and {i['individual'][1]}, together "
+                f"{i['combined_score']} ({i['combined_band']})"
+                + ("  <- this is worse than either on its own"
+                   if i["escalates"] else "")
+            )
+            lines += [f"  - {e}" for e in i["evidence"]]
+        return "\n".join(lines)
+
+    def dependency_context(self, args):
+        from .risk_engine import blast_radius, criticality
+        repo, db = self._open()
+        path = args["path"]
+        if path not in repo["files"]:
+            return f"{path} is not a code file in this repository."
+        layers = blast_radius(repo, [path])
+        crit, signals = criticality(repo, path, layers)
+        info = repo["files"][path]
+        lines = [
+            f"{path}",
+            f"  {len(info['symbols'])} symbol(s), "
+            f"{len(repo['callers'].get(path, []))} direct importer(s)",
+            f"  criticality {crit}/100",
+        ]
+        lines += [f"  - {s}" for s in signals]
+        if layers:
+            lines.append("  reached by: " + ", ".join(layers[0][:8]))
+        return "\n".join(lines)
+
     def call(self, name, args):
         handler = {
+            "analyze_change": self.analyze,
+            "get_repository_risk": self.repo_risk,
+            "get_change_interactions": self.change_interactions,
+            "get_dependency_context": self.dependency_context,
             "join_repo_session": self.join,
             "share_finding": self.share,
             "check_overlap": self.overlap,
@@ -206,6 +348,38 @@ class Server:
         if not handler:
             raise ValueError(f"unknown tool {name}")
         return handler(args)
+
+
+def _render_analysis(a):
+    """The same analysis a person sees, written for an agent to act on."""
+    lines = [
+        f"{a['label']} — risk {a['risk_score']}/100 ({a['risk_band']}), "
+        f"range {a['risk_range']['min']}-{a['risk_range']['max']}, "
+        f"confidence {int(a['confidence'] * 100)}%",
+        f"Blast radius {a['blast_radius']['size']}: "
+        f"{len(a['blast_radius']['direct'])} direct, "
+        f"{len(a['blast_radius']['indirect'])} indirect.",
+    ]
+    if a["intent_contradictions"]:
+        lines.append("\nThe message and the diff disagree:")
+        lines += [f"- {c}" for c in a["intent_contradictions"]]
+    if a["potential_failures"]:
+        lines.append("\nWhat could break:")
+        for f in a["potential_failures"]:
+            lines.append(f"- [{f['severity']}] {f['title']}: {f['detail']}")
+            if f["affected"]:
+                lines.append(f"    {', '.join(f['affected'][:6])}")
+    if a["concurrent_overlap"]:
+        lines.append("\nHappening at the same time:")
+        for o in a["concurrent_overlap"]:
+            lines.append(f"- {o['agent']} on {o['with']}: "
+                         f"{', '.join(o['shared_files'][:3])}")
+    lines.append("\nNot known:")
+    lines += [f"- {u}" for u in a["uncertainty"]]
+    if a["recommendations"]:
+        lines.append("\nSuggested:")
+        lines += [f"- {r}" for r in a["recommendations"]]
+    return "\n".join(lines)
 
 
 def serve(repo_path=".", stdin=None, stdout=None):
@@ -229,7 +403,7 @@ def serve(repo_path=".", stdin=None, stdout=None):
                 result = {
                     "protocolVersion": PROTOCOL,
                     "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "mergemind", "version": "0.1.0"},
+                    "serverInfo": {"name": "prophecy", "version": "0.1.0"},
                 }
             elif method == "tools/list":
                 result = {"tools": tools()}
@@ -262,9 +436,9 @@ def config_snippet(repo_path):
     """What to paste into an MCP client's config to reach this repo."""
     return {
         "mcpServers": {
-            "mergemind": {
+            "prophecy": {
                 "command": sys.executable,
-                "args": ["-m", "mergemind.mcp", os.path.abspath(repo_path)],
+                "args": ["-m", "prophecy.mcp", os.path.abspath(repo_path)],
             }
         }
     }

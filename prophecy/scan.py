@@ -161,10 +161,22 @@ def _parse_python(source):
 
 
 def _signature(node):
-    args = [a.arg for a in node.args.posonlyargs + node.args.args]
+    """Render a signature including which parameters have defaults.
+
+    Whether a parameter is optional is the whole difference between a safe
+    change and one that breaks every existing caller, so it has to survive
+    into the signature. Dropping defaults made optional-becomes-required
+    invisible.
+    """
+    args, defaults = [], node.args.defaults or []
+    positional = node.args.posonlyargs + node.args.args
+    first_default = len(positional) - len(defaults)
+    for i, arg in enumerate(positional):
+        args.append(arg.arg + ("=..." if i >= first_default else ""))
     if node.args.vararg:
         args.append("*" + node.args.vararg.arg)
-    args += [a.arg for a in node.args.kwonlyargs]
+    for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults or []):
+        args.append(arg.arg + ("=..." if default is not None else ""))
     if node.args.kwarg:
         args.append("**" + node.args.kwarg.arg)
     return f"{node.name}({', '.join(args)})"

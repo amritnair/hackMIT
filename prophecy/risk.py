@@ -188,7 +188,7 @@ def _test_risk(a, b, pair, repo):
 def _risk(kind, score, evidence, recommendation, pair, repo, files=()):
     score = round(min(score, 0.95), 2)
     # id is a hash of what the risk is about, so the same risk keeps the same
-    # id between runs and `mergemind explain <id>` stays valid.
+    # id between runs and `prophecy explain <id>` stays valid.
     seed = "|".join([kind, *sorted(pair), evidence[0], repo["sha"]])
     return {
         "id": "R" + hashlib.blake2s(seed.encode(), digest_size=3).hexdigest(),

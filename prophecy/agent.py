@@ -360,7 +360,7 @@ def observations(repo, work):
     """Things worth telling the next agent that nobody has to type.
 
     Every one of these is read from the repository or from a branch diff, so
-    they are facts rather than advice. Attributed to mergemind, not to a
+    they are facts rather than advice. Attributed to prophecy, not to a
     person, because no person wrote them.
     """
     found = []
@@ -369,7 +369,7 @@ def observations(repo, work):
     def add(file, note):
         if (file, note) not in seen:
             seen.add((file, note))
-            found.append({"file": file, "note": note, "agent": "mergemind"})
+            found.append({"file": file, "note": note, "agent": "prophecy"})
 
     # who else is in here right now
     touching = {}

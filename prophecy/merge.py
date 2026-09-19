@@ -23,7 +23,7 @@ def _run(cwd, *args, timeout=120):
 def trial_merge(repo_path, base, branch, test_cmd=None):
     """Merge branch into base in a scratch worktree. Returns what happened."""
     repo = Path(repo_path).resolve()
-    tmp = Path(tempfile.mkdtemp(prefix="mergemind-"))
+    tmp = Path(tempfile.mkdtemp(prefix="prophecy-"))
     work = tmp / "w"
     result = {
         "base": base, "branch": branch,

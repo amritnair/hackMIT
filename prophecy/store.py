@@ -1,4 +1,4 @@
-"""A SQLite file in .mergemind/ so a risk you saw yesterday can be looked up
+"""A SQLite file in .prophecy/ so a risk you saw yesterday can be looked up
 today, and so forecasts can be compared against merges that happen later.
 
 Deliberately dumb: rows in, rows out, JSON blobs for anything structured.
@@ -53,9 +53,9 @@ CREATE TABLE IF NOT EXISTS outcomes (
 
 
 def connect(repo_path):
-    directory = Path(repo_path).resolve() / ".mergemind"
+    directory = Path(repo_path).resolve() / ".prophecy"
     directory.mkdir(exist_ok=True)
-    db = sqlite3.connect(directory / "mergemind.db")
+    db = sqlite3.connect(directory / "prophecy.db")
     db.row_factory = sqlite3.Row
     db.executescript(SCHEMA)
     try:  # databases written before outcomes knew where they came from
@@ -328,10 +328,10 @@ def insights(db):
     # figures come from replaying history, not from the handful of merges
     # somebody happened to run by hand.
     out["accuracy"] = (
-        f"{replayed} merge(s) replayed by backfill — run `mergemind backfill` "
+        f"{replayed} merge(s) replayed by backfill — run `prophecy backfill` "
         "for the scored breakdown."
         if replayed else
-        "no history replayed yet. `mergemind backfill` grades the forecast "
+        "no history replayed yet. `prophecy backfill` grades the forecast "
         "against merges that already happened; nothing else here can."
     )
     return out

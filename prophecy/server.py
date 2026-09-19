@@ -129,10 +129,10 @@ def _setup_state(path):
     slug, remote_error = None, None
     try:
         slug = github.slug(path)
-        if slug:
-            github.pull_requests(path, limit=1)
-        else:
+        if not slug:
             remote_error = "This project has no GitHub remote yet."
+        else:
+            github.pull_requests(path, limit=1)
     except github.GitHubUnavailable as exc:
         remote_error = str(exc)
 
@@ -141,7 +141,10 @@ def _setup_state(path):
     return {
         "repo_ok": True,
         "problem": None,
-        "github": slug if slug and not remote_error else None,
+        # Slug from origin counts as linked even when `gh` auth is stale —
+        # PR reads need auth, but the repo connection itself is the remote.
+        "github": slug,
+        "github_auth": bool(slug) and not remote_error,
         "github_problem": remote_error,
         "agents": sessions,
         "live": len(store_mod.live_sessions(db)),
@@ -257,7 +260,7 @@ def _graph(repo):
 
 def serve(repo_path, port):
     server = HTTPServer(("127.0.0.1", port), partial(Handler, repo=repo_path))
-    print(f"mergemind dashboard on http://127.0.0.1:{port}  (ctrl-c to stop)")
+    print(f"prophecy dashboard on http://127.0.0.1:{port}  (ctrl-c to stop)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

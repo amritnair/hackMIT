@@ -10,6 +10,9 @@ from . import store
 from . import github, llm
 from .agent import brief, observations, request_skeleton
 from .create import new_project
+from .demo import build as build_demo
+from .risk_engine import (analyze_change, interactions,
+                          repository_risk)
 from .work import in_flight
 from .backfill import replay, report
 from .branches import as_forecast, branches
@@ -22,7 +25,7 @@ MARK = {"high": "!!", "medium": " !", "low": "  "}
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(prog="mergemind", description=__doc__)
+    parser = argparse.ArgumentParser(prog="prophecy", description=__doc__)
     parser.add_argument("-C", "--repo", default=".", help="repository to analyse")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
     parser.add_argument("--base", default="main", help="branch to compare against")
@@ -106,6 +109,19 @@ def build_parser():
 
     sub.add_parser("sessions", help="which agents are working here right now")
 
+    an = sub.add_parser("analyze",
+                        help="what could this change break, and how badly")
+    an.add_argument("target", nargs="?", default="HEAD",
+                    help="a branch, a commit, or base...head")
+
+    sub.add_parser("risk", help="risk across everything in flight right now")
+
+    chk = sub.add_parser("check",
+                         help="run before committing; exits non-zero if risky")
+    chk.add_argument("target", nargs="?", default="HEAD")
+    chk.add_argument("--max", type=int, default=70,
+                     help="fail above this score (default 70)")
+
     new = sub.add_parser("new", help="start a project already wired for agents")
     new.add_argument("path")
     new.add_argument("--name")
@@ -113,6 +129,10 @@ def build_parser():
                      help="also create it on GitHub (this publishes a repo)")
     new.add_argument("--public", action="store_true",
                      help="make the GitHub repo public instead of private")
+
+    dm = sub.add_parser("demo", help="build a sample project with three "
+                                     "conflicting changes already in it")
+    dm.add_argument("path")
 
     people = sub.add_parser("people", help="who is on this project")
     people.add_argument("action", nargs="?", default="list",
@@ -128,6 +148,20 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    if args.cmd == "demo":
+        out = build_demo(args.path)
+        if args.json:
+            json.dump(out, sys.stdout, indent=2)
+            print()
+        elif out.get("error"):
+            print(out["error"], file=sys.stderr)
+            return 1
+        else:
+            print(f"Built a demo project at {out['path']}")
+            for b in out["branches"]:
+                print(f"  {b['author']:<8} {b['branch']:<28} {b['message']}")
+            print(f"\nTry:  prophecy -C {out['path']} risk")
+        return 0
     if args.cmd == "new":
         result = new_project(args.path, args.name, args.github, not args.public)
         if args.json:
@@ -274,7 +308,7 @@ def cmd_pr(repo, args, db):
             print(f"     -> {r['recommendation']}")
         if found:
             print("\nto leave this on a pull request: "
-                  f"mergemind pr --comment {wanted[0]['number']}")
+                  f"prophecy pr --comment {wanted[0]['number']}")
     return {"pull_requests": wanted, "risks": found}
 
 
@@ -415,7 +449,7 @@ def cmd_fleet(repo, args, db):
         key=lambda o: (-len(o["work"]), o["file"]),
     )
 
-    # what mergemind can tell the next agent without anyone writing it down
+    # what prophecy can tell the next agent without anyone writing it down
     derived = observations(repo, work)
     fresh = [o for o in derived if not store.note_exists(db, o["file"], o["note"])]
 
@@ -427,7 +461,7 @@ def cmd_fleet(repo, args, db):
     if apply_it:
         for note in fresh:
             store.add_note(db, repo["sha"], note["agent"], note["file"], note["note"])
-            store.log(db, repo["sha"], "shared", "mergemind",
+            store.log(db, repo["sha"], "shared", "prophecy",
                       f"noted about {note['file']}: {note['note']}")
         store.save_risks(db, found)
         for w, suffix in zip(work[1:], data["suffixes"][1:]):
@@ -599,10 +633,147 @@ def cmd_fleet(repo, args, db):
     return out
 
 
+BAR = {"critical": "████", "high": "███ ", "medium": "██  ", "low": "█   "}
+
+
+def _split_target(target, base):
+    if "..." in target:
+        left, right = target.split("...", 1)
+        return left or base, right or "HEAD"
+    if ".." in target:
+        left, right = target.split("..", 1)
+        return left or base, right or "HEAD"
+    return base, target
+
+
+def _print_analysis(a):
+    print(f"{a['label']}")
+    print(f"  risk {a['risk_score']}/100 — {a['risk_band'].upper()}"
+          f"   (range {a['risk_range']['min']}–{a['risk_range']['max']},"
+          f" confidence {int(a['confidence'] * 100)}%)")
+    print(f"  criticality of what it touches: {a['criticality_band']}"
+          f"   blast radius: {a['blast_radius']['size']}"
+          f" ({len(a['blast_radius']['direct'])} direct,"
+          f" {len(a['blast_radius']['indirect'])} indirect)")
+
+    print(f"\n  intent, as written: {a['intent']['text'][:90]}")
+    for line in a["intent_contradictions"]:
+        print(f"    !! {line}")
+
+    if a["potential_failures"]:
+        print("\n  what could break")
+        for f in a["potential_failures"]:
+            print(f"    [{f['severity']:>8}] {f['title']}")
+            print(f"               {f['detail']}")
+            if f["affected"]:
+                print(f"               {', '.join(f['affected'][:4])}")
+
+    if a["criticality_evidence"]:
+        print("\n  why this code matters")
+        for line in a["criticality_evidence"]:
+            print(f"    - {line}")
+
+    if a["concurrent_overlap"]:
+        print("\n  happening at the same time")
+        for item in a["concurrent_overlap"]:
+            print(f"    - {item['agent']} on {item['with']}: "
+                  f"{', '.join(item['shared_files'][:3])}")
+
+    if a["history"]:
+        print("\n  history")
+        for row in a["history"]:
+            print(f"    - {row['file']} changed {row['commits']} time(s) recently")
+
+    print("\n  what is not known")
+    for line in a["uncertainty"]:
+        print(f"    - {line}")
+
+    if a["recommendations"]:
+        print("\n  suggested")
+        for line in a["recommendations"]:
+            print(f"    -> {line}")
+
+
+def cmd_analyze(repo, args, db):
+    base, head = _split_target(args.target, args.base)
+    concurrent = [w for w in _work_in_flight(repo, args, db)
+                  if w["label"] != head and head not in w["label"]]
+    result = analyze_change(repo, base, head, label=head,
+                            concurrent=concurrent)
+    if not args.json:
+        _print_analysis(result)
+    return result
+
+
+def cmd_risk(repo, args, db):
+    work = _work_in_flight(repo, args, db)
+    analyses = []
+    for item in work:
+        if item["kind"] not in ("branch", "pull_request"):
+            continue
+        head = item["label"].split()[-1] if item["kind"] == "branch" else None
+        if not head:
+            continue
+        analyses.append(analyze_change(
+            repo, args.base, head, label=item["label"],
+            agent=store.whose(db, item["agent"]),
+            concurrent=[w for w in work if w is not item],
+        ))
+    found = interactions(analyses)
+    overall = repository_risk(analyses, found)
+
+    if not args.json:
+        print(f"repository risk {overall['score']}/100 — {overall['band'].upper()}")
+        for line in overall["drivers"]:
+            print(f"  {line}")
+        print(f"\nin flight ({len(analyses)})")
+        for a in analyses:
+            print(f"  {BAR[a['risk_band']]} {a['risk_score']:>3}  "
+                  f"{(a['agent'] or '?')[:14]:<14} {a['label'][:42]:<42} "
+                  f"{a['risk_band']}")
+        if found:
+            print(f"\nwhere they meet ({len(found)})")
+            for i in found:
+                arrow = "!!" if i["escalates"] else "  "
+                print(f"  {arrow} {' <-> '.join(i['between'])}")
+                print(f"     alone {i['individual'][0]} and {i['individual'][1]}, "
+                      f"together {i['combined_score']} ({i['combined_band']})")
+                for line in i["evidence"]:
+                    print(f"     - {line}")
+        else:
+            print("\nnothing in flight meets anything else.")
+    return {"repository": overall, "changes": analyses, "interactions": found}
+
+
+def cmd_check(repo, args, db):
+    base, head = _split_target(args.target, args.base)
+    concurrent = [w for w in _work_in_flight(repo, args, db)
+                  if head not in w["label"]]
+    result = analyze_change(repo, base, head, label=head, concurrent=concurrent)
+    over = result["risk_score"] > args.max
+    if not args.json:
+        if over:
+            print(f"HOLD — risk {result['risk_score']}/100 "
+                  f"(range {result['risk_range']['min']}–"
+                  f"{result['risk_range']['max']}, "
+                  f"confidence {int(result['confidence'] * 100)}%), "
+                  f"over the {args.max} you set.")
+            for f in result["potential_failures"][:3]:
+                print(f"  [{f['severity']}] {f['title']}")
+            for line in result["recommendations"][:3]:
+                print(f"  -> {line}")
+            print("\nThis is a threshold you chose, not a verdict. "
+                  "--max raises it.")
+        else:
+            print(f"OK — risk {result['risk_score']}/100, under {args.max}.")
+    result["over_threshold"] = over
+    return result
+
+
 def cmd_people(repo, args, db):
     if args.action == "add":
         if not args.name:
-            print("who? mergemind people add <name> [--github handle]",
+            print("who? prophecy people add <name> [--github handle]",
                   file=sys.stderr)
             return {"error": "no name"}
         store.add_member(db, args.name, args.github, args.role)
@@ -612,7 +783,7 @@ def cmd_people(repo, args, db):
     people = store.members(db)
     if not args.json:
         if not people:
-            print("Nobody added yet. `mergemind people add <name> "
+            print("Nobody added yet. `prophecy people add <name> "
                   "--github <handle>` links a person to the commits and pull "
                   "requests they author.")
         for person in people:
@@ -628,7 +799,7 @@ def cmd_sessions(repo, args, db):
     if not args.json:
         if not live:
             print("No agent sessions are live here. Start one with "
-                  "`mergemind mcp` wired into an agent, or see `mcp --config`.")
+                  "`prophecy mcp` wired into an agent, or see `mcp --config`.")
         for row in live:
             print(f"  {row['agent'][:20]:<20} {row['task'][:46]:<46} "
                   f"since {row['joined_at']}")
@@ -832,6 +1003,7 @@ COMMANDS = {
     "backfill": cmd_backfill, "brief": cmd_brief, "pr": cmd_pr,
     "note": cmd_note, "usage": cmd_usage, "fleet": cmd_fleet,
     "sessions": cmd_sessions, "people": cmd_people,
+    "analyze": cmd_analyze, "risk": cmd_risk, "check": cmd_check,
 }
 
 if __name__ == "__main__":

@@ -1,39 +1,49 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>mergemind</title>
+<title>Prophecy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
   :root {
-    --bg: #000000; --card: #0B0B0D; --raised: #141417;
-    --line: #1F1F23; --line-2: #2E2E34;
-    --text: #FFFFFF; --text-2: #A1A1A8; --text-3: #6A6A72;
-    --accent: #6E8BFF; --good: #4ED8A0; --warn: #E8B14C; --bad: #FF6B6B;
-    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
-    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    --bg: #0D0D12; --card: #17171F; --raised: #20202B;
+    --line: #2A2A36; --line-2: #3A3A4A; --rule: #2A2A36;
+    --text: #F5F3FF; --text-2: #A3A3B5; --text-3: #6E6E82;
+    --accent: #8B5CF6; --cyan: #67E8F9; --lavender: #E8E1FF;
+    --good: #4ADE80; --warn: #FBBF24; --bad: #F87171; --red: #F87171;
+    --ui: "Sora", ui-sans-serif, system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.6 var(--ui); -webkit-font-smoothing: antialiased; }
-  ::selection { background: #2A3560; }
+  body { margin: 0; background:
+    radial-gradient(1200px 600px at 12% -10%, rgba(139,92,246,.18), transparent 55%),
+    radial-gradient(900px 500px at 88% 0%, rgba(103,232,249,.08), transparent 50%),
+    var(--bg);
+    color: var(--text); font: 15px/1.6 var(--ui); -webkit-font-smoothing: antialiased;
+    min-height: 100vh; }
+  ::selection { background: rgba(139,92,246,.35); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: #232328; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb { background: #323240; border-radius: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  h1, h2, h3, h4 { letter-spacing: -.03em; margin: 0; font-weight: 700; }
-  .display { font-size: clamp(32px, 5.2vw, 58px); line-height: 1.03; }
+  h1, h2, h3, h4 { letter-spacing: -.03em; margin: 0; font-weight: 600; }
+  .display { font-size: clamp(34px, 5.4vw, 60px); line-height: 1.02; letter-spacing: -.04em; }
   .title { font-size: clamp(23px, 3vw, 33px); line-height: 1.14; }
-  .lede { font-size: 16.5px; color: var(--text-2); max-width: 62ch; margin: 16px 0 0; }
+  .lede { font-size: 16.5px; color: var(--text-2); max-width: 58ch; margin: 16px 0 0; }
+  .eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--cyan); margin: 0 0 14px; }
   code { font: .92em var(--mono); color: var(--text); }
 
   header { position: sticky; top: 0; z-index: 40;
-    background: rgba(0,0,0,.72); backdrop-filter: blur(18px);
+    background: rgba(13,13,18,.78); backdrop-filter: blur(18px);
     border-bottom: 1px solid var(--line); padding: 11px 22px;
     display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-  .wordmark { font: 700 16px/1 var(--ui); letter-spacing: -.03em;
+  .wordmark { font: 600 16px/1 var(--ui); letter-spacing: -.03em;
     display: flex; align-items: center; gap: 8px; }
   .wordmark .mark { width: 17px; height: 17px; border-radius: 5px;
-    background: linear-gradient(140deg, #fff 28%, #7C8CFF); }
+    background: linear-gradient(140deg, var(--lavender) 20%, var(--accent) 55%, var(--cyan)); }
   .wordmark em { font-style: normal; color: var(--text-3); font-weight: 500; }
   form.repo { display: flex; flex: 0 1 290px; min-width: 180px; }
   form.repo input { flex: 1; font: 13px/1 var(--ui); color: var(--text);
@@ -48,22 +58,64 @@
   nav button { font: 500 13px/1 var(--ui); background: none; border: 0;
     color: var(--text-3); padding: 8px 13px; cursor: pointer; border-radius: 999px; }
   nav button:hover { color: var(--text); }
-  nav button[aria-selected="true"] { color: var(--bg); background: var(--text); }
+  nav button[aria-selected="true"] { color: var(--text); background: rgba(139,92,246,.22);
+    box-shadow: inset 0 0 0 1px rgba(139,92,246,.45); }
   main { max-width: 1060px; margin: 0 auto; padding: 0 22px 120px; }
   section[hidden], [hidden] { display: none; }
 
   .btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
     font: 500 14px/1 var(--ui); padding: 12px 22px; border-radius: 999px;
-    border: 1px solid transparent; background: var(--text); color: var(--bg);
-    transition: transform .12s ease, opacity .12s ease; }
-  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    border: 1px solid transparent;
+    background: linear-gradient(135deg, var(--lavender), var(--accent));
+    color: #0D0D12; transition: transform .12s ease, opacity .12s ease, box-shadow .12s ease; }
+  .btn:hover:not(:disabled) { transform: translateY(-1px);
+    box-shadow: 0 8px 28px rgba(139,92,246,.28); }
   .btn:disabled { opacity: .45; cursor: progress; }
   .btn.secondary { background: var(--raised); color: var(--text);
-    border-color: var(--line-2); }
-  .btn.secondary:hover { background: #1C1C21; }
+    border-color: var(--line-2); box-shadow: none; }
+  .btn.secondary:hover { background: #272733; box-shadow: none; }
   .btn.small { font-size: 13px; padding: 8px 16px; }
 
   .hero { padding: 72px 0 34px; }
+  .hero-split { display: grid; gap: 36px; align-items: center;
+    grid-template-columns: minmax(0, 1.05fr) minmax(260px, .95fr); }
+  .branch-viz { background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 22px 18px 16px; position: relative; overflow: hidden; }
+  .branch-viz::before { content: ""; position: absolute; inset: -40% -20% auto;
+    height: 70%; background: radial-gradient(circle, rgba(103,232,249,.12), transparent 65%);
+    pointer-events: none; }
+  .branch-viz svg { display: block; width: 100%; height: auto; }
+  .branch-viz .pulse { stroke-dasharray: 6 10; animation: dash 1.6s linear infinite; }
+  .branch-viz .glow { animation: glow 2.4s ease-in-out infinite; }
+  @keyframes dash { to { stroke-dashoffset: -32; } }
+  @keyframes glow { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+  .branch-caption { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px;
+    font: 500 11.5px/1 var(--mono); color: var(--text-3); }
+  .branch-caption span { display: inline-flex; align-items: center; gap: 6px; }
+  .branch-caption i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .forecast-card { border: 1px solid var(--line); border-radius: 16px;
+    background: linear-gradient(180deg, rgba(139,92,246,.08), transparent 48%), var(--raised);
+    padding: 16px 18px; margin: 0 0 14px; }
+  .forecast-card .fc-top { display: flex; gap: 10px; flex-wrap: wrap;
+    align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .forecast-card .fc-task { font: 600 14.5px/1.35 var(--ui); letter-spacing: -.01em; }
+  .forecast-card .fc-why { font-size: 13.5px; color: var(--text-2); margin: 0 0 12px;
+    max-width: 62ch; }
+  .clash-stage { display: grid; gap: 12px; padding: 18px 20px;
+    border-bottom: 1px solid var(--line);
+    grid-template-columns: 1fr auto 1fr; align-items: stretch; }
+  .clash-lane { background: var(--raised); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 16px; min-width: 0; }
+  .clash-lane .label { font: 500 11px/1 var(--mono); letter-spacing: .06em;
+    text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+  .clash-lane .task { font: 600 13.5px/1.35 var(--ui); }
+  .clash-mid { display: grid; place-items: center; gap: 8px; min-width: 88px; }
+  .clash-mid .orb { width: 54px; height: 54px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--lavender), var(--accent) 55%, #4C1D95);
+    box-shadow: 0 0 0 1px rgba(139,92,246,.4), 0 0 28px rgba(103,232,249,.22);
+    animation: glow 2.2s ease-in-out infinite; }
+  .clash-mid .hit { font: 500 11px/1.3 var(--mono); color: var(--cyan); text-align: center; }
   .steps { display: grid; gap: 13px; margin: 28px 0 0; }
   .step { background: var(--card); border: 1px solid var(--line);
     border-radius: 16px; padding: 24px 26px; display: grid; gap: 3px 18px;
@@ -189,8 +241,8 @@
   #graph text { font: 10.5px/1 var(--mono); fill: var(--text-3);
     pointer-events: none; }
   #graph .node { cursor: pointer; }
-  #graph .edge { stroke: #1E1E24; stroke-width: 1; }
-  #graph .edge.lit { stroke: var(--accent); stroke-width: 1.4; }
+  #graph .edge { stroke: #2E2E3A; stroke-width: 1; }
+  #graph .edge.lit { stroke: var(--cyan); stroke-width: 1.5; }
   #graph .node.faded { opacity: .18; }
   #graph .node.lit text { fill: var(--text); }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 13px 20px;
@@ -236,6 +288,8 @@
     * { animation: none !important; transition: none !important; } }
   @media (max-width: 760px) {
     .headline-stat { grid-template-columns: 1fr; }
+    .hero-split, .clash-stage { grid-template-columns: 1fr; }
+    .clash-mid { order: -1; padding-bottom: 4px; }
     .step { grid-template-columns: 30px 1fr; }
     .step .state { grid-column: 2; }
     nav { width: 100%; overflow-x: auto; margin-left: 0; }
@@ -244,7 +298,7 @@
 </style>
 
 <header>
-  <h1 class="wordmark"><i class="mark"></i>mergemind<em id="repoName"></em></h1>
+  <h1 class="wordmark"><i class="mark"></i>Prophecy<em id="repoName"></em></h1>
   <form class="repo" id="repoForm">
     <input id="repoPath" spellcheck="false" autocomplete="off" list="repoList"
            aria-label="Project" placeholder="choose a project">
@@ -266,11 +320,38 @@
   <p class="banner" id="banner" hidden></p>
 
   <section id="setup">
-    <div class="hero">
-      <h2 class="display">Your team's agents,<br>working from the same page.</h2>
-      <p class="lede">Connect a project once. After that, every agent working in
-        it can see what everyone else is doing, is told what teammates already
-        worked out, and stops paying to rediscover the same codebase.</p>
+    <div class="hero hero-split">
+      <div>
+        <p class="eyebrow">See the impact before you ship</p>
+        <h2 class="display">Forecast what a<br>change will touch.</h2>
+        <p class="lede">Prophecy maps a proposed change through your repository —
+          callers, tests, schemas — so concurrent work stops colliding in the dark.</p>
+        <p style="margin-top:22px">
+          <button class="btn" id="enterApp">Open the workspace</button>
+          <a class="btn secondary small" style="margin-left:8px;text-decoration:none"
+             href="https://github.com/amritnair/hackMIT" target="_blank" rel="noopener">
+            amritnair/hackMIT</a></p>
+      </div>
+      <div class="branch-viz" aria-hidden="true">
+        <svg viewBox="0 0 360 220" fill="none">
+          <path class="pulse" d="M78 110 C140 110, 150 48, 230 48" stroke="#67E8F9" stroke-width="1.6"/>
+          <path class="pulse" d="M78 110 C150 110, 160 110, 230 110" stroke="#8B5CF6" stroke-width="1.8"/>
+          <path class="pulse" d="M78 110 C140 110, 150 172, 230 172" stroke="#A78BFA" stroke-width="1.6"/>
+          <circle class="glow" cx="60" cy="110" r="18" fill="#8B5CF6"/>
+          <text x="60" y="114" text-anchor="middle" fill="#F5F3FF" font-size="10" font-family="IBM Plex Mono,monospace">Δ</text>
+          <rect x="230" y="32" width="100" height="32" rx="10" fill="#20202B" stroke="#3A3A4A"/>
+          <text x="280" y="52" text-anchor="middle" fill="#A3A3B5" font-size="11" font-family="IBM Plex Mono,monospace">callers</text>
+          <rect x="230" y="94" width="100" height="32" rx="10" fill="#20202B" stroke="#67E8F9"/>
+          <text x="280" y="114" text-anchor="middle" fill="#F5F3FF" font-size="11" font-family="IBM Plex Mono,monospace">impact</text>
+          <rect x="230" y="156" width="100" height="32" rx="10" fill="#20202B" stroke="#3A3A4A"/>
+          <text x="280" y="176" text-anchor="middle" fill="#A3A3B5" font-size="11" font-family="IBM Plex Mono,monospace">tests</text>
+        </svg>
+        <div class="branch-caption">
+          <span><i style="background:var(--accent)"></i>change</span>
+          <span><i style="background:var(--cyan)"></i>predicted path</span>
+          <span><i style="border:1px solid var(--line-2)"></i>downstream</span>
+        </div>
+      </div>
     </div>
 
     <div class="steps">
@@ -318,9 +399,6 @@
       </div>
     </div>
 
-    <p style="margin-top:24px">
-      <button class="btn" id="enterApp">Open the workspace</button></p>
-
     <div class="card" style="margin-top:38px">
       <h3>Start something new</h3>
       <div class="body">
@@ -332,6 +410,7 @@
           <input class="field" id="newPath" style="flex:2 1 250px"
                  placeholder="~/code/my-project">
           <input class="field" id="newGithub" style="flex:1 1 170px"
+                 value="amritnair/hackMIT"
                  placeholder="owner/name on GitHub (optional)">
           <button class="btn small secondary" id="createRepo">Create</button>
         </div>
@@ -386,10 +465,10 @@
 
   <section id="task" hidden>
     <div class="hero" style="padding:42px 0 4px">
+      <p class="eyebrow">Product moment</p>
       <h2 class="title">Where would this land?</h2>
-      <p class="lede">Describe work nobody has started. It is matched against
-        what is really in the project, and anything it cannot ground is listed
-        separately.</p>
+      <p class="lede">Describe work nobody has started. Prophecy matches it against
+        what is really in the project, and lists anything it cannot ground.</p>
     </div>
     <div class="card">
       <h3>Describe the work</h3>
@@ -409,7 +488,8 @@
 
   <section id="simulate" hidden>
     <div class="hero" style="padding:42px 0 4px">
-      <h2 class="title">Two or three things at once</h2>
+      <p class="eyebrow">Demo moment</p>
+      <h2 class="title">Two changes, one collision</h2>
       <p class="lede">Each is forecast on its own, then checked against the
         others. Same file is worth knowing; the same function in a widely
         imported module is worth a conversation.</p>
@@ -530,8 +610,18 @@ const esc = s => String(s).replace(/[<>&"]/g, c =>
 const base = n => n.split('/').pop();
 
 let REPO = new URLSearchParams(location.search).get('repo')
+  || localStorage.getItem('prophecy.repo')
   || localStorage.getItem('mergemind.repo') || '';
 let CONTESTED = new Set();
+
+function lsGet(key, fallback = null) {
+  return localStorage.getItem('prophecy.' + key)
+    || localStorage.getItem('mergemind.' + key)
+    || fallback;
+}
+function lsSet(key, value) {
+  try { localStorage.setItem('prophecy.' + key, value); } catch {}
+}
 
 function api(cmd, params = {}) {
   const q = new URLSearchParams();
@@ -566,13 +656,13 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 let REPOS = [];
 
 function recents() {
-  try { return JSON.parse(localStorage.getItem('mergemind.recent') || '[]'); }
+  try { return JSON.parse(lsGet('recent', '[]')); }
   catch { return []; }
 }
 
 function remember(path) {
   const list = [path, ...recents().filter(p => p !== path)].slice(0, 8);
-  try { localStorage.setItem('mergemind.recent', JSON.stringify(list)); } catch {}
+  lsSet('recent', JSON.stringify(list));
 }
 
 function fillRepoList() {
@@ -590,7 +680,7 @@ function fillRepoList() {
 function openRepo(path) {
   REPO = path.trim().replace(/\/$/, '');
   if (!REPO) return;
-  localStorage.setItem('mergemind.repo', REPO);
+  lsSet('repo', REPO);
   remember(REPO);
   fillRepoList();
   loadRepo();
@@ -627,11 +717,16 @@ function loadSetup() {
     const gh = $('#github-body');
     if (d.github) {
       $('#step1').classList.add('done');
-      $('#state1').textContent = 'connected';
+      $('#state1').textContent = d.github_auth ? 'connected' : 'linked';
       $('#state1').className = 'state ok';
-      gh.innerHTML = `<p>Reading pull requests from
-        <code>${esc(d.github)}</code>. mergemind only reads — it never posts
-        without you running the command.</p>`;
+      gh.innerHTML = `<p>Repository linked to
+        <a href="https://github.com/${esc(d.github)}" target="_blank" rel="noopener"
+           style="color:var(--cyan)">${esc(d.github)}</a>.
+        Prophecy only reads — it never posts without you running the command.</p>
+        ${d.github_auth ? '' : `<p class="hint" style="margin-top:10px">
+          Pull request reads need a fresh GitHub CLI login:
+          <code>gh auth login</code>
+          ${d.github_problem ? ` — ${esc(d.github_problem)}` : ''}</p>`}`;
     } else {
       $('#step1').classList.remove('done');
       $('#state1').textContent = 'not connected';
@@ -640,7 +735,7 @@ function loadSetup() {
         'This project is not connected to GitHub yet.')}</p>
         <table style="margin-top:12px"><tbody>
         <tr><td>Point it at GitHub</td><td class="dim mono">git remote add origin
-          git@github.com:you/repo.git</td></tr>
+          git@github.com:amritnair/hackMIT.git</td></tr>
         <tr><td>Sign in to the GitHub CLI</td><td class="dim mono">brew install gh
           &amp;&amp; gh auth login</td></tr></tbody></table>
         <p class="hint">Or start a fresh project below and it is done for you.</p>`;
@@ -721,7 +816,7 @@ document.addEventListener('click', e => {
   if (o) { openRepo(o.dataset.open); loadSetup(); }
 });
 
-$('#enterApp').onclick = () => { localStorage.setItem('mergemind.setup', '1');
+$('#enterApp').onclick = () => { lsSet('setup', '1');
   showApp(true); };
 
 
@@ -743,6 +838,7 @@ const RISK_NAME = {
 
 function riskHTML(r) {
   const files = r.files || [];
+  const why = (r.evidence && r.evidence[0]) || r.recommendation || '';
   return `<details class="risk ${r.risk_level}">
     <summary>
       <i class="bar"></i>
@@ -753,8 +849,15 @@ function riskHTML(r) {
       <span class="between">${r.tasks.map(esc).join('  ↔  ')}</span>
     </summary>
     <div class="detail">
+      <div class="forecast-card" style="margin-bottom:12px">
+        <div class="fc-top">
+          <span class="tag predicted">confidence ${r.confidence ?? '—'}</span>
+          <span class="tag ${r.risk_level === 'high' ? 'model' : 'observed'}">${esc(r.risk_level)}</span>
+        </div>
+        <p class="fc-why">${esc(why)}</p>
+        <p class="hint" style="margin:0">${esc(r.recommendation || '')}</p>
+      </div>
       <ul>${r.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
-      <p class="rec">${esc(r.recommendation)}</p>
       ${files.length ? `<p class="hint">${files.map(f =>
         `<button class="chip" data-file="${esc(f)}">${esc(f)}</button>`).join(' ')}</p>` : ''}
     </div>
@@ -762,11 +865,18 @@ function riskHTML(r) {
 }
 
 function forecastHTML(f) {
-  if (!f.files.length) return `<p class="empty">Nothing in this repo matched
-    “${esc(f.task)}”. Either it is new ground, or the words in the task share
-    no vocabulary with the code that would change.</p>`;
-  return `<p class="hint" style="margin:0 0 12px">
-      <span class="tag predicted">confidence ${f.confidence}</span></p>
+  if (!f.files.length) return `<div class="forecast-card"><p class="fc-task">${esc(f.task)}</p>
+    <p class="fc-why">Nothing in this repo matched. Either it is new ground, or the
+    words in the task share no vocabulary with the code that would change.</p></div>`;
+  const top = f.files[0];
+  return `<div class="forecast-card">
+    <div class="fc-top">
+      <span class="fc-task">${esc(f.task)}</span>
+      <span class="tag predicted">confidence ${f.confidence}</span>
+    </div>
+    <p class="fc-why">${esc(top.evidence[0] || 'Matched on repository structure.')}
+      Likely lands in <button class="chip" data-file="${esc(top.file)}">${esc(top.file)}</button>
+      ${f.files.length > 1 ? ` and ${f.files.length - 1} more.` : '.'}</p>
     <table><thead><tr><th style="width:56px">score</th><th>file</th><th>why</th></tr></thead>
     <tbody>${f.files.map(x => `<tr>
       <td class="num">${x.score}</td>
@@ -780,7 +890,8 @@ function forecastHTML(f) {
       ${f.model_invented.map(esc).join(', ')} — not in this repo, dropped.</p>` : ''}
     ${f.unsupported_terms.length ? `<p class="hint">No repo evidence for
       <b>${f.unsupported_terms.map(esc).join(', ')}</b> — either new ground,
-      or the forecast missed something.</p>` : ''}`;
+      or the forecast missed something.</p>` : ''}
+  </div>`;
 }
 
 /* clicking any file chip anywhere opens the drawer */
@@ -1104,13 +1215,26 @@ function runSim() {
   $('#runSim').disabled = true;
   $('#simOut').innerHTML = '<p class="loading" style="padding:18px">comparing</p>';
   api('simulate', { task: tasks }).then(d => {
-    $('#simOut').innerHTML = (d.risks.length
+    const shared = [...new Set((d.risks || []).flatMap(r => r.files || []))].slice(0, 4);
+    const stage = `<div class="clash-stage">
+      <div class="clash-lane"><div class="label">Change A</div>
+        <div class="task">${esc(tasks[0])}</div></div>
+      <div class="clash-mid"><div class="orb"></div>
+        <div class="hit">${d.risks.length
+          ? `${d.risks.length} interaction${d.risks.length === 1 ? '' : 's'}`
+          : 'no overlap'}</div>
+        ${shared.length ? `<div class="hit" style="color:var(--text-3)">${shared.map(base).map(esc).join(' · ')}</div>` : ''}
+      </div>
+      <div class="clash-lane"><div class="label">Change B</div>
+        <div class="task">${esc(tasks[1])}</div></div>
+    </div>`;
+    $('#simOut').innerHTML = stage + (d.risks.length
       ? d.risks.map(riskHTML).join('')
       : `<p class="empty" style="padding:18px">No overlap between these.
          Either they are genuinely independent, or they share no vocabulary
          with the code they touch.</p>`)
       + `<div style="padding:18px;border-top:1px solid var(--rule)">
-         ${d.forecasts.map(forecastHTML).join('<hr style="border:0;border-top:1px solid var(--rule);margin:18px 0">')}
+         ${d.forecasts.map(forecastHTML).join('')}
          </div>`;
     $('#stratOut').innerHTML = d.strategies.map(s => `<div class="risk" style="border:0">
       <p style="margin:0 0 4px"><b>${esc(s.strategy)}</b>
@@ -1221,13 +1345,13 @@ function checkGitHub() {
     const prs = d.pull_requests || [];
     $('#prSetup').innerHTML = `<p class="status good">Connected. Reading
       ${prs.length} open pull request(s).</p>
-      <p class="hint">mergemind only reads. To leave a comment you run the
+      <p class="hint">Prophecy only reads. To leave a comment you run the
         command yourself.</p>`;
     $('#prListPanel').hidden = false;
     renderPrs(d);
   }).catch(() => {
     $('#prSetup').innerHTML = `<p class="status bad">Not connected.</p>
-      <p class="hint">Two things are needed, both outside mergemind:</p>
+      <p class="hint">Two things are needed, both outside Prophecy:</p>
       <table style="margin-top:10px"><tbody>
         <tr><td>a GitHub remote</td><td class="dim">
           <code>git remote add origin git@github.com:you/repo.git</code></td></tr>
@@ -1269,7 +1393,7 @@ function renderPrs(d) {
             + r.evidence.map(e => '- ' + e).join('\n')
             + `\n\n> ${r.recommendation}`).join('\n\n') || 'No overlap with other open pull requests.'
       : 'No overlap with other open pull requests.';
-    $('#prCommand').textContent = `mergemind pr --comment ${n}`;
+    $('#prCommand').textContent = `prophecy pr --comment ${n}`;
   }
 }
 $('#loadPrs').onclick = checkGitHub;
@@ -1421,10 +1545,10 @@ loadUsage();
 loadPlan(false);
 setInterval(loadLive, 8000);
 api('scan').then(d => {
-  if (!REPO) { REPO = d.repo; localStorage.setItem('mergemind.repo', REPO); }
+  if (!REPO) { REPO = d.repo; lsSet('repo', REPO); }
   $('#repoPath').value = REPO;
   loadRepo();
   loadSetup();
-  if (localStorage.getItem('mergemind.setup')) showApp(true);
+  if (lsGet('setup')) showApp(true);
 }).catch(() => { loadRepo(); loadSetup(); });
 </script>

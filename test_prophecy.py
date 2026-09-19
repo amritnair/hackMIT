@@ -1,14 +1,14 @@
 """Builds a small throwaway repo and checks the whole pipeline against it.
 
-Run with: python test_mergemind.py
+Run with: python test_prophecy.py
 """
 
 import subprocess
 import tempfile
 from pathlib import Path
 
-import mergemind
-from mergemind import agent, backfill, branches, llm, mcp, merge, store
+import prophecy
+from prophecy import agent, backfill, branches, llm, mcp, merge, store
 
 FIXTURE = {
     "api/middleware.py": (
@@ -51,13 +51,15 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         build_repo(root)
-        repo = mergemind.scan(root)
+        repo = prophecy.scan(root)
 
         # scan finds symbols, signatures and who imports what
         assert len(repo["sha"]) == 40
         assert "api/middleware.py" in repo["files"]
         signatures = {s["signature"] for s in repo["files"]["api/middleware.py"]["symbols"]}
-        assert "rate_limit(request, limit)" in signatures, signatures
+        # defaults survive into the signature: whether a parameter is optional
+        # is the difference between a safe change and one that breaks callers
+        assert "rate_limit(request, limit=...)" in signatures, signatures
         assert repo["callers"]["api/middleware.py"] == [
             "api/handlers.py", "tests/test_middleware.py",
         ], repo["callers"]
@@ -65,36 +67,36 @@ def main():
         assert repo["files"]["tests/test_middleware.py"]["is_test"]
 
         # a task lands on the right file, with evidence and honest gaps
-        rate = mergemind.predict(repo, "Add rate limiting to the API")
+        rate = prophecy.predict(repo, "Add rate limiting to the API")
         assert rate["files"][0]["file"] == "api/middleware.py", rate["files"]
         assert any("rate_limit" in e for e in rate["files"][0]["evidence"])
-        assert "sms" in mergemind.predict(repo, "Send SMS reminders")["unsupported_terms"]
+        assert "sms" in prophecy.predict(repo, "Send SMS reminders")["unsupported_terms"]
 
         # same file, different functions -> flagged, but not as a contract break
-        auth = mergemind.predict(repo, "Add authentication middleware")
-        found = mergemind.risks(repo, [rate, auth])
+        auth = prophecy.predict(repo, "Add authentication middleware")
+        found = prophecy.risks(repo, [rate, auth])
         top = found[0]
         assert top["risk_type"] == "shared_file", top
         assert top["risk_level"] == "medium", top
         assert any("import" in e for e in top["evidence"]), top["evidence"]
         # ids are content hashes, so they survive a rerun and `explain` keeps working
-        assert top["id"] == mergemind.risks(repo, [rate, auth])[0]["id"]
+        assert top["id"] == prophecy.risks(repo, [rate, auth])[0]["id"]
         assert top["id"].startswith("R") and len(top["id"]) == 7
 
         # same function in scope for both -> contract risk, and it outranks the above
-        reauth = mergemind.predict(repo, "Refactor how requests authenticate")
-        contract = mergemind.risks(repo, [auth, reauth])[0]
+        reauth = prophecy.predict(repo, "Refactor how requests authenticate")
+        contract = prophecy.risks(repo, [auth, reauth])[0]
         assert contract["risk_type"] == "shared_api_contract", contract
         assert contract["risk_level"] == "high", contract
         assert "authenticate" in contract["recommendation"], contract
         assert contract["risk_score"] > top["risk_score"]
 
-        billing = mergemind.predict(repo, "Charge the customer an invoice")
-        assert not mergemind.risks(repo, [billing, rate])
+        billing = prophecy.predict(repo, "Charge the customer an invoice")
+        assert not prophecy.risks(repo, [billing, rate])
 
         # strategies and capsule render without blowing up
-        assert len(mergemind.strategies(repo, [rate, auth], found)) == 3
-        text = mergemind.capsule(repo, rate, found)
+        assert len(prophecy.strategies(repo, [rate, auth], found)) == 3
+        text = prophecy.capsule(repo, rate, found)
         assert "api/middleware.py" in text and "Coordination" in text
 
         check_branches(root, repo)
@@ -124,7 +126,7 @@ def check_mcp(root):
         {"jsonrpc": "2.0", "method": "notifications/initialized"},
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
     )
-    assert init["result"]["serverInfo"]["name"] == "mergemind"
+    assert init["result"]["serverInfo"]["name"] == "prophecy"
     names = {t["name"] for t in listed["result"]["tools"]}
     assert names == {"join_repo_session", "share_finding", "check_overlap",
                      "leave_repo_session"}, names
@@ -180,8 +182,8 @@ def check_sharing(root, repo):
     """What one agent works out, the next one is told — and the accounting
     only counts a prefix as reused when the bytes really did repeat."""
     db = store.connect(root)
-    rate = mergemind.predict(repo, "Add rate limiting to the API")
-    found = mergemind.risks(repo, [rate])
+    rate = prophecy.predict(repo, "Add rate limiting to the API")
+    found = prophecy.risks(repo, [rate])
 
     first = agent.brief(repo, [rate], found, db=db, agent="agent-a", store=store)
     assert first["suffixes"][0]["notes_pulled"] == 0
@@ -246,7 +248,7 @@ def check_llm(repo):
     assert stable == llm.inventory(repo)  # byte-stable, so it stays cached
 
     # merging keeps repository evidence ahead of model inference
-    lexical = mergemind.predict(repo, "Charge the customer an invoice")
+    lexical = prophecy.predict(repo, "Charge the customer an invoice")
     merged = llm.merge_forecasts(lexical, out)
     assert merged["files"][0]["source"] == "repo", merged["files"]
     assert merged["files"][-1]["source"] == "model"
@@ -260,9 +262,9 @@ def check_llm(repo):
 def check_brief(repo):
     """The cached half must be byte-identical between runs, and the task half
     must carry everything that differs."""
-    rate = mergemind.predict(repo, "Add rate limiting to the API")
-    auth = mergemind.predict(repo, "Add authentication middleware")
-    found = mergemind.risks(repo, [rate, auth])
+    rate = prophecy.predict(repo, "Add rate limiting to the API")
+    auth = prophecy.predict(repo, "Add authentication middleware")
+    found = prophecy.risks(repo, [rate, auth])
     data = agent.brief(repo, [rate, auth], found)
 
     # a prefix that differs between calls is a cache miss, every time
@@ -278,7 +280,7 @@ def check_brief(repo):
     # the volatile half carries the task, its files and its coordination
     first = data["suffixes"][0]
     assert first["task"] == "Add rate limiting to the API"
-    assert "rate_limit(request, limit)" in first["text"]
+    assert "rate_limit(request, limit=...)" in first["text"]
     assert "Agree on who owns" in first["text"]
     assert data["suffixes"][1]["text"] != first["text"]
 
@@ -376,14 +378,14 @@ def check_branches(root, repo):
     assert limits["ahead"] == 1 and limits["behind"] == 0, limits
     assert limits["signature_changes"] == [{
         "file": "api/middleware.py", "symbol": "rate_limit",
-        "before": "rate_limit(request, limit)",
+        "before": "rate_limit(request, limit=...)",
         "after": "rate_limit(request, limit, window)",
         "kind": "changed",
     }], limits["signature_changes"]
 
     # a signature change with callers is a risk on its own, no second task needed
     forecasts = [branches.as_forecast(b) for b in found.values()]
-    observed = mergemind.risks(repo, forecasts)
+    observed = prophecy.risks(repo, forecasts)
     sig = [r for r in observed if r["risk_type"] == "api_signature_change"]
     assert len(sig) == 2, observed
     assert "caller" in sig[0]["recommendation"], sig[0]
