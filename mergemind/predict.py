@@ -31,14 +31,17 @@ def tokens(text):
 def overlap(a, b):
     """Tokens shared by two sets, allowing morphological variants.
 
-    'authentication' should find a function called authenticate. Exact set
-    intersection does not, and stemming properly is not worth a dependency,
-    so two words count as the same if they agree on their first five letters.
+    'scanner' should find scan.py and 'authentication' should find a function
+    called authenticate. Exact set intersection finds neither, and stemming
+    properly is not worth a dependency, so two words of four or more letters
+    count as the same when they agree on their first four. That does misfire
+    now and then, which is why every match is reported as evidence rather
+    than acted on silently.
     """
     hits = set()
     for x in a:
         for y in b:
-            if x == y or (len(x) >= 5 and len(y) >= 5 and x[:5] == y[:5]):
+            if x == y or (len(x) >= 4 and len(y) >= 4 and x[:4] == y[:4]):
                 hits.add(min(x, y, key=len))
     return hits
 

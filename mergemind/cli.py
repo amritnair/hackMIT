@@ -2,8 +2,8 @@ import argparse
 import json
 import sys
 
-from . import predict as predict_mod
-from . import risk as risk_mod
+from .predict import predict
+from .risk import capsule, risks, strategies
 from .scan import scan
 
 BAR = {"high": "!!", "medium": " !", "low": "  "}
@@ -54,16 +54,16 @@ def cmd_scan(repo, args):
 
 
 def cmd_plan(repo, args):
-    forecast = predict_mod.predict(repo, args.task)
+    forecast = predict(repo, args.task)
     if not args.json:
         _print_forecast(forecast)
     return forecast
 
 
 def cmd_simulate(repo, args):
-    forecasts = [predict_mod.predict(repo, t) for t in args.tasks]
-    found = risk_mod.risks(repo, forecasts)
-    plans = risk_mod.strategies(repo, forecasts, found)
+    forecasts = [predict(repo, t) for t in args.tasks]
+    found = risks(repo, forecasts)
+    plans = strategies(repo, forecasts, found)
     if not args.json:
         for forecast in forecasts:
             _print_forecast(forecast)
@@ -86,10 +86,10 @@ def cmd_simulate(repo, args):
 
 
 def cmd_context(repo, args):
-    forecast = predict_mod.predict(repo, args.task)
-    others = [predict_mod.predict(repo, t) for t in args.against]
-    found = risk_mod.risks(repo, [forecast, *others])
-    markdown = risk_mod.capsule(repo, forecast, found)
+    forecast = predict(repo, args.task)
+    others = [predict(repo, t) for t in args.against]
+    found = risks(repo, [forecast, *others])
+    markdown = capsule(repo, forecast, found)
     if not args.json:
         print(markdown)
     return {"forecast": forecast, "risks": found, "markdown": markdown}
