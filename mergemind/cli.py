@@ -61,10 +61,20 @@ def build_parser():
     ag.add_argument("tasks", nargs="+")
     ag.add_argument("--branch", action="append", default=[],
                     help="include a real branch as another agent's work")
+    ag.add_argument("--agent", help="who this brief is for; used to keep an "
+                                    "agent from being handed its own notes")
     ag.add_argument("--exact", action="store_true",
                     help="count tokens through the API instead of estimating")
     ag.add_argument("--request", action="store_true",
                     help="print a Messages request with the cache breakpoint placed")
+
+    note = sub.add_parser("note",
+                          help="record what an agent found, for the next one")
+    note.add_argument("file")
+    note.add_argument("text")
+    note.add_argument("--agent", required=True, help="who found it")
+
+    sub.add_parser("usage", help="how agents used this and what sharing saved")
 
     explain = sub.add_parser("explain", help="show one risk in full")
     explain.add_argument("risk_id")
@@ -273,7 +283,8 @@ def cmd_brief(repo, args, db):
     forecasts += [as_forecast(found[n]) for n in args.branch if n in found]
     found_risks = risks(repo, forecasts)
     store.save_risks(db, found_risks)
-    data = brief(repo, forecasts, found_risks, exact=args.exact)
+    data = brief(repo, forecasts, found_risks, exact=args.exact,
+                 db=db, agent=args.agent, store=store)
 
     if args.request:
         if not args.json:
@@ -296,9 +307,12 @@ def cmd_brief(repo, args, db):
         print("-" * 62)
         label = "counted" if data["exact"] else "estimated"
         print(f"tokens ({label})")
-        print(f"  cached prefix                  {data['prefix_tokens']:>8}")
+        print(f"  cached prefix                  {data['prefix_tokens']:>8}"
+              f"   #{data['prefix_hash']}")
         for s in data["suffixes"]:
-            print(f"  task: {s['task'][:24]:<24} {s['tokens']:>8}")
+            shared = (f"   +{s['notes_pulled']} note(s) from other agents"
+                      if s.get("notes_pulled") else "")
+            print(f"  task: {s['task'][:24]:<24} {s['tokens']:>8}{shared}")
         print(f"  {e['agents']} agent(s) reading every code file "
               f"{e['repo_if_each_agent_reads_every_file']:>8}")
         print(f"  this brief, first call         {e['brief_first_call']:>8}")
@@ -309,6 +323,48 @@ def cmd_brief(repo, args, db):
         print(f"\n{e['note']}")
         for warning in data["warnings"]:
             print(f"\nwarning: {warning}")
+    return data
+
+
+def cmd_note(repo, args, db):
+    if args.file not in repo["files"]:
+        print(f"{args.file} is not a code file in this repo", file=sys.stderr)
+        return {"error": "unknown file"}
+    store.add_note(db, repo["sha"], args.agent, args.file, args.text)
+    if not args.json:
+        print(f"recorded against {args.file}. The next agent sent to that file "
+              "gets it in their brief.")
+    return {"file": args.file, "agent": args.agent, "note": args.text}
+
+
+def cmd_usage(repo, args, db):
+    data = store.usage(db)
+    if not args.json:
+        if not data["briefs"]:
+            print(data["note"])
+            return data
+        print(f"{data['briefs']} brief(s) issued to {data['agents']} agent(s)")
+        print(f"  prefix sent in full        {data['prefix_first_time']:>8}")
+        print(f"  prefix already seen        {data['prefix_reused']:>8}"
+              f"   ({data['reuse_rate'] * 100:.0f}% reuse)")
+        print(f"  tokens actually sent       {data['tokens_sent']:>8}")
+        print(f"  if each read the repo      "
+              f"{data['tokens_if_each_agent_read_the_repo']:>8}")
+        print(f"  avoided                    {data['tokens_avoided']:>8}")
+        print(f"\n  notes written {data['notes_written']}, "
+              f"pulled into briefs {data['notes_pulled']}")
+        if data["per_agent"]:
+            print("\n  per agent")
+            for row in data["per_agent"]:
+                print(f"    {row['agent'][:28]:<28} {row['briefs']:>3} brief(s)"
+                      f"  {row['task_tokens'] or 0:>7} task tokens"
+                      f"  {row['notes_pulled'] or 0:>3} note(s) received")
+        if data["shared_files"]:
+            print("\n  files more than one agent has been into")
+            for row in data["shared_files"]:
+                print(f"    {row['file']:<40} {row['agents']} agent(s), "
+                      f"{row['n']} note(s)")
+        print(f"\n{data['note']}")
     return data
 
 
@@ -460,6 +516,7 @@ COMMANDS = {
     "predict": cmd_predict, "simulate": cmd_simulate, "context": cmd_context,
     "explain": cmd_explain, "verify": cmd_verify, "insights": cmd_insights,
     "backfill": cmd_backfill, "brief": cmd_brief, "pr": cmd_pr,
+    "note": cmd_note, "usage": cmd_usage,
 }
 
 if __name__ == "__main__":

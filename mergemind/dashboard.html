@@ -457,6 +457,15 @@
       </div>
     </div>
     <div class="panel">
+      <h3>shared findings <span class="tag observed">between agents</span></h3>
+      <div class="body">
+        <p class="hint" style="margin:0 0 12px">What one agent works out about
+          a file, the next agent sent there is told — in the task half, so the
+          cached prefix stays byte-identical.</p>
+        <div id="usageOut"><p class="empty">No briefs issued yet.</p></div>
+      </div>
+    </div>
+    <div class="panel">
       <h3>token arithmetic</h3>
       <div class="body" id="briefMath"><p class="empty">Nothing built yet.</p></div>
     </div>
@@ -534,6 +543,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
   if (b.dataset.tab === 'history') loadInsights();
+  if (b.dataset.tab === 'agents') loadUsage();
 });
 
 /* ── repo picker ──────────────────────────────────────────── */
@@ -955,6 +965,7 @@ function runBrief() {
         ${esc(s.task)} — ${s.tokens} tokens
         <button class="ghost" data-copy="suffix:${i}">copy</button></h4>
       <pre>${esc(s.text)}</pre>`).join('');
+    loadUsage();
   }).catch(() => {
     $('#briefMath').innerHTML = '<p class="empty">Could not build briefs for that repo.</p>';
   }).finally(() => { $('#runBrief').disabled = false; });
@@ -996,6 +1007,40 @@ $('#loadPrs').onclick = () => {
       repo. It needs an origin remote on GitHub and a logged-in gh CLI.</p>`;
   }).finally(() => { $('#loadPrs').disabled = false; });
 };
+
+function loadUsage() {
+  api('usage').then(d => {
+    if (!d.briefs) { $('#usageOut').innerHTML =
+      '<p class="empty">No briefs issued yet.</p>'; return; }
+    $('#usageOut').innerHTML = `<table><tbody>
+      <tr><td>briefs issued</td><td class="num">${d.briefs}
+        <span class="dim">to ${d.agents} agent(s)</span></td></tr>
+      <tr><td>prefix sent in full</td><td class="num">${d.prefix_first_time}</td></tr>
+      <tr><td>prefix already seen</td><td class="num">${d.prefix_reused}
+        <span class="dim">${(d.reuse_rate * 100).toFixed(0)}% reuse</span></td></tr>
+      <tr><td>tokens actually sent</td><td class="num">${d.tokens_sent.toLocaleString()}</td></tr>
+      <tr><td><b>tokens avoided</b></td>
+        <td class="num"><b>${d.tokens_avoided.toLocaleString()}</b></td></tr>
+      <tr><td>findings shared</td><td class="num">${d.notes_written} written,
+        ${d.notes_pulled} delivered</td></tr>
+      </tbody></table>
+      ${d.per_agent.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">per agent</h4>
+      <table><thead><tr><th>agent</th><th>briefs</th><th>task tokens</th>
+        <th>findings received</th></tr></thead><tbody>
+      ${d.per_agent.map(a => `<tr><td>${esc(a.agent)}</td>
+        <td class="num">${a.briefs}</td>
+        <td class="num">${(a.task_tokens || 0).toLocaleString()}</td>
+        <td class="num">${a.notes_pulled || 0}</td></tr>`).join('')}
+      </tbody></table>` : ''}
+      ${d.shared_files.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">
+        files more than one agent has been into</h4>
+      <table><tbody>${d.shared_files.map(f => `<tr>
+        <td><button class="chip" data-file="${esc(f.file)}">${esc(f.file)}</button></td>
+        <td class="num dim">${f.agents} agent(s), ${f.n} note(s)</td></tr>`).join('')}
+      </tbody></table>` : ''}
+      <p class="hint">${esc(d.note)}</p>`;
+  }).catch(() => {});
+}
 
 function loadInsights() {
   api('insights').then(d => {

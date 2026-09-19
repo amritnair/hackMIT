@@ -19,6 +19,7 @@ invalidates everything after it. Repo facts sorted deterministically at the
 front, task text at the back.
 """
 
+import hashlib
 from pathlib import Path
 
 # Anthropic list price, input, dollars per million tokens. Used only to turn
@@ -113,8 +114,13 @@ def stable_prefix(repo, depth=12):
     return "\n".join(lines)
 
 
-def volatile_suffix(repo, forecast, risks):
-    """One task's context. Changes per agent, so it goes after the cache."""
+def volatile_suffix(repo, forecast, risks, notes=()):
+    """One task's context. Changes per agent, so it goes after the cache.
+
+    Notes from other agents land here rather than in the prefix: they arrive
+    while work is happening, and a prefix that changes whenever a colleague
+    writes something down is a prefix that is never warm.
+    """
     lines = [
         f"# Task: {forecast['task']}",
         "",
@@ -147,6 +153,16 @@ def volatile_suffix(repo, forecast, risks):
             against = f" (against: {'; '.join(others)})" if others else ""
             lines.append(f"- **{r['risk_level']}** {r['risk_type']}{against}")
             lines.append(f"  {r['recommendation']}")
+
+    if notes:
+        lines += [
+            "",
+            "## What other agents have already found here",
+            "Written by agents working on the files above. Treat as hearsay "
+            "worth checking, not as fact.",
+        ]
+        for note in notes:
+            lines.append(f"- `{note['file']}` — {note['agent']}: {note['note']}")
 
     if forecast["unsupported_terms"]:
         lines += [
@@ -196,14 +212,28 @@ def grow_prefix(repo, measure, floor=MIN_CACHEABLE_TOKENS):
     return best, depth
 
 
-def brief(repo, forecasts, risks, exact=False):
-    """One cached prefix, one suffix per agent, and the arithmetic."""
+def brief(repo, forecasts, risks, exact=False, db=None, agent=None, store=None):
+    """One cached prefix, one suffix per agent, and the arithmetic.
+
+    With a database, each suffix also carries what other agents found in the
+    same files, and the brief is recorded so `usage` can report on it.
+    """
     measure_for_growth = estimate_tokens
     prefix, depth = grow_prefix(repo, measure_for_growth)
-    suffixes = [
-        {"task": f["task"], "text": volatile_suffix(repo, f, risks)}
-        for f in forecasts
-    ]
+
+    suffixes = []
+    for f in forecasts:
+        notes = []
+        if db is not None and store is not None:
+            notes = store.notes_for(
+                db, [x["file"] for x in f["files"]], agent=agent or f["task"],
+            )
+        suffixes.append({
+            "task": f["task"],
+            "text": volatile_suffix(repo, f, risks, notes),
+            "notes_pulled": len(notes),
+            "notes": notes,
+        })
 
     measure = (lambda t: count_tokens(t) or estimate_tokens(t)) if exact \
         else estimate_tokens
@@ -233,8 +263,17 @@ def brief(repo, forecasts, risks, exact=False):
             "The brief is still worth sending; it is just not a cache win yet."
         )
 
+    prefix_hash = hashlib.blake2s(prefix.encode(), digest_size=8).hexdigest()
+    if db is not None and store is not None:
+        for s in suffixes:
+            store.record_brief(
+                db, repo["sha"], agent or s["task"], s["task"], prefix_hash,
+                prefix_tokens, s["tokens"], explore, s.get("notes_pulled", 0),
+            )
+
     return {
         "sha": repo["sha"],
+        "prefix_hash": prefix_hash,
         "prefix_depth": depth,
         "cacheable": prefix_tokens >= MIN_CACHEABLE_TOKENS,
         "warnings": warnings,

@@ -101,8 +101,45 @@ def main():
         check_backfill(root)
         check_brief(repo)
         check_llm(repo)
+        check_sharing(root, repo)
 
     print("ok")
+
+
+def check_sharing(root, repo):
+    """What one agent works out, the next one is told — and the accounting
+    only counts a prefix as reused when the bytes really did repeat."""
+    db = store.connect(root)
+    rate = mergemind.predict(repo, "Add rate limiting to the API")
+    found = mergemind.risks(repo, [rate])
+
+    first = agent.brief(repo, [rate], found, db=db, agent="agent-a", store=store)
+    assert first["suffixes"][0]["notes_pulled"] == 0
+    assert "other agents have already found" not in first["suffixes"][0]["text"]
+
+    store.add_note(db, repo["sha"], "agent-a", "api/middleware.py",
+                   "rate_limit returns True unconditionally; it is a stub")
+
+    second = agent.brief(repo, [rate], found, db=db, agent="agent-b", store=store)
+    assert second["suffixes"][0]["notes_pulled"] == 1
+    assert "it is a stub" in second["suffixes"][0]["text"]
+    assert "agent-a" in second["suffixes"][0]["text"]
+
+    # an agent is never handed its own note back
+    again = agent.brief(repo, [rate], found, db=db, agent="agent-a", store=store)
+    assert again["suffixes"][0]["notes_pulled"] == 0, "agent-a got its own note"
+
+    # the note rides in the volatile half; the cached half must not move
+    assert first["prefix_hash"] == second["prefix_hash"] == again["prefix_hash"]
+    assert first["prefix"] == second["prefix"]
+
+    data = store.usage(db)
+    assert data["briefs"] == 3 and data["agents"] == 2
+    assert data["prefix_first_time"] == 1, data
+    assert data["prefix_reused"] == 2, data
+    assert data["tokens_avoided"] > 0
+    assert data["notes_written"] == 1 and data["notes_pulled"] == 1
+    assert "not confirmation that it did" in data["note"]
 
 
 class StubProvider:

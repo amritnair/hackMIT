@@ -19,6 +19,16 @@ CREATE TABLE IF NOT EXISTS risks (
     confidence REAL, first_seen TEXT DEFAULT CURRENT_TIMESTAMP,
     last_seen TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS briefs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, agent TEXT, task TEXT,
+    prefix_hash TEXT, prefix_tokens INT, suffix_tokens INT,
+    baseline_tokens INT, notes_pulled INT DEFAULT 0,
+    issued_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, agent TEXT, file TEXT,
+    note TEXT, written_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS outcomes (
     id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, base TEXT, branch TEXT,
     merged_clean INT, tests_passed INT, detail TEXT,
@@ -75,6 +85,97 @@ def save_outcome(db, repo, outcome, comparison, source="verify"):
          json.dumps(comparison), source),
     )
     db.commit()
+
+
+def record_brief(db, sha, agent, task, prefix_hash, prefix_tokens,
+                 suffix_tokens, baseline, notes_pulled=0):
+    db.execute(
+        "INSERT INTO briefs (sha, agent, task, prefix_hash, prefix_tokens,"
+        " suffix_tokens, baseline_tokens, notes_pulled) VALUES (?,?,?,?,?,?,?,?)",
+        (sha, agent, task, prefix_hash, prefix_tokens, suffix_tokens,
+         baseline, notes_pulled),
+    )
+    db.commit()
+
+
+def add_note(db, sha, agent, file, note):
+    """One agent's finding about one file, for the next agent who goes there."""
+    db.execute(
+        "INSERT INTO notes (sha, agent, file, note) VALUES (?,?,?,?)",
+        (sha, agent, file, note),
+    )
+    db.commit()
+
+
+def notes_for(db, files, agent=None, limit=12):
+    """Notes other agents left about these files, newest first.
+
+    Excludes the asking agent's own notes: an agent does not need to be told
+    what it already worked out, and re-reading its own findings is exactly the
+    duplicated context this is meant to remove.
+    """
+    if not files:
+        return []
+    marks = ",".join("?" * len(files))
+    sql = f"SELECT * FROM notes WHERE file IN ({marks})"
+    params = list(files)
+    if agent:
+        sql += " AND agent <> ?"
+        params.append(agent)
+    sql += " ORDER BY written_at DESC LIMIT ?"
+    params.append(limit)
+    return [dict(row) for row in db.execute(sql, params)]
+
+
+def usage(db):
+    """How the agents actually used this, and what the sharing bought.
+
+    Prefix reuse is measured by identical prefix bytes on the same commit. It
+    is an upper bound on what a cache could have served: whether the provider
+    really had it warm depends on the TTL, which nothing here can see.
+    """
+    rows = [dict(r) for r in db.execute("SELECT * FROM briefs ORDER BY issued_at")]
+    if not rows:
+        return {"briefs": 0, "note": "No briefs issued yet."}
+
+    seen, first_time, reused = set(), 0, 0
+    sent_actual, sent_naive = 0, 0
+    for row in rows:
+        key = (row["sha"], row["prefix_hash"])
+        if key in seen:
+            reused += 1
+            sent_actual += row["suffix_tokens"]  # prefix served from cache
+        else:
+            seen.add(key)
+            first_time += 1
+            sent_actual += row["prefix_tokens"] + row["suffix_tokens"]
+        sent_naive += (row["baseline_tokens"] or 0) + row["suffix_tokens"]
+
+    per_agent = [dict(r) for r in db.execute(
+        "SELECT agent, COUNT(*) briefs, SUM(suffix_tokens) task_tokens,"
+        " SUM(notes_pulled) notes_pulled FROM briefs GROUP BY agent"
+        " ORDER BY briefs DESC"
+    )]
+    shared = [dict(r) for r in db.execute(
+        "SELECT file, COUNT(*) n, COUNT(DISTINCT agent) agents FROM notes"
+        " GROUP BY file HAVING agents > 1 ORDER BY agents DESC, n DESC LIMIT 8"
+    )]
+    return {
+        "briefs": len(rows),
+        "agents": len(per_agent),
+        "prefix_first_time": first_time,
+        "prefix_reused": reused,
+        "reuse_rate": round(reused / len(rows), 2),
+        "tokens_sent": sent_actual,
+        "tokens_if_each_agent_read_the_repo": sent_naive,
+        "tokens_avoided": sent_naive - sent_actual,
+        "notes_written": db.execute("SELECT COUNT(*) n FROM notes").fetchone()["n"],
+        "notes_pulled": sum(r["notes_pulled"] or 0 for r in per_agent),
+        "per_agent": per_agent,
+        "shared_files": shared,
+        "note": "Reuse is counted by identical prefix bytes on one commit — "
+                "what a cache could serve, not confirmation that it did.",
+    }
 
 
 def get_risk(db, risk_id):

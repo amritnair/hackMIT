@@ -73,6 +73,9 @@ class Handler(BaseHTTPRequestHandler):
             provider=query.get("provider", [None])[0],
             numbers=[int(n) for n in query.get("number", []) if n.isdigit()],
             comment=None,
+            agent=query.get("agent", [None])[0],
+            file=query.get("file", [""])[0],
+            text=query.get("text", [""])[0],
             limit=int(query.get("limit", ["25"])[0]),
             ref=query.get("ref", ["HEAD"])[0],
         )
