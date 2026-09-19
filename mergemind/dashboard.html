@@ -24,6 +24,12 @@
     padding: 4px 10px; cursor: pointer; font: inherit; border-radius: 3px;
   }
   nav button[aria-selected=true] { color: var(--ink); border-color: var(--line); background: var(--panel); }
+  button.run {
+    margin-top: 10px; background: var(--bg); border: 1px solid var(--line);
+    color: var(--ink); padding: 6px 14px; font: inherit; border-radius: 3px;
+    cursor: pointer;
+  }
+  button.run:hover { border-color: var(--accent); color: var(--accent); }
   main { padding: 20px; max-width: 1100px; }
   section[hidden] { display: none; }
   .panel {
@@ -83,7 +89,8 @@
     <div class="panel"><h2>describe work that does not exist yet</h2>
       <input type="text" id="taskInput" placeholder="Add rate limiting to the API"
              autocomplete="off">
-      <p class="hint">Enter to forecast. No branch needed, no code needed.</p>
+      <button class="run" id="runTask">forecast</button>
+      <p class="hint">No branch needed, no code needed. Enter works too.</p>
     </div>
     <div class="panel"><h2>predicted impact</h2><div id="taskOut" class="hint">waiting for a task.</div></div>
   </section>
@@ -95,7 +102,8 @@
       <input type="text" id="simB" placeholder="Add authentication middleware" autocomplete="off">
       <br><br>
       <input type="text" id="simC" placeholder="(optional third)" autocomplete="off">
-      <p class="hint">Enter in any box to run it.</p>
+      <button class="run" id="runSimBtn">compare</button>
+      <p class="hint">Two or more filled in. Enter works too.</p>
     </div>
     <div class="panel"><h2>collisions</h2><div id="simOut" class="hint">nothing run yet.</div></div>
     <div class="panel"><h2>ways to sequence it</h2><div id="stratOut" class="hint">—</div></div>
@@ -198,12 +206,14 @@ api('scan').then(d => {
   </table>`;
 });
 
-$('#taskInput').onkeydown = e => {
-  if (e.key !== 'Enter' || !e.target.value.trim()) return;
+function runTask() {
+  const task = $('#taskInput').value.trim();
+  if (!task) return;
   $('#taskOut').innerHTML = '<span class="spin">forecasting…</span>';
-  api('plan', { task: e.target.value.trim() })
-    .then(f => $('#taskOut').innerHTML = forecastHTML(f));
-};
+  api('plan', { task }).then(f => $('#taskOut').innerHTML = forecastHTML(f));
+}
+$('#runTask').onclick = runTask;
+$('#taskInput').onkeydown = e => { if (e.key === 'Enter') runTask(); };
 
 function runSim() {
   const tasks = ['#simA', '#simB', '#simC'].map(s => $(s).value.trim()).filter(Boolean);
@@ -223,6 +233,7 @@ function runSim() {
       <div class="ev">${esc(s.note)}</div></div>`).join('');
   });
 }
+$('#runSimBtn').onclick = runSim;
 ['#simA', '#simB', '#simC'].forEach(s =>
   $(s).onkeydown = e => { if (e.key === 'Enter') runSim(); });
 

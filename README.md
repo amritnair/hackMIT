@@ -49,8 +49,17 @@ Schema and migration files and dependency manifests get their own handling,
 because two people editing `requirements.txt` in parallel is a different
 problem from two people editing a module.
 
+`status` and `predict` do the same job against branches that already exist,
+where nothing is a guess: real diffs, real signature changes, real divergence
+from the base. A branch that changes `scan(repo)` to `scan(repo, cache)` gets
+flagged along with the list of files that import it.
+
+`verify` merges a branch into the base for real, in a throwaway worktree, and
+grades the forecast against what happened. Optionally runs your tests in the
+merged tree. Your own checkout is never touched.
+
 `context` writes the whole thing out as markdown you can hand to a person or
-paste into an agent's prompt.
+paste into an agent's prompt. `serve` puts all of it on localhost.
 
 ## what it does not do
 
@@ -66,9 +75,13 @@ The scores are heuristics, not probabilities. `0.53` means "more than the
 other thing on this list", not "53% chance of a conflict". Risk levels are
 three buckets because three is about as much precision as the inputs support.
 
-Nothing here merges anything or runs your tests. Comparing these forecasts
-against what actually happens at merge time is the obvious next step and is
-not built yet.
+`verify` compares forecasts against real merges, but it does not roll that up
+into an accuracy number, because accuracy over four merge runs is noise with a
+decimal point. `insights` says so rather than drawing a chart.
+
+Be careful reading a clean merge as a cleared forecast. Text conflicts were
+never the claim — most of what this flags is semantic, and git will happily
+merge two compatible-looking edits that break each other at runtime.
 
 ## running it
 
@@ -77,11 +90,20 @@ Python 3.10 or newer, no dependencies.
 ```
 pip install -e .
 
-mergemind scan
-mergemind plan "Add SMS appointment reminders"
-mergemind simulate "task one" "task two" "task three"
+mergemind scan                     # what is in the repo
+mergemind status                   # what every branch is doing
+mergemind plan "Add SMS reminders" # forecast one task
+mergemind predict                  # risks between existing branches
+mergemind simulate "task one" "task two" --branch some-branch
 mergemind context "Add rate limiting" --against "Refactor request handling"
+mergemind explain R2fa01f          # one risk in full, from any earlier run
+mergemind verify some-branch --test "pytest"
+mergemind insights
+mergemind serve                    # dashboard on localhost:8000
 ```
+
+The dashboard is one HTML file served by the standard library. There is no
+build step and no node_modules. State goes in `.mergemind/mergemind.db`.
 
 `-C <path>` points it at another repo. `--json` on any command gives you the
 whole structure instead of the summary.

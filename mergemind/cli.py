@@ -198,12 +198,13 @@ def cmd_verify(repo, args, db):
     if not target or "error" in target:
         print(f"no branch {args.branch}", file=sys.stderr)
         return {}
-    predicted = risks(repo, [as_forecast(target), *others])
+    forecasts = [as_forecast(target), *others]
+    predicted = risks(repo, forecasts)
     store.save_risks(db, predicted)
 
     outcome = trial_merge(repo["repo"], args.base, args.branch,
                           shlex.split(args.test) if args.test else None)
-    result = compare(predicted, outcome)
+    result = compare(predicted, outcome, forecasts)
     store.save_outcome(db, repo, outcome, result)
 
     if not args.json:

@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 
 import mergemind
+from mergemind import branches, merge, store
 
 FIXTURE = {
     "api/middleware.py": (
@@ -96,7 +97,75 @@ def main():
         text = mergemind.capsule(repo, rate, found)
         assert "api/middleware.py" in text and "Coordination" in text
 
+        check_branches(root, repo)
+
     print("ok")
+
+
+def check_branches(root, repo):
+    """Two branches that edit the same signature: forecast it, then merge it
+    for real and see whether the forecast was right."""
+    run = lambda *a: subprocess.run(["git", "-C", str(root), *a], check=True,
+                                    capture_output=True)
+    target = root / "api/middleware.py"
+    original = target.read_text()
+
+    run("checkout", "-qb", "limits", "main")
+    target.write_text(original.replace("def rate_limit(request, limit=100):",
+                                       "def rate_limit(request, limit, window):"))
+    run("commit", "-qam", "window argument")
+
+    run("checkout", "-qb", "buckets", "main")
+    target.write_text(original.replace("def rate_limit(request, limit=100):",
+                                       "def rate_limit(request, bucket):"))
+    run("commit", "-qam", "bucket argument")
+    run("checkout", "-q", "main")
+
+    found = branches.branches(root, "main")
+    assert set(found) == {"limits", "buckets"}, found
+    limits = found["limits"]
+    assert limits["ahead"] == 1 and limits["behind"] == 0, limits
+    assert limits["signature_changes"] == [{
+        "file": "api/middleware.py", "symbol": "rate_limit",
+        "before": "rate_limit(request, limit)",
+        "after": "rate_limit(request, limit, window)",
+    }], limits["signature_changes"]
+
+    # a signature change with callers is a risk on its own, no second task needed
+    forecasts = [branches.as_forecast(b) for b in found.values()]
+    observed = mergemind.risks(repo, forecasts)
+    sig = [r for r in observed if r["risk_type"] == "api_signature_change"]
+    assert len(sig) == 2, observed
+    assert "caller" in sig[0]["recommendation"], sig[0]
+
+    # and the two branches really do collide, in the file we said they would
+    outcome = merge.trial_merge(root, "limits", "buckets")
+    assert not outcome["merged_clean"], outcome
+    assert outcome["conflicted_files"] == ["api/middleware.py"], outcome
+    result = merge.compare(observed, outcome, forecasts)
+    assert result["predicted_and_conflicted"] == ["api/middleware.py"], result
+    assert not result["conflicted_unpredicted"], result
+
+    # merging one branch alone is clean, and we say so without claiming a win
+    clean = merge.trial_merge(root, "main", "limits")
+    assert clean["merged_clean"], clean
+    assert "never the claim" in " ".join(
+        merge.compare(observed, clean, forecasts)["notes"])
+
+    # the worktree is gone afterwards, whatever happened
+    worktrees = subprocess.run(["git", "-C", str(root), "worktree", "list"],
+                               capture_output=True, text=True).stdout
+    assert worktrees.count("\n") == 1, worktrees
+
+    # risks survive a round trip, so `explain <id>` works on a later run
+    db = store.connect(root)
+    store.save_risks(db, observed)
+    back = store.get_risk(db, sig[0]["id"])
+    assert back["evidence"] == sig[0]["evidence"], back
+    assert store.get_risk(db, "Rnope") is None
+    store.save_outcome(db, repo, outcome, result)
+    assert store.insights(db)["merges_run"] == 1
+    assert "not enough" in store.insights(db)["accuracy"]
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ def trial_merge(repo_path, base, branch, test_cmd=None):
     return result
 
 
-def compare(predicted, outcome):
+def compare(predicted, outcome, forecasts):
     """Score the forecast against the merge that actually ran.
 
     A predicted file that did not conflict is not automatically a false alarm:
@@ -73,9 +73,7 @@ def compare(predicted, outcome):
     So these are counted separately and never averaged into one number.
     """
     predicted_files = sorted({
-        line.split()[-1].rstrip(".,")
-        for r in predicted for line in r["evidence"]
-        if " touch " in line or " changed " in line or " edit " in line
+        f["file"] for forecast in forecasts for f in forecast["files"]
     })
     actual = set(outcome["conflicted_files"])
     hit = sorted(set(predicted_files) & actual)
