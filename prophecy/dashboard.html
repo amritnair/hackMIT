@@ -182,10 +182,15 @@
     letter-spacing: -.045em; }
   .headline-stat .money small { display: block; margin-top: 10px;
     font: 500 14px/1.45 var(--ui); color: var(--text-2); letter-spacing: 0; }
-  .sub-stats { display: grid; gap: 1px; background: var(--line);
-    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
-    grid-template-columns: repeat(2, 1fr); }
-  .sub-stats div { background: var(--card); padding: 13px 15px; }
+  .sub-stats {
+    /* Each cell carries its own border rather than showing through a filled
+       container, so a row that does not divide evenly leaves empty space
+       instead of a lit empty box. */
+    display: grid; gap: 8px; background: transparent; border: 0;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  }
+  .sub-stats div { background: var(--raised); padding: 13px 15px;
+    border: 1px solid var(--line); border-radius: 10px; }
   .sub-stats b { display: block; font: 600 19px/1.2 var(--ui);
     letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .sub-stats span { display: block; margin-top: 3px; font-size: 12.5px;
