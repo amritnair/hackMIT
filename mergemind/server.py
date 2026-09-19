@@ -59,6 +59,8 @@ class Handler(BaseHTTPRequestHandler):
             branch=query.get("branch", []),
             risk_id=query.get("risk_id", [""])[0],
             test=None,
+            limit=int(query.get("limit", ["25"])[0]),
+            ref=query.get("ref", ["HEAD"])[0],
         )
         if name == "verify":
             args.branch = query.get("branch", [""])[0]

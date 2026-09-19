@@ -111,6 +111,13 @@
 
   <section id="insights" hidden>
     <div class="panel"><h2>what this repo has taught us</h2><div id="insOut" class="spin">reading…</div></div>
+    <div class="panel"><h2>grade the forecast against history</h2>
+      <p class="hint">Replays old merge commits: rewinds to where each pair of
+        branches diverged, forecasts from there, then re-runs the merge for
+        real. Slow — a minute or so per fifty merges.</p>
+      <button class="run" id="runBackfill">replay 25 merges</button>
+      <div id="backOut"></div>
+    </div>
   </section>
 </main>
 
@@ -236,6 +243,29 @@ function runSim() {
 $('#runSimBtn').onclick = runSim;
 ['#simA', '#simB', '#simC'].forEach(s =>
   $(s).onkeydown = e => { if (e.key === 'Enter') runSim(); });
+
+$('#runBackfill').onclick = () => {
+  $('#backOut').innerHTML = '<p class="spin">replaying… this takes a while.</p>';
+  api('backfill', { limit: 25 }).then(d => {
+    const s = d.summary, levels = Object.entries(s.by_level || {});
+    $('#backOut').innerHTML = `<table>
+      <tr><td>merges replayed</td><td>${s.merges_replayed}
+        (${s.merges_with_conflicts} conflicted)</td></tr>
+      <tr><td>files touched</td><td>${s.files_in_play}</td></tr>
+      <tr><td>files flagged</td><td>${s.files_flagged}</td></tr>
+      <tr><td>really conflicted</td><td>${s.conflicted_files}
+        — ${s.files_caught} flagged, ${s.files_missed} missed</td></tr>
+      <tr><td>median lead time</td><td>${s.median_lead_hours ?? '—'} hours</td></tr>
+    </table>
+    ${levels.length ? `<p>conflict rate by risk level:</p><table>
+      <tr><th>level</th><th>flagged</th><th>conflicted</th><th>rate</th></tr>
+      ${levels.map(([l, b]) => `<tr><td>${esc(l)}</td><td>${b.flagged}</td>
+        <td>${b.conflicted}</td><td>${(b.rate * 100).toFixed(1)}%</td></tr>`).join('')}
+      </table>` : ''}
+    <p class="hint">${esc(s.recall_note)}</p>
+    <p>${esc(s.verdict)}</p>`;
+  });
+};
 
 function loadInsights() {
   api('insights').then(d => $('#insOut').innerHTML = `<table>

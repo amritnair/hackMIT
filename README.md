@@ -75,9 +75,23 @@ The scores are heuristics, not probabilities. `0.53` means "more than the
 other thing on this list", not "53% chance of a conflict". Risk levels are
 three buckets because three is about as much precision as the inputs support.
 
-`verify` compares forecasts against real merges, but it does not roll that up
-into an accuracy number, because accuracy over four merge runs is noise with a
-decimal point. `insights` says so rather than drawing a chart.
+`backfill` is where the claims get tested. It walks the repo's own merge
+commits, and for each one rewinds to the point where the two sides diverged,
+scans the code as it was *then*, forecasts from the two sets of changes, and
+re-runs the merge for real. The forecast never sees the merge commit, so it
+cannot cheat.
+
+Two things it deliberately does not do. It does not report recall on text
+conflicts as an achievement: a text conflict requires both sides to edit one
+file, which is the exact condition that makes this tool fire, so catching
+them all is arithmetic rather than skill — missing one would mean a bug. And
+it does not report any rate at all until at least ten conflicting merges have
+been replayed.
+
+What it does report is the conflict rate broken down by risk level, which is
+the only number that tests whether the scoring means anything. If `high` does
+not conflict more often than `medium`, the score is decoration, and the tool
+says so in those words.
 
 Be careful reading a clean merge as a cleared forecast. Text conflicts were
 never the claim — most of what this flags is semantic, and git will happily

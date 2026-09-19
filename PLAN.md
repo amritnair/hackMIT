@@ -38,16 +38,38 @@ you would infer service boundaries from directory layout or a manifest per
 service, then roll file-level risks up. A day, and only worth it against a
 repo that actually has services.
 
-## absent
+## the calibration result, and what it costs us
 
-**Forecast calibration.** `verify` records every merge outcome into SQLite,
-and `insights` refuses to report accuracy under ten runs. Getting past that
-means running `verify` over historical merges — replay the last few hundred
-merge commits in a real repo, forecast each from its fork point, compare
-against what happened. That backfill script is the single most valuable thing
-left to build, and it is maybe 80 lines on top of what is already here, since
-`trial_merge` and `compare` do the work. It converts "we think this helps"
-into a number. Everything else on this list is polish next to it.
+`mergemind backfill` is built, and it changed what this project can honestly
+claim. See the README for how it works and `BACKFILL.md` for the run.
+
+The short version: against real merge history, the risk *level* does not
+order text conflicts the way it should. Files marked `high` conflicted less
+often than files marked `medium`. That is either a bug in the weighting or a
+sign that the loud warnings are catching something text conflicts do not
+measure — and the honest position is that we do not yet know which.
+
+The weighting is easy to change and that is exactly the trap. Tuning it
+against thirteen conflicting merges would fit noise, and the resulting number
+would look like evidence. What it needs instead:
+
+1. Replay several thousand merges across several repos, not sixty in one.
+2. Separate the two populations the score currently mixes. `high` comes from
+   shared symbols plus a caller bonus, which selects for large, central,
+   heavily imported modules. Those may genuinely conflict less in text — a
+   big file has more room for two edits to miss each other — while being far
+   more dangerous semantically. If so the score is measuring the right thing
+   against the wrong outcome.
+3. Grade against a better outcome than "did git complain". Merge cleanly,
+   then run the test suite. A clean merge with failing tests is the exact
+   case this whole project exists for, and `verify --test` already captures
+   it; the backfill does not use it yet because running a historical test
+   suite needs that commit's dependencies installed.
+
+Until that work happens, the scores are a ranking heuristic that has not
+earned the word "calibrated", and the tool should keep saying so.
+
+## absent
 
 **GitHub and Linear.** `verify` already does the hard part; a GitHub Action
 is `mergemind predict --json` plus a comment-posting step, and PR analysis is
@@ -57,8 +79,15 @@ and neither proves anything the CLI does not already prove, which is why they
 are not done.
 
 **Historical conflict learning.** Mine the repo's own merge history for files
-that have conflicted before, and weight risk scores by that. Genuinely
-useful, genuinely cheap, needs the backfill above to be worth trusting.
+that have conflicted before, and weight risk scores by that. The backfill
+already walks exactly that history, so the data is one pass away. Worth doing
+after the calibration question above is settled, not before — otherwise it is
+one unvalidated heuristic feeding another.
+
+**Backfill with tests.** The replay only asks git whether it could merge. The
+more interesting question is whether the merged code still passes, which is
+where semantic conflicts actually show up. Needs a per-commit environment,
+which is a packaging problem rather than an analysis one.
 
 ## what I would not build
 

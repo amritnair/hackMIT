@@ -7,6 +7,7 @@ import shlex
 import sys
 
 from . import store
+from .backfill import replay, report
 from .branches import as_forecast, branches
 from .merge import compare, trial_merge
 from .predict import predict
@@ -48,6 +49,12 @@ def build_parser():
     verify = sub.add_parser("verify", help="really merge a branch and grade the forecast")
     verify.add_argument("branch")
     verify.add_argument("--test", help="command to run after a clean merge")
+
+    back = sub.add_parser("backfill",
+                          help="replay old merges and grade the forecast")
+    back.add_argument("--limit", type=int, default=50,
+                      help="how many merge commits to replay")
+    back.add_argument("--ref", default="HEAD", help="history to walk")
 
     serve = sub.add_parser("serve", help="dashboard on localhost")
     serve.add_argument("--port", type=int, default=8000)
@@ -229,6 +236,52 @@ def cmd_verify(repo, args, db):
     return {"predicted": predicted, "outcome": outcome, "comparison": result}
 
 
+def cmd_backfill(repo, args, db):
+    if not args.json:
+        print(f"replaying up to {args.limit} merge(s) from {args.ref}")
+
+    def progress(run):
+        if args.json:
+            return
+        mark = "conflict" if run["conflicted"] else "clean   "
+        detail = ""
+        if run["conflicted"]:
+            detail = (f"  caught {len(run['caught'])}/{len(run['conflicted'])}"
+                      f"{'  MISSED ' + ', '.join(run['missed']) if run['missed'] else ''}")
+        print(f"  {run['merge'][:8]}  {mark}  {run['risks']} risk(s){detail}")
+
+    runs = replay(repo["repo"], args.limit, args.ref, progress)
+    summary = report(runs)
+    for run in runs:
+        store.save_outcome(
+            db, repo,
+            {"base": run["merge"][:8] + "^1", "branch": run["merge"][:8] + "^2",
+             "merged_clean": not run["conflicted"]},
+            {"tests_passed": None, "predicted_and_conflicted": run["caught"],
+             "conflicted_unpredicted": run["missed"],
+             "predicted_no_conflict": run["flagged_no_conflict"], "notes": []},
+        )
+    if not args.json:
+        print(f"\n{summary['merges_replayed']} merge(s) replayed, "
+              f"{summary['merges_with_conflicts']} of them conflicted")
+        print(f"  files touched across both sides:  {summary['files_in_play']}")
+        print(f"  files flagged:                    {summary['files_flagged']}")
+        print(f"  files that really conflicted:     {summary['conflicted_files']}"
+              f" ({summary['files_caught']} flagged, {summary['files_missed']} missed)")
+        if summary["median_lead_hours"] is not None:
+            print(f"  median warning lead time:         "
+                  f"{summary['median_lead_hours']} hours before the merge")
+        if summary["by_level"]:
+            print("\n  does the score mean anything?")
+            for level, bucket in summary["by_level"].items():
+                print(f"    {level:<7} {bucket['flagged']:>5} flagged  "
+                      f"{bucket['conflicted']:>4} conflicted  "
+                      f"{bucket['rate'] * 100:>5.1f}%")
+        print(f"\n{summary['recall_note']}")
+        print(f"\n{summary['verdict']}")
+    return {"runs": runs, "summary": summary}
+
+
 def cmd_insights(repo, args, db):
     data = store.insights(db)
     if not args.json:
@@ -263,6 +316,7 @@ COMMANDS = {
     "scan": cmd_scan, "status": cmd_status, "plan": cmd_plan,
     "predict": cmd_predict, "simulate": cmd_simulate, "context": cmd_context,
     "explain": cmd_explain, "verify": cmd_verify, "insights": cmd_insights,
+    "backfill": cmd_backfill,
 }
 
 if __name__ == "__main__":

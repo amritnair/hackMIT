@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 import mergemind
-from mergemind import branches, merge, store
+from mergemind import backfill, branches, merge, store
 
 FIXTURE = {
     "api/middleware.py": (
@@ -98,8 +98,54 @@ def main():
         assert "api/middleware.py" in text and "Coordination" in text
 
         check_branches(root, repo)
+        check_backfill(root)
 
     print("ok")
+
+
+def check_backfill(root):
+    """Land a real conflicting merge, then replay it and check we would have
+    called it in advance, without the replay ever seeing the merge commit."""
+    run = lambda *a: subprocess.run(["git", "-C", str(root), *a], check=True,
+                                    capture_output=True)
+    target = root / "api/middleware.py"
+
+    run("checkout", "-q", "limits")
+    merged = subprocess.run(["git", "-C", str(root), "merge", "--no-commit", "buckets"],
+                            capture_output=True, text=True)
+    assert merged.returncode != 0, "fixture should conflict"
+    target.write_text("def authenticate(request, token):\n    return bool(token)\n\n"
+                      "def rate_limit(request, limit, window, bucket):\n    return True\n")
+    run("add", "-A")
+    run("commit", "-qm", "merge buckets into limits")
+    run("checkout", "-q", "main")
+
+    found = backfill.merge_commits(root, 10, ref="limits")
+    assert len(found) == 1, found
+
+    result = backfill.replay_one(root, found[0])
+    assert result["conflicted"] == ["api/middleware.py"], result
+    assert result["caught"] == ["api/middleware.py"], result
+    assert not result["missed"], result
+    assert result["levels"]["api/middleware.py"] in ("medium", "high"), result
+    assert result["lead_seconds"] >= 0
+
+    # a sample this small must refuse to produce a rate
+    summary = backfill.report([result])
+    assert summary["sample_too_small"]
+    assert "anecdote" in summary["verdict"], summary
+    assert "sanity check" in summary["recall_note"]
+
+    # with enough runs it does report, and it reports the ordering honestly
+    inverted = [dict(result, merge=f"x{i}", conflicted=["a.py"], caught=["a.py"],
+                     levels={"a.py": "medium", "b.py": "high"},
+                     flagged_no_conflict=["b.py"], predicted_files=["a.py", "b.py"])
+                for i in range(12)]
+    summary = backfill.report(inverted)
+    assert not summary["sample_too_small"]
+    assert summary["by_level"]["high"]["rate"] == 0.0
+    assert summary["by_level"]["medium"]["rate"] == 1.0
+    assert "inverted" in summary["verdict"], summary["verdict"]
 
 
 def check_branches(root, repo):

@@ -8,15 +8,7 @@ forecast. It is what predictions get checked against.
 import subprocess
 from pathlib import Path
 
-from .scan import CODE_SUFFIXES, _parse_python, _parse_ts, git
-
-
-def _show(repo, rev, path):
-    out = subprocess.run(
-        ["git", "-C", str(repo), "show", f"{rev}:{path}"],
-        capture_output=True, text=True,
-    )
-    return out.stdout if out.returncode == 0 else None
+from .scan import CODE_SUFFIXES, _parse_python, _parse_ts, git, read_at
 
 
 def _symbols(path, source):
@@ -40,6 +32,46 @@ def branches(repo_path, base="main", include_base=False):
     }
 
 
+def diff(repo, fork, rev, label=None):
+    """What changed between two commits, down to the signature level.
+
+    Works on branch names or raw SHAs, which is what lets the backfill replay
+    old merges with exactly the code path a live branch goes through.
+    """
+    repo = Path(repo)
+    changed = [
+        p for p in git(repo, "diff", "--name-only", f"{fork}..{rev}").splitlines() if p
+    ]
+    signature_changes, touched_symbols = [], {}
+    for path in changed:
+        if Path(path).suffix not in CODE_SUFFIXES:
+            continue
+        before, after = read_at(repo, fork, path), read_at(repo, rev, path)
+        old_syms = _symbols(path, before) if before else {}
+        new_syms = _symbols(path, after) if after else {}
+        touched_symbols[path] = sorted(set(old_syms) | set(new_syms))
+        for sym in sorted(set(old_syms) & set(new_syms)):
+            if old_syms[sym]["signature"] != new_syms[sym]["signature"]:
+                signature_changes.append({
+                    "file": path, "symbol": sym,
+                    "before": old_syms[sym]["signature"],
+                    "after": new_syms[sym]["signature"],
+                })
+        for sym in sorted(set(old_syms) - set(new_syms)):
+            signature_changes.append({
+                "file": path, "symbol": sym,
+                "before": old_syms[sym]["signature"], "after": "(removed)",
+            })
+    return {
+        "name": label or rev,
+        "fork_point": fork,
+        "head": git(repo, "rev-parse", rev),
+        "changed_files": changed,
+        "touched_symbols": touched_symbols,
+        "signature_changes": signature_changes,
+    }
+
+
 def branch(repo, name, base):
     repo = Path(repo)
     try:
@@ -49,43 +81,13 @@ def branch(repo, name, base):
 
     counts = git(repo, "rev-list", "--left-right", "--count", f"{base}...{name}")
     behind, ahead = (int(n) for n in counts.split())
-    changed = [
-        p for p in git(repo, "diff", "--name-only", f"{fork}..{name}").splitlines() if p
-    ]
-
-    signature_changes, touched_symbols = [], {}
-    for path in changed:
-        if Path(path).suffix not in CODE_SUFFIXES:
-            continue
-        before, after = _show(repo, fork, path), _show(repo, name, path)
-        old = _symbols(path, before) if before else {}
-        new = _symbols(path, after) if after else {}
-        touched_symbols[path] = sorted(set(old) | set(new))
-        for sym in sorted(set(old) & set(new)):
-            if old[sym]["signature"] != new[sym]["signature"]:
-                signature_changes.append({
-                    "file": path, "symbol": sym,
-                    "before": old[sym]["signature"], "after": new[sym]["signature"],
-                })
-        for sym in sorted(set(old) - set(new)):
-            signature_changes.append({
-                "file": path, "symbol": sym,
-                "before": old[sym]["signature"], "after": "(removed)",
-            })
-
-    return {
-        "name": name,
+    return diff(repo, fork, name) | {
         "base": base,
-        "fork_point": fork,
-        "head": git(repo, "rev-parse", name),
         "ahead": ahead,
         "behind": behind,
         "author": git(repo, "log", "-1", "--format=%an", name),
         "last_commit": git(repo, "log", "-1", "--format=%ar", name),
         "subject": git(repo, "log", "-1", "--format=%s", name),
-        "changed_files": changed,
-        "touched_symbols": touched_symbols,
-        "signature_changes": signature_changes,
     }
 
 
@@ -118,6 +120,6 @@ def as_forecast(info):
         "unsupported_terms": [],
         "observed": True,
         "signature_changes": info["signature_changes"],
-        "ahead": info["ahead"],
-        "behind": info["behind"],
+        "ahead": info.get("ahead", 0),
+        "behind": info.get("behind", 0),
     }

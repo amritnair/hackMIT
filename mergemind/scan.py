@@ -28,20 +28,37 @@ def git(repo, *args):
     return out.stdout.strip()
 
 
-def scan(repo):
+def scan(repo, rev=None):
+    """Read the working tree, or any commit if you pass rev.
+
+    Reading an old commit is what makes backfill possible: you cannot grade a
+    forecast fairly against a repo that already contains the answer.
+    """
     repo = Path(repo).resolve()
-    sha = git(repo, "rev-parse", "HEAD")
-    tracked = [p for p in git(repo, "ls-files").splitlines() if p]
+    sha = git(repo, "rev-parse", rev or "HEAD")
+    tracked = [
+        p for p in (
+            git(repo, "ls-tree", "-r", "--name-only", rev) if rev
+            else git(repo, "ls-files")
+        ).splitlines() if p
+    ]
 
     files = {}
     for rel in tracked:
         path = repo / rel
-        if path.suffix not in CODE_SUFFIXES or not path.is_file():
+        if path.suffix not in CODE_SUFFIXES:
             continue
-        try:
-            source = path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
+        if rev:
+            source = read_at(repo, rev, rel)
+            if source is None:
+                continue
+        else:
+            if not path.is_file():
+                continue
+            try:
+                source = path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
         symbols, imports = (
             _parse_python(source) if path.suffix == ".py" else _parse_ts(source)
         )
@@ -55,12 +72,22 @@ def scan(repo):
     return {
         "repo": str(repo),
         "sha": sha,
-        "branch": git(repo, "rev-parse", "--abbrev-ref", "HEAD"),
+        "rev": rev,
+        "branch": rev or git(repo, "rev-parse", "--abbrev-ref", "HEAD"),
         "files": files,
         "manifests": [p for p in tracked if Path(p).name in MANIFESTS],
         "schema_files": [p for p in tracked if _is_schema(p)],
         "callers": _callers(files),
     }
+
+
+def read_at(repo, rev, path):
+    """Contents of one file at one commit, or None if it was not there."""
+    out = subprocess.run(
+        ["git", "-C", str(repo), "show", f"{rev}:{path}"],
+        capture_output=True, text=True,
+    )
+    return out.stdout if out.returncode == 0 else None
 
 
 def _is_test(rel):

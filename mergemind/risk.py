@@ -49,7 +49,7 @@ def _solo_risks(repo, forecast):
             f"Check the {len(callers)} caller(s) of {change['symbol']} before merging."
             if callers else
             f"Signature of {change['symbol']} changed; no callers found in this repo.",
-            (forecast["task"],), repo,
+            (forecast["task"],), repo, files=[change["file"]],
         ))
 
     behind = forecast.get("behind", 0)
@@ -107,7 +107,8 @@ def _pair_risks(repo, a, b):
             evidence.append(f"{rel} looks like schema or migration code")
             recommendation = "Land one migration first; concurrent migrations collide."
 
-        out.append(_risk(kind, score, evidence, recommendation, pair, repo))
+        out.append(_risk(kind, score, evidence, recommendation, pair, repo,
+                         files=[rel]))
 
     out += _manifest_risk(repo, a, b, pair)
     out += _test_risk(a, b, pair, repo)
@@ -124,7 +125,7 @@ def _manifest_risk(repo, a, b, pair):
         "dependency_collision", 0.5,
         [f"both tasks are forecast to edit {rel}" for rel in sorted(shared)],
         "Add dependencies in one branch and rebase the other onto it.",
-        pair, repo,
+        pair, repo, files=shared,
     )]
 
 
@@ -136,11 +137,11 @@ def _test_risk(a, b, pair, repo):
         "test_impact", 0.3,
         [f"both tasks depend on {rel}" for rel in sorted(shared)],
         "Expect churn in shared tests; whoever lands second reruns them.",
-        pair, repo,
+        pair, repo, files=shared,
     )]
 
 
-def _risk(kind, score, evidence, recommendation, pair, repo):
+def _risk(kind, score, evidence, recommendation, pair, repo, files=()):
     score = round(min(score, 0.95), 2)
     # id is a hash of what the risk is about, so the same risk keeps the same
     # id between runs and `mergemind explain <id>` stays valid.
@@ -148,6 +149,7 @@ def _risk(kind, score, evidence, recommendation, pair, repo):
     return {
         "id": "R" + hashlib.blake2s(seed.encode(), digest_size=3).hexdigest(),
         "risk_type": kind,
+        "files": sorted(files),
         "risk_score": score,
         "risk_level": _level(score),
         "tasks": list(pair),
