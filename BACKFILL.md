@@ -66,6 +66,32 @@ they are the single most collision-prone category in the repo, and the right
 advice for them is not "agree who owns this file". It is: take one side, then
 regenerate or re-append after rebasing.
 
+## after the fix
+
+Re-running the same 250 merges with both changes in place:
+
+```
+  high   (code)      214 flagged   13 conflicted    6.1%
+  medium (code)      152 flagged    0 conflicted    0.0%
+  high   (non-code)   61 flagged   28 conflicted   45.9%
+  medium (non-code)   89 flagged   32 conflicted   36.0%
+
+  250 merges replayed, 24 of them conflicted
+  3042 files touched across both sides, 516 flagged
+  73 files really conflicted — 73 flagged, 0 missed
+  median warning lead time: 26.5 hours before the merge
+```
+
+Among source files the ordering holds and the separation is total. The new
+`regenerated_file_overlap` type accounts for most of the non-code `high`
+bucket, and those files conflict 45.9% of the time — which is the point of
+giving them a category of their own rather than burying them among ordinary
+shared files.
+
+The lead time is the other number worth keeping: 26.5 hours is the median gap
+between two branches diverging and the merge that brought them back together.
+That is how much earlier this could have said something.
+
 ## what these numbers do not show
 
 **Recall on text conflicts is not an achievement.** Every conflicting file was
