@@ -42,13 +42,26 @@ def diff(repo, fork, rev, label=None):
     changed = [
         p for p in git(repo, "diff", "--name-only", f"{fork}..{rev}").splitlines() if p
     ]
-    signature_changes, touched_symbols = [], {}
+    # Two passes. The first reads every changed file; the second decides what
+    # the changes mean, which needs to know what the whole branch did. A class
+    # that leaves one file and appears in another was moved, not deleted, and
+    # calling that a removal is how a refactor turns into forty warnings.
+    before, after = {}, {}
     for path in changed:
         if Path(path).suffix not in CODE_SUFFIXES:
             continue
-        before, after = read_at(repo, fork, path), read_at(repo, rev, path)
-        old_syms = _symbols(path, before) if before else {}
-        new_syms = _symbols(path, after) if after else {}
+        old_text, new_text = read_at(repo, fork, path), read_at(repo, rev, path)
+        before[path] = _symbols(path, old_text) if old_text else {}
+        after[path] = _symbols(path, new_text) if new_text else {}
+
+    landed = {}
+    for path, syms in after.items():
+        for name in syms:
+            landed.setdefault(name, set()).add(path)
+
+    signature_changes, touched_symbols = [], {}
+    for path in before:
+        old_syms, new_syms = before[path], after[path]
         touched_symbols[path] = sorted(set(old_syms) | set(new_syms))
         for sym in sorted(set(old_syms) & set(new_syms)):
             if old_syms[sym]["signature"] != new_syms[sym]["signature"]:
@@ -56,12 +69,18 @@ def diff(repo, fork, rev, label=None):
                     "file": path, "symbol": sym,
                     "before": old_syms[sym]["signature"],
                     "after": new_syms[sym]["signature"],
+                    "kind": "changed",
                 })
         for sym in sorted(set(old_syms) - set(new_syms)):
+            elsewhere = sorted(landed.get(sym, set()) - {path})
             signature_changes.append({
                 "file": path, "symbol": sym,
-                "before": old_syms[sym]["signature"], "after": "(removed)",
+                "before": old_syms[sym]["signature"],
+                "after": f"moved to {elsewhere[0]}" if elsewhere else "(removed)",
+                "kind": "moved" if elsewhere else "removed",
+                "moved_to": elsewhere[0] if elsewhere else None,
             })
+
     return {
         "name": label or rev,
         "fork_point": fork,

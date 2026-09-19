@@ -271,6 +271,7 @@ def check_branches(root, repo):
         "file": "api/middleware.py", "symbol": "rate_limit",
         "before": "rate_limit(request, limit)",
         "after": "rate_limit(request, limit, window)",
+        "kind": "changed",
     }], limits["signature_changes"]
 
     # a signature change with callers is a risk on its own, no second task needed
@@ -279,6 +280,22 @@ def check_branches(root, repo):
     sig = [r for r in observed if r["risk_type"] == "api_signature_change"]
     assert len(sig) == 2, observed
     assert "caller" in sig[0]["recommendation"], sig[0]
+
+    # a symbol that leaves one file and lands in another moved; it was not
+    # deleted, and a refactor must not read as a pile of removals
+    run("checkout", "-qb", "relocate", "main")
+    (root / "api/limits.py").write_text(
+        "def rate_limit(request, limit=100):\n    return True\n")
+    (root / "api/middleware.py").write_text(
+        "def authenticate(request, token):\n    return bool(token)\n")
+    run("add", "-A")
+    run("commit", "-qm", "move rate_limit out of middleware")
+    run("checkout", "-q", "main")
+
+    moved = branches.branch(root, "relocate", "main")["signature_changes"]
+    assert [c["kind"] for c in moved] == ["moved"], moved
+    assert moved[0]["moved_to"] == "api/limits.py", moved
+    assert "moved to api/limits.py" in moved[0]["after"]
 
     # and the two branches really do collide, in the file we said they would
     outcome = merge.trial_merge(root, "limits", "buckets")

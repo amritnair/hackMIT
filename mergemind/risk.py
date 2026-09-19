@@ -30,27 +30,58 @@ def risks(repo, forecasts):
 def _solo_risks(repo, forecast):
     """Risks visible in one branch on its own, without a second task to hit."""
     out = []
+    # Group by file first. A branch that moves twelve classes out of one module
+    # has done one thing, not twelve, and reporting it twelve times is how a
+    # warning list gets ignored.
+    by_file = {}
     for change in forecast.get("signature_changes", []):
-        callers = repo["callers"].get(change["file"], [])
-        score = 0.4 + min(0.4, 0.08 * len(callers))
-        evidence = [
-            f"{change['symbol']} in {change['file']} changed from "
-            f"{change['before']} to {change['after']}",
-        ]
-        if callers:
-            evidence.append(
-                f"{len(callers)} file(s) import {change['file']}: "
-                f"{', '.join(callers[:4])}"
-            )
+        by_file.setdefault(change["file"], []).append(change)
+
+    for path, changes in sorted(by_file.items()):
+        callers = repo["callers"].get(path, [])
+        moved = [c for c in changes if c.get("kind") == "moved"]
+        edited = [c for c in changes if c.get("kind") != "moved"]
+
+        if len(moved) >= 3:
+            targets = sorted({c["moved_to"] for c in moved if c["moved_to"]})
+            out.append(_risk(
+                "symbols_relocated", 0.5 + min(0.35, 0.05 * len(callers)),
+                [
+                    f"{len(moved)} symbol(s) moved out of {path} into "
+                    f"{', '.join(targets[:3])}",
+                    "moved, not deleted: " + ", ".join(
+                        c["symbol"] for c in moved[:6]),
+                    f"{len(callers)} file(s) import {path}: "
+                    f"{', '.join(callers[:4])}" if callers
+                    else f"no tracked file imports {path}",
+                ],
+                f"Import sites for {path} need updating, and anything else "
+                "editing this module will conflict with the move. Land it "
+                "first or hold it.",
+                (forecast["task"],), repo, files=[path],
+            ))
+            edited += [c for c in moved if False]  # moves are reported above
         else:
-            evidence.append(f"no tracked file imports {change['file']}")
-        out.append(_risk(
-            "api_signature_change", score, evidence,
-            f"Check the {len(callers)} caller(s) of {change['symbol']} before merging."
-            if callers else
-            f"Signature of {change['symbol']} changed; no callers found in this repo.",
-            (forecast["task"],), repo, files=[change["file"]],
-        ))
+            edited += moved
+
+        for change in edited:
+            score = 0.4 + min(0.4, 0.08 * len(callers))
+            evidence = [
+                f"{change['symbol']} in {path} changed from "
+                f"{change['before']} to {change['after']}",
+            ]
+            evidence.append(
+                f"{len(callers)} file(s) import {path}: {', '.join(callers[:4])}"
+                if callers else f"no tracked file imports {path}"
+            )
+            out.append(_risk(
+                "api_signature_change", score, evidence,
+                f"Check the {len(callers)} caller(s) of {change['symbol']} "
+                "before merging." if callers else
+                f"Signature of {change['symbol']} changed; no callers found "
+                "in this repo.",
+                (forecast["task"],), repo, files=[path],
+            ))
 
     behind = forecast.get("behind", 0)
     if behind >= STALE_BEHIND:
