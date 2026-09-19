@@ -76,7 +76,12 @@
   .btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
     font: 500 14px/1 var(--ui); padding: 12px 22px; border-radius: 999px;
     border: 1px solid transparent;
-    background: linear-gradient(135deg, var(--lavender), var(--accent));
+    /* the gradient is painted to the border box but positioned to the padding
+       box, which smears a pale sliver down the left edge; pin the origin and
+       run the gradient vertically so no light stop lands on an edge */
+    background: linear-gradient(180deg, var(--lavender), var(--accent));
+    background-origin: border-box;
+    background-clip: border-box;
     color: #0D0D12; transition: transform .12s ease, opacity .12s ease, box-shadow .12s ease; }
   .btn:hover:not(:disabled) { transform: translateY(-1px);
     box-shadow: 0 8px 28px rgba(139,92,246,.28); }
@@ -179,7 +184,7 @@
     font: 500 14px/1.45 var(--ui); color: var(--text-2); letter-spacing: 0; }
   .sub-stats { display: grid; gap: 1px; background: var(--line);
     border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
-    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+    grid-template-columns: repeat(2, 1fr); }
   .sub-stats div { background: var(--card); padding: 13px 15px; }
   .sub-stats b { display: block; font: 600 19px/1.2 var(--ui);
     letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
