@@ -1,4 +1,4 @@
-# mergemind
+# Prophecy
 
 Two people pick up two tickets on Monday. Nobody finds out they both rewrite
 the same auth helper until Thursday, when one of them rebases.
