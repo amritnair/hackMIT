@@ -136,16 +136,28 @@ def check_backfill(root):
     assert "anecdote" in summary["verdict"], summary
     assert "sanity check" in summary["recall_note"]
 
-    # with enough runs it does report, and it reports the ordering honestly
+    # with enough runs it reports, and it calls an inverted score inverted
     inverted = [dict(result, merge=f"x{i}", conflicted=["a.py"], caught=["a.py"],
                      levels={"a.py": "medium", "b.py": "high"},
                      flagged_no_conflict=["b.py"], predicted_files=["a.py", "b.py"])
                 for i in range(12)]
     summary = backfill.report(inverted)
     assert not summary["sample_too_small"]
-    assert summary["by_level"]["high"]["rate"] == 0.0
-    assert summary["by_level"]["medium"]["rate"] == 1.0
+    assert summary["by_level"]["high (code)"]["rate"] == 0.0
+    assert summary["by_level"]["medium (code)"]["rate"] == 1.0
     assert "inverted" in summary["verdict"], summary["verdict"]
+
+    # lockfiles and changelogs are kept out of the source-file comparison, so a
+    # changelog that conflicts every time cannot make the score look broken
+    noisy = [dict(result, merge=f"y{i}", conflicted=["CHANGES.rst"],
+                  caught=["CHANGES.rst"], predicted_files=["CHANGES.rst", "b.py"],
+                  levels={"CHANGES.rst": "medium", "b.py": "high"},
+                  flagged_no_conflict=["b.py"])
+             for i in range(12)]
+    summary = backfill.report(noisy)
+    assert summary["by_level"]["medium (non-code)"]["rate"] == 1.0
+    assert "inverted" not in summary["verdict"], summary["verdict"]
+    assert "Only one risk level" in summary["verdict"], summary["verdict"]
 
 
 def check_branches(root, repo):

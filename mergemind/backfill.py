@@ -16,7 +16,7 @@ from pathlib import Path
 from .branches import as_forecast, diff
 from .merge import trial_merge
 from .risk import risks
-from .scan import git, scan
+from .scan import CODE_SUFFIXES, git, scan
 
 
 def merge_commits(repo, limit, ref="HEAD"):
@@ -116,14 +116,20 @@ def report(runs, minimum=10):
     flagged_quiet = sum(len(r["flagged_no_conflict"]) for r in runs)
     leads = [r["lead_seconds"] / 3600 for r in runs if r["lead_seconds"] > 0]
 
+    # Split code from everything else before comparing levels. Lockfiles, CI
+    # config and changelogs conflict constantly and for reasons that have
+    # nothing to do with how risky the work was; leaving them in the same
+    # bucket as source files makes the scoring look inverted when it is not.
     by_level = {}
     for run in runs:
         conflicted = set(run["conflicted"])
         for path, level in run["levels"].items():
-            bucket = by_level.setdefault(level, {"flagged": 0, "conflicted": 0})
+            kind = "code" if Path(path).suffix in CODE_SUFFIXES else "non-code"
+            bucket = by_level.setdefault(f"{level} ({kind})",
+                                         {"flagged": 0, "conflicted": 0})
             bucket["flagged"] += 1
             bucket["conflicted"] += path in conflicted
-    for level, bucket in by_level.items():
+    for bucket in by_level.values():
         bucket["rate"] = round(bucket["conflicted"] / bucket["flagged"], 3)
 
     out = {
@@ -136,8 +142,10 @@ def report(runs, minimum=10):
         "files_missed": missed,
         "files_flagged_that_merged_clean": flagged_quiet,
         "median_lead_hours": round(statistics.median(leads), 1) if leads else None,
-        "by_level": dict(sorted(by_level.items(),
-                                key=lambda kv: -{"high": 2, "medium": 1, "low": 0}[kv[0]])),
+        "by_level": dict(sorted(
+            by_level.items(),
+            key=lambda kv: (kv[0].endswith("(code)") is False,
+                            -{"high": 2, "medium": 1, "low": 0}[kv[0].split()[0]]))),
         "sample_too_small": len(conflicting) < minimum,
     }
     out["recall_note"] = (
@@ -152,23 +160,24 @@ def report(runs, minimum=10):
             f"Below {minimum} the rates below are anecdote, not evidence."
         )
     else:
-        # compare the loudest and quietest levels that actually appeared
-        present = [lvl for lvl in ("high", "medium", "low") if lvl in by_level]
+        # compare the loudest and quietest levels among code files only
+        present = [f"{lvl} (code)" for lvl in ("high", "medium", "low")
+                   if f"{lvl} (code)" in by_level]
         if len(present) >= 2:
             loud, quiet = present[0], present[-1]
             loud_rate, quiet_rate = by_level[loud]["rate"], by_level[quiet]["rate"]
             direction = (
-                f"'{loud}' conflicted {loud_rate * 100:.1f}% of the time against "
-                f"'{quiet}' at {quiet_rate * 100:.1f}%, so the ordering holds."
+                f"Among source files, {loud} conflicted {loud_rate * 100:.1f}% "
+                f"of the time against {quiet} at {quiet_rate * 100:.1f}%, so the "
+                "ordering holds."
                 if loud_rate > quiet_rate else
-                f"The score is inverted against text conflicts: '{loud}' "
-                f"conflicted {loud_rate * 100:.1f}% of the time while '{quiet}' "
-                f"hit {quiet_rate * 100:.1f}%. Either the weighting is wrong, or "
-                "the loud warnings are catching something a text conflict does "
-                "not measure. Do not trust the ordering until this is resolved."
+                f"The score is inverted, even after separating source files from "
+                f"generated ones: {loud} conflicted {loud_rate * 100:.1f}% of the "
+                f"time while {quiet} hit {quiet_rate * 100:.1f}%. "
+                "Do not trust the ordering until this is resolved."
             )
         else:
-            direction = "Only one risk level appeared; nothing to compare."
+            direction = "Only one risk level appeared among source files."
         out["verdict"] = (
             f"Across {len(conflicting)} conflicting merge(s): "
             f"{out['files_flagged']} file(s) flagged out of "

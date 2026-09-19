@@ -101,6 +101,19 @@ def _pair_risks(repo, a, b):
             if shared_symbols:
                 kind = "shared_api_contract"
 
+        if rel in repo["regenerated_files"]:
+            score = 0.7
+            kind = "regenerated_file_overlap"
+            evidence.append(
+                f"{rel} is a lockfile, CI config or changelog — the kind of file "
+                "two branches collide in most often, and for the least "
+                "interesting reasons"
+            )
+            recommendation = (
+                "Do not hand-merge this. Take one side, then regenerate or "
+                "re-append after rebasing."
+            )
+
         if rel in repo["schema_files"]:
             score += 0.2
             kind = "schema_overlap"
@@ -163,10 +176,10 @@ def _risk(kind, score, evidence, recommendation, pair, repo, files=()):
 def strategies(repo, forecasts, found):
     """Same work, different orderings. No claim that one is optimal."""
     high = [r for r in found if r["risk_level"] == "high"]
-    contested = sorted({
-        line.split()[-1] for r in found for line in r["evidence"]
-        if line.startswith("both tasks are forecast to touch")
-    })
+    # only risks between two pieces of work can be sequenced; a signature
+    # change on one branch is not fixed by running it earlier
+    orderable = [r for r in high if len(r["tasks"]) == 2]
+    contested = sorted({f for r in found if len(r["tasks"]) == 2 for f in r["files"]})
     return [
         {
             "strategy": "all in parallel",
@@ -178,8 +191,8 @@ def strategies(repo, forecasts, found):
             "strategy": "sequence by overlap",
             "open_risks": max(0, len(found) - len(high)),
             "coordination_steps": [
-                f"land '{r['tasks'][0]}' before '{r['tasks'][1]}'" for r in high
-            ],
+                f"land '{r['tasks'][0]}' before '{r['tasks'][1]}'" for r in orderable
+            ] or ["nothing here can be fixed by ordering alone"],
             "note": "Serialises the contested work; the later task rebases.",
         },
         {

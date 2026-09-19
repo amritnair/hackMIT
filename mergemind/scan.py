@@ -10,6 +10,14 @@ MANIFESTS = {
     "requirements.txt", "pyproject.toml", "setup.py", "Pipfile",
     "package.json", "go.mod", "Cargo.toml",
 }
+# Files that two branches conflict in constantly and for boring reasons:
+# lockfiles, CI config, changelogs. Empirically the highest-conflict category
+# in a real repo, and the one where "merge carefully" is the wrong advice.
+LOCK_NAMES = {
+    "poetry.lock", "uv.lock", "package-lock.json", "yarn.lock",
+    "pnpm-lock.yaml", "pipfile.lock", "cargo.lock", "composer.lock",
+}
+
 # ponytail: regex for TS/JS instead of tree-sitter. Swap in tree-sitter when
 # the false positives start mattering.
 TS_SYMBOL = re.compile(
@@ -77,6 +85,7 @@ def scan(repo, rev=None):
         "files": files,
         "manifests": [p for p in tracked if Path(p).name in MANIFESTS],
         "schema_files": [p for p in tracked if _is_schema(p)],
+        "regenerated_files": [p for p in tracked if is_regenerated(p)],
         "callers": _callers(files),
     }
 
@@ -96,6 +105,18 @@ def _is_test(rel):
         name.startswith("test_")
         or name.endswith(("_test.py", ".test.ts", ".test.tsx", ".spec.ts"))
         or "tests/" in rel
+    )
+
+
+def is_regenerated(rel):
+    """Lockfiles, CI workflows and changelogs: rebuilt or appended to, not merged."""
+    low = rel.lower()
+    name = Path(low).name
+    return (
+        name in LOCK_NAMES
+        or name.endswith(".lock")
+        or ".github/workflows/" in low
+        or name.startswith(("changes", "changelog", "history"))
     )
 
 
