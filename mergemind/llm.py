@@ -50,12 +50,12 @@ class Anthropic:
         self.model = model or os.environ.get("MERGEMIND_MODEL", self.default_model)
         self._client = anthropic.Anthropic()
 
-    def complete(self, stable, volatile, max_tokens=1500):
+    def complete(self, stable, volatile, max_tokens=1500, system=None):
         message = self._client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
             system=[
-                {"type": "text", "text": SYSTEM},
+                {"type": "text", "text": system or SYSTEM},
                 {
                     "type": "text",
                     "text": stable,
@@ -85,12 +85,12 @@ class OpenAI:
         self.model = model or os.environ.get("MERGEMIND_MODEL", self.default_model)
         self._client = Client()
 
-    def complete(self, stable, volatile, max_tokens=1500):
+    def complete(self, stable, volatile, max_tokens=1500, system=None):
         response = self._client.chat.completions.create(
             model=self.model,
             max_tokens=max_tokens,
             messages=[
-                {"role": "system", "content": SYSTEM + "\n\n" + stable},
+                {"role": "system", "content": (system or SYSTEM) + "\n\n" + stable},
                 {"role": "user", "content": volatile},
             ],
         )
@@ -220,3 +220,34 @@ def merge_forecasts(lexical, semantic):
            if semantic["invented"] else "")
     )
     return out
+
+
+NARRATOR = (
+    "You brief an engineering team on what is happening in their repository "
+    "right now. You are given facts that were computed from the repository "
+    "and from live agent sessions.\n\n"
+    "Rules:\n"
+    "- Use only the facts given. Do not invent files, people, numbers or "
+    "causes, and do not soften or inflate what is there.\n"
+    "- Lead with what matters to whoever is about to start work.\n"
+    "- Plain sentences, no headings, no bullet points, no preamble. Four "
+    "short paragraphs at most.\n"
+    "- These are predictions from structure, not observed failures. Say so "
+    "where it matters rather than implying certainty."
+)
+
+
+def narrate(facts, provider=None):
+    """Have a model write the briefing from facts already computed.
+
+    Opt-in, and never the only copy: the deterministic summary is kept and
+    shown as the fallback, because prose generated from facts can still drift
+    from them in a way a rule cannot.
+    """
+    provider = provider or get_provider()
+    body = json.dumps(facts, indent=2, default=str)[:12000]
+    text = provider.complete(
+        "", f"Facts:\n{body}\n\nBrief the team.",
+        max_tokens=700, system=NARRATOR,
+    )
+    return [line.strip() for line in text.split("\n") if line.strip()]

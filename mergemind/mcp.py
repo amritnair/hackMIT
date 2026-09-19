@@ -18,6 +18,7 @@ import sys
 from . import store
 from .agent import brief, stable_prefix, volatile_suffix
 from .predict import predict
+from .work import in_flight
 from .risk import risks
 from .scan import scan
 
@@ -119,24 +120,32 @@ class Server:
         store.join_session(db, session_id, repo["sha"], agent, task, "mcp")
 
         forecast = predict(repo, task)
+        # Everything else in flight, not just other live sessions: a teammate's
+        # open pull request collides just as hard as a running agent.
+        elsewhere = [w for w in in_flight(repo, "main", db, store)
+                     if w["agent"] != agent]
+        found = risks(repo, [forecast, *(w["forecast"] for w in elsewhere)])
         others = [
-            s for s in store.live_sessions(db) if s["agent"] != agent
+            {"agent": w["agent"], "task": w["label"], "kind": w["kind"]}
+            for w in elsewhere
         ]
-        other_forecasts = [predict(repo, s["task"]) for s in others if s["task"]]
-        found = risks(repo, [forecast, *other_forecasts])
         data = brief(repo, [forecast], found, db=db, agent=agent, store=store)
 
         mine = [r for r in found if task in r["tasks"]]
         store.log(db, repo["sha"], "joined", agent,
-                  f"started on {task}", data["suffixes"][0]["tokens"])
+                  f"joined, working on {task}", data["suffixes"][0]["tokens"])
         if mine:
-            store.log(db, repo["sha"], "overlap", agent,
-                      f"{len(mine)} overlap(s) with work already in flight")
+            store.log(
+                db, repo["sha"], "overlap", agent,
+                f"heading for the same code as "
+                f"{len(mine)} other piece{'s' if len(mine) != 1 else ''} of work",
+            )
 
         text = data["prefix"] + "\n\n" + data["suffixes"][0]["text"]
         if others:
-            text += "\n\n## Live right now\n" + "\n".join(
-                f"- {s['agent']}: {s['task']}" for s in others
+            text += "\n\n## Also in flight right now\n" + "\n".join(
+                f"- {o['agent']} — {o['task']} ({o['kind'].replace('_', ' ')})"
+                for o in others
             )
         return text
 
@@ -146,7 +155,8 @@ class Server:
         if path not in repo["files"]:
             return f"{path} is not a code file in this repository; nothing recorded."
         store.add_note(db, repo["sha"], agent, path, finding)
-        store.log(db, repo["sha"], "shared", agent, f"{path}: {finding[:80]}")
+        store.log(db, repo["sha"], "shared", agent,
+                  f"shared something about {path}: {finding}")
         return (f"Recorded against {path}. The next agent sent there gets it "
                 "in their briefing.")
 
@@ -154,16 +164,18 @@ class Server:
         agent = args["agent"]
         repo, db = self._open()
         files = args.get("files") or []
-        live = [s for s in store.live_sessions(db) if s["agent"] != agent]
-        if not live:
-            return "Nobody else is working in this repository right now."
+        elsewhere = [w for w in in_flight(repo, "main", db, store)
+                     if w["agent"] != agent]
+        if not elsewhere:
+            return ("Nothing else is in flight here right now — no other "
+                    "sessions, branches or open pull requests.")
 
         mine = predict(repo, next(
             (s["task"] for s in store.live_sessions(db) if s["agent"] == agent),
             " ".join(files) or "",
         ))
-        theirs = [predict(repo, s["task"]) for s in live if s["task"]]
-        found = risks(repo, [mine, *theirs])
+        found = risks(repo, [mine, *(w["forecast"] for w in elsewhere)])
+        live = [{"agent": w["agent"], "task": w["label"]} for w in elsewhere]
         store.touch_session(db, self.session_id(agent))
 
         if not found:
@@ -181,7 +193,7 @@ class Server:
         agent = args["agent"]
         repo, db = self._open()
         store.leave_session(db, self.session_id(agent))
-        store.log(db, repo["sha"], "left", agent, "session ended")
+        store.log(db, repo["sha"], "left", agent, "finished up")
         return f"{agent} marked finished."
 
     def call(self, name, args):

@@ -9,6 +9,7 @@ import sys
 from . import store
 from . import github, llm
 from .agent import brief, observations, request_skeleton
+from .work import in_flight
 from .backfill import replay, report
 from .branches import as_forecast, branches
 from .merge import compare, trial_merge
@@ -350,49 +351,8 @@ def cmd_brief(repo, args, db):
 
 
 def _work_in_flight(repo, args, db=None):
-    """Find who is already working here, without being told.
-
-    Branches and open pull requests are the work that exists. Anything typed
-    in is added on top. Each gets an owner, because the point is to know who
-    to talk to, not just which file is busy.
-    """
-    work = []
-    for session in store.live_sessions(db) if db is not None else []:
-        if not session["task"]:
-            continue
-        work.append({
-            "agent": session["agent"],
-            "label": f"{session['agent']}: {session['task']}",
-            "kind": "session",
-            "forecast": predict(repo, session["task"]),
-        })
-    for name, info in branches(repo["repo"], args.base).items():
-        if "error" in info or not info["changed_files"]:
-            continue
-        shaped = as_forecast(info)
-        work.append({
-            "agent": info.get("author") or name,
-            "label": f"branch {name}",
-            "kind": "branch",
-            "forecast": shaped,
-        })
-    try:
-        for pull in github.pull_requests(repo["repo"]):
-            shaped = github.forecast(repo["repo"], pull)
-            work.append({
-                "agent": shaped["pull_request"]["author"],
-                "label": f"PR #{pull['number']} {pull['title']}",
-                "kind": "pull_request",
-                "forecast": shaped,
-            })
-    except Exception:
-        pass  # no GitHub here; branches alone are plenty
-    for task in getattr(args, "tasks", []) or []:
-        work.append({
-            "agent": task[:24], "label": task, "kind": "task",
-            "forecast": predict(repo, task),
-        })
-    return work
+    """Live sessions, branches, open pull requests, plus anything typed in."""
+    return in_flight(repo, args.base, db, store, getattr(args, "tasks", []) or [])
 
 
 def cmd_fleet(repo, args, db):
@@ -434,7 +394,7 @@ def cmd_fleet(repo, args, db):
         for note in fresh:
             store.add_note(db, repo["sha"], note["agent"], note["file"], note["note"])
             store.log(db, repo["sha"], "shared", "mergemind",
-                      f"{note['file']}: {note['note'][:70]}")
+                      f"noted about {note['file']}: {note['note']}")
         store.save_risks(db, found)
         for w, suffix in zip(work[1:], data["suffixes"][1:]):
             store.record_brief(
@@ -522,7 +482,37 @@ def cmd_fleet(repo, args, db):
             "briefing convenience rather than a billing one."
         )
 
+    computed = list(summary)
+
+    # Opt-in: a model rewrites the briefing from the facts above. The computed
+    # version is kept either way, so a reader can always see what the prose was
+    # made from.
+    summary_source = "computed"
+    if getattr(args, "llm", False):
+        facts = {
+            "work": [{"agent": w["agent"], "label": w["label"], "kind": w["kind"],
+                      "files": [f["file"] for f in w["forecast"]["files"]]}
+                     for w in work],
+            "files_touched_by_more_than_one": overlap,
+            "risks": [{k: r[k] for k in
+                       ("risk_type", "risk_level", "tasks", "evidence",
+                        "recommendation")} for r in found[:12]],
+            "observations_to_pass_on": fresh,
+            "tokens": e,
+        }
+        try:
+            written = llm.narrate(facts, llm.get_provider(args.provider))
+            if written:
+                summary, summary_source = written, "model"
+        except llm.NoProvider as exc:
+            print(f"no model used: {exc}", file=sys.stderr)
+        except Exception as exc:
+            print(f"model narration failed, using the computed one: {exc}",
+                  file=sys.stderr)
+
     out = {
+        "computed_summary": computed,
+        "summary_source": summary_source,
         "work": [{k: v for k, v in w.items() if k != "forecast"} for w in work],
         "assignments": [
             {"agent": w["agent"], "label": w["label"], "kind": w["kind"],

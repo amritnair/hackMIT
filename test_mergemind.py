@@ -138,7 +138,10 @@ def check_mcp(root):
     first = call("join_repo_session", agent="ada",
                  task="Add rate limiting to the API")
     assert "api/middleware.py" in first
-    assert "Live right now" not in first  # nobody else had joined yet
+    # the fixture already has branches, and a joining agent should hear about
+    # them, not only about other live sessions
+    assert "Also in flight" in first and "(branch)" in first, first[-400:]
+    assert "ada" not in first.split("Also in flight")[1]  # not told about itself
 
     call("share_finding", agent="ada", file="api/middleware.py",
          finding="rate_limit is a stub that always returns True")
@@ -146,7 +149,10 @@ def check_mcp(root):
     second = call("join_repo_session", agent="grace",
                   task="Add rate limiting to the API")
     assert "always returns True" in second, "ada's finding did not reach grace"
-    assert "Live right now" in second and "ada" in second
+    assert "Also in flight" in second
+    tail = second.split("Also in flight")[1]
+    assert "ada" in tail and "(session)" in tail  # the live agent, labelled
+    assert "(branch)" in tail  # and the branches, still
 
     # a path the repo does not have is refused rather than recorded
     refused = call("share_finding", agent="ada", file="nope/nothing.py",

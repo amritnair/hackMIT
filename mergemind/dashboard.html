@@ -268,6 +268,14 @@
 
   /* ── sessions ───────────────────────────────────────────── */
   .row { display: flex; gap: 6px; }
+  details summary {
+    cursor: pointer; font: 12px/1.6 var(--ui); color: var(--accent);
+    list-style: none; padding: 2px 0;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "▸ "; color: var(--text-3); }
+  details[open] summary::before { content: "▾ "; }
+  details > *:not(summary) { margin-top: 8px; }
   .dot-live {
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
     background: var(--green); margin-right: 6px;
@@ -326,12 +334,12 @@
     <button type="submit">open</button>
   </form>
   <nav>
-    <button data-tab="agents" aria-selected="true">agents</button>
-    <button data-tab="task">forecast</button>
-    <button data-tab="simulate">collisions</button>
-    <button data-tab="prs">pull requests</button>
-    <button data-tab="overview">repo map</button>
-    <button data-tab="history">evidence</button>
+    <button data-tab="agents" aria-selected="true">Team</button>
+    <button data-tab="task">Plan a task</button>
+    <button data-tab="simulate">Clashes</button>
+    <button data-tab="prs">Pull requests</button>
+    <button data-tab="overview">Code map</button>
+    <button data-tab="history">Track record</button>
   </nav>
 </header>
 
@@ -346,7 +354,7 @@
     </div>
 
     <div class="panel">
-      <h3>who depends on whom
+      <h3>What depends on what
         <button class="ghost" id="reflow">re-settle</button></h3>
       <div class="body flush" id="graphWrap">
         <svg id="graph" role="img" aria-label="File dependency graph"></svg>
@@ -360,12 +368,12 @@
     </div>
 
     <div class="panel">
-      <h3>branches in flight</h3>
+      <h3>Branches being worked on</h3>
       <div class="body" id="branches"><p class="loading">reading</p></div>
     </div>
 
     <div class="panel">
-      <h3>risks from branches on their own</h3>
+      <h3>Worth knowing about single branches</h3>
       <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">—</p></div>
     </div>
   </section>
@@ -378,7 +386,7 @@
         anything it cannot ground is listed separately.</p>
     </div>
     <div class="panel">
-      <h3>task</h3>
+      <h3>Describe the work</h3>
       <div class="body">
         <input class="field" id="taskInput" autocomplete="off" spellcheck="false"
                placeholder="Add rate limiting to the API">
@@ -388,7 +396,7 @@
       </div>
     </div>
     <div class="panel">
-      <h3>predicted impact <span class="tag predicted">predicted</span></h3>
+      <h3>Where it would land <span class="tag predicted">a guess</span></h3>
       <div class="body" id="taskOut"><p class="empty">Nothing forecast yet.</p></div>
     </div>
   </section>
@@ -402,7 +410,7 @@
         worth a conversation.</p>
     </div>
     <div class="panel">
-      <h3>work in parallel</h3>
+      <h3>Things happening at once</h3>
       <div class="body">
         <input class="field" id="simA" autocomplete="off" placeholder="Add rate limiting to the API">
         <input class="field" id="simB" autocomplete="off" placeholder="Add authentication middleware">
@@ -412,11 +420,11 @@
       </div>
     </div>
     <div class="panel">
-      <h3>collisions <span class="tag predicted">predicted</span></h3>
+      <h3>Where they clash <span class="tag predicted">a guess</span></h3>
       <div class="body flush" id="simOut"><p class="empty" style="padding:18px">Nothing compared yet.</p></div>
     </div>
     <div class="panel">
-      <h3>ways to sequence it</h3>
+      <h3>Ways to order the work</h3>
       <div class="body" id="stratOut"><p class="empty">—</p></div>
     </div>
   </section>
@@ -430,23 +438,23 @@
     </div>
 
     <div class="panel">
-      <h3>connection</h3>
+      <h3>GitHub</h3>
       <div class="body" id="prSetup"><p class="loading">checking</p></div>
     </div>
 
     <div class="panel" id="prListPanel" hidden>
-      <h3>open pull requests <span class="tag observed">from github</span>
+      <h3>Open pull requests <span class="tag observed">from GitHub</span>
         <button class="ghost" id="loadPrs">refresh</button></h3>
       <div class="body" id="prList"></div>
     </div>
 
     <div class="panel" id="prRiskPanel" hidden>
-      <h3>where they overlap <span class="tag predicted">predicted</span></h3>
+      <h3>Where they overlap <span class="tag predicted">a guess</span></h3>
       <div class="body flush" id="prRisks"></div>
     </div>
 
     <div class="panel" id="prCommentPanel" hidden>
-      <h3>the comment mergemind would leave
+      <h3>The comment I would leave
         <span class="tag predicted">not posted</span></h3>
       <div class="body">
         <p class="hint" style="margin:0 0 12px">Nothing here has been sent to
@@ -475,43 +483,47 @@
     </div>
 
     <div class="panel">
-      <h3>live right now <span class="tag observed">connected agents</span>
+      <h3>Who is working here <span class="tag observed">live</span>
         <button class="ghost" id="refreshLive">refresh</button></h3>
       <div class="body" id="liveOut"><p class="loading">looking</p></div>
     </div>
 
     <div class="panel">
-      <h3>connect your agents <span class="tag predicted">one-time setup</span>
+      <h3>Connect your agents <span class="tag predicted">one-time setup</span>
         <button class="ghost" data-copy="mcp">copy config</button></h3>
       <div class="body">
-        <p class="hint" style="margin:0 0 12px">mergemind speaks MCP, so an
-          agent can ask it things while it works rather than only at startup.
-          Paste this into your agent client's MCP config and every session in
-          this repo joins automatically.</p>
-        <pre id="mcpConfig" class="empty">—</pre>
-        <p class="hint">It gives agents four tools: join the repo, share a
-          finding, check who else is in the same files, and leave.</p>
+        <p class="hint" style="margin:0 0 10px">Paste one block of settings
+          into your coding agent once. After that, every agent that works in
+          this project checks in here on its own — you do not have to do
+          anything else.</p>
+        <details>
+          <summary>Show the settings to paste</summary>
+          <pre id="mcpConfig" class="empty">—</pre>
+          <p class="hint">Agents get four things they can ask for: join this
+            project, share something they worked out, check who else is in the
+            same files, and say when they are done.</p>
+        </details>
       </div>
     </div>
 
     <div class="panel">
-      <h3>the plan <span class="tag predicted" id="planState">nothing applied yet</span>
+      <h3>What I found <span class="tag predicted" id="planState">nothing saved yet</span>
         <button class="ghost" id="recheck">re-check</button></h3>
       <div class="body" id="planOut"><p class="loading">reading the repository</p></div>
     </div>
 
     <div class="panel" id="collisionPanel" hidden>
-      <h3>agents heading for the same code <span class="tag predicted">predicted</span></h3>
+      <h3>Headed for the same code <span class="tag predicted">a guess, not a failure</span></h3>
       <div class="body flush" id="fleetRisks"></div>
     </div>
 
     <div class="panel">
-      <h3>how the fleet has been used</h3>
+      <h3>What this has saved so far</h3>
       <div class="body" id="usageOut"><p class="empty">No briefs issued yet.</p></div>
     </div>
 
     <div class="panel">
-      <h3>the repository half <span class="tag observed">sent once, cached</span>
+      <h3>The shared background <span class="tag observed">sent once</span>
         <button class="ghost" data-copy="prefix">copy</button></h3>
       <div class="body"><pre id="briefPrefix" class="empty">—</pre></div>
     </div>
@@ -525,11 +537,11 @@
         the merge. The forecast never sees the merge commit.</p>
     </div>
     <div class="panel">
-      <h3>this repo so far</h3>
+      <h3>This project so far</h3>
       <div class="body" id="insOut"><p class="loading">reading</p></div>
     </div>
     <div class="panel">
-      <h3>grade the forecast <span class="tag observed">observed</span></h3>
+      <h3>Check the guesses against history <span class="tag observed">real merges</span></h3>
       <div class="body">
         <button class="act" id="runBackfill">replay 25 merges</button>
         <p class="hint">Roughly a minute per fifty merges. Each one runs in a
@@ -1160,6 +1172,13 @@ function renderPrs(d) {
 $('#loadPrs').onclick = checkGitHub;
 
 const FEED_ICON = { joined: '\u2192', shared: '\u270E', overlap: '!', left: '\u2190' };
+// clamp on a word, never mid-word: a feed that ends in "scan(repo, lang" reads
+// like the page broke
+function clamp(text, max) {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  return cut.slice(0, cut.lastIndexOf(' ')) + '…';
+}
 
 function loadLive() {
   api('sessions').then(d => {
@@ -1171,14 +1190,14 @@ function loadLive() {
         <td>${esc(x.task || '\u2014')}</td>
         <td class="dim">${esc((x.joined_at || '').slice(5))}</td></tr>`).join('')}
       </tbody></table>`
-      : `<p class="empty">No agent sessions connected. Wire the config below
-         into an agent client and every session in this repo shows up here,
-         with what it is working on.</p>`)
+      : `<p class="empty">Nobody is connected yet. Once you paste the settings
+         below into a coding agent, anyone working on this project shows up
+         here with what they are doing.</p>`)
       + (events.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">feed</h4>
         <div class="feed">${events.map(e => `<div class="feed-row ${esc(e.kind)}">
           <span class="mark">${FEED_ICON[e.kind] || '\u00B7'}</span>
           <span class="who">${esc(e.agent)}</span>
-          <span class="what">${esc(e.detail)}</span>
+          <span class="what">${esc(clamp(e.detail, 96))}</span>
           <span class="when dim">${esc((e.at || '').slice(11, 16))}</span>
         </div>`).join('')}</div>` : '');
   }).catch(() => {
