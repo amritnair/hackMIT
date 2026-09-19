@@ -44,7 +44,17 @@
     display: flex; align-items: center; gap: 8px; }
   .wordmark .mark { width: 17px; height: 17px; border-radius: 5px;
     background: linear-gradient(140deg, var(--lavender) 20%, var(--accent) 55%, var(--cyan)); }
-  .wordmark em { font-style: normal; color: var(--text-3); font-weight: 500; }
+  .project { position: relative; }
+  .project-btn {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font: 500 13px/1 var(--ui); color: var(--text); background: var(--raised);
+    border: 1px solid var(--line-2); padding: 7px 13px; border-radius: 999px;
+  }
+  .project-btn:hover { border-color: #43434f; }
+  .project-btn svg { color: var(--text-3); }
+  .project form.repo { position: absolute; top: calc(100% + 8px); left: 0;
+    z-index: 50; width: 330px; }
+  .project form.repo[hidden] { display: none; }
   form.repo { display: flex; flex: 0 1 290px; min-width: 180px; }
   form.repo input { flex: 1; font: 13px/1 var(--ui); color: var(--text);
     background: var(--raised); border: 1px solid var(--line-2); border-right: 0;
@@ -76,7 +86,24 @@
   .btn.secondary:hover { background: #272733; box-shadow: none; }
   .btn.small { font-size: 13px; padding: 8px 16px; }
 
-  .hero { padding: 72px 0 34px; }
+  .hero { padding: 72px 0 26px; }
+  .stage {
+    margin: 0 0 30px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 10px 10px 0; overflow: hidden;
+  }
+  .stage svg { display: block; width: 100%; height: auto; }
+  .stage figcaption {
+    padding: 14px 20px 18px; font-size: 14px; color: var(--text-2);
+    border-top: 1px solid var(--line); margin-top: 6px;
+  }
+  .stage text { font-family: var(--ui); }
+  .stage .who { font-size: 13px; font-weight: 600; fill: var(--text); }
+  .stage .what { font-size: 11.5px; fill: var(--text-3); }
+  .stage .wire { stroke: var(--line-2); stroke-width: 1.5; fill: none; }
+  .stage .contract { font-family: var(--mono); font-size: 13px; fill: var(--text); }
+  .stage .score { font-size: 42px; font-weight: 700; letter-spacing: -.04em;
+    fill: var(--text); }
+  .stage .band { font-size: 12px; font-weight: 600; letter-spacing: .04em; }
   .hero-split { display: grid; gap: 36px; align-items: center;
     grid-template-columns: minmax(0, 1.05fr) minmax(260px, .95fr); }
   .branch-viz { background: var(--card); border: 1px solid var(--line);
@@ -298,13 +325,22 @@
 </style>
 
 <header>
-  <h1 class="wordmark"><i class="mark"></i>Prophecy<em id="repoName"></em></h1>
-  <form class="repo" id="repoForm">
-    <input id="repoPath" spellcheck="false" autocomplete="off" list="repoList"
-           aria-label="Project" placeholder="choose a project">
-    <datalist id="repoList"></datalist>
-    <button type="submit">open</button>
-  </form>
+  <h1 class="wordmark"><i class="mark"></i>Prophecy</h1>
+  <div class="project">
+    <button type="button" class="project-btn" id="projectBtn"
+            aria-haspopup="true" aria-expanded="false">
+      <span id="repoName">choose a project</span>
+      <svg width="9" height="6" viewBox="0 0 9 6" aria-hidden="true">
+        <path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.4"
+              fill="none" stroke-linecap="round"/></svg>
+    </button>
+    <form class="repo" id="repoForm" hidden>
+      <input id="repoPath" spellcheck="false" autocomplete="off" list="repoList"
+             aria-label="Project" placeholder="search your projects">
+      <datalist id="repoList"></datalist>
+      <button type="submit">open</button>
+    </form>
+  </div>
   <nav id="tabs" hidden>
     <button data-tab="team" aria-selected="true">Team</button>
     <button data-tab="changes">Changes</button>
@@ -330,24 +366,11 @@
              href="https://github.com/amritnair/hackMIT" target="_blank" rel="noopener">
             amritnair/hackMIT</a></p>
       </div>
-      <div class="branch-viz" aria-hidden="true">
-        <svg viewBox="0 0 360 220" fill="none">
-          <path class="pulse" d="M78 110 C140 110, 150 48, 230 48" stroke="#67E8F9" stroke-width="1.6"/>
-          <path class="pulse" d="M78 110 C150 110, 160 110, 230 110" stroke="#8B5CF6" stroke-width="1.8"/>
-          <path class="pulse" d="M78 110 C140 110, 150 172, 230 172" stroke="#A78BFA" stroke-width="1.6"/>
-          <circle class="glow" cx="60" cy="110" r="18" fill="#8B5CF6"/>
-          <text x="60" y="114" text-anchor="middle" fill="#F5F3FF" font-size="10" font-family="IBM Plex Mono,monospace">Δ</text>
-          <rect x="230" y="32" width="100" height="32" rx="10" fill="#20202B" stroke="#3A3A4A"/>
-          <text x="280" y="52" text-anchor="middle" fill="#A3A3B5" font-size="11" font-family="IBM Plex Mono,monospace">callers</text>
-          <rect x="230" y="94" width="100" height="32" rx="10" fill="#20202B" stroke="#67E8F9"/>
-          <text x="280" y="114" text-anchor="middle" fill="#F5F3FF" font-size="11" font-family="IBM Plex Mono,monospace">impact</text>
-          <rect x="230" y="156" width="100" height="32" rx="10" fill="#20202B" stroke="#3A3A4A"/>
-          <text x="280" y="176" text-anchor="middle" fill="#A3A3B5" font-size="11" font-family="IBM Plex Mono,monospace">tests</text>
-        </svg>
-        <div class="branch-caption">
-          <span><i style="background:var(--accent)"></i>change</span>
-          <span><i style="background:var(--cyan)"></i>predicted path</span>
-          <span><i style="border:1px solid var(--line-2)"></i>downstream</span>
+      <div class="branch-viz">
+        <svg id="stage" viewBox="0 0 380 240" fill="none"
+             role="img" aria-label="Three concurrent changes meeting at one field"></svg>
+        <div class="branch-caption" id="stageCaption">
+          <span>Three people, three reasonable changes.</span>
         </div>
       </div>
     </div>
@@ -690,19 +713,135 @@ function fillRepoList() {
 function openRepo(path) {
   REPO = path.trim().replace(/\/$/, '');
   if (!REPO) return;
+  $('#repoName').textContent = base(REPO);
   lsSet('repo', REPO);
   remember(REPO);
   fillRepoList();
   loadRepo();
 }
 
-$('#repoForm').onsubmit = e => { e.preventDefault(); openRepo($('#repoPath').value); };
+$('#repoForm').onsubmit = e => {
+  e.preventDefault();
+  openRepo($('#repoPath').value);
+  $('#repoForm').hidden = true;
+  $('#projectBtn').setAttribute('aria-expanded', 'false');
+};
+
+// the path is a detail, not a headline: the button shows the project, the
+// switcher only appears when someone asks for it
+$('#projectBtn').onclick = () => {
+  const form = $('#repoForm');
+  form.hidden = !form.hidden;
+  $('#projectBtn').setAttribute('aria-expanded', String(!form.hidden));
+  if (!form.hidden) { $('#repoPath').value = ''; $('#repoPath').focus(); }
+};
+document.addEventListener('click', e => {
+  if (!e.target.closest('.project')) {
+    $('#repoForm').hidden = true;
+    $('#projectBtn').setAttribute('aria-expanded', 'false');
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('#repoForm').hidden = true;
+});
 // picking from the list should just open it, without a second click
 $('#repoPath').addEventListener('change', e => {
   if (REPOS.some(r => r.path === e.target.value)) openRepo(e.target.value);
 });
 
 api('repos').then(d => { REPOS = d.repos || []; fillRepoList(); }).catch(() => {});
+
+/* ── the hero ────────────────────────────────────────────────
+   It plays the thing the product does rather than describing it: three
+   changes that each look fine, converging on one stored field, and the
+   number that only appears once you look at them together. */
+const CAST = [
+  { who: 'ada', what: 'make email required', y: 40, score: 83, hot: true },
+  { who: 'grace', what: 'redesign signup', y: 110, score: 1, hot: false },
+  { who: 'linus', what: 'tidy the user table', y: 180, score: 9, hot: false },
+];
+const BEATS = [
+  'Three people, three reasonable changes.',
+  'Each one scores low or medium on its own.',
+  'None of them touch the same file — but all three reach users.email.',
+  'Together: 95, critical. No diff would have shown that.',
+];
+
+function drawStage(beat, t) {
+  const svg = document.getElementById('stage');
+  if (!svg) return;
+  const shown = (i) => beat > 0 || t > 0.2 + i * 0.2;
+  const wires = beat >= 2;
+  const verdict = beat >= 3;
+  const ticked = verdict ? Math.round(95 * Math.min(1, t * 2.4)) : 0;
+
+  svg.innerHTML = `
+    ${CAST.map((c, i) => `
+      <g opacity="${shown(i) ? 1 : 0}" style="transition:opacity .5s ease">
+        <rect x="4" y="${c.y - 19}" width="150" height="38" rx="10"
+          fill="#20202B" stroke="${verdict && c.hot ? '#F87171' : '#3A3A4A'}"
+          style="transition:stroke .5s"/>
+        <text x="16" y="${c.y - 3}" fill="#F5F3FF" font-size="10.5"
+          font-family="var(--ui)" font-weight="600">${c.who}</text>
+        <text x="16" y="${c.y + 12}" fill="#A3A3B5" font-size="9.5"
+          font-family="var(--ui)">${c.what}</text>
+        <text x="144" y="${c.y + 3}" text-anchor="end" font-size="11"
+          font-family="var(--mono)"
+          fill="${c.hot ? '#F87171' : '#A3A3B5'}">${c.score}</text>
+      </g>
+      <path d="M156 ${c.y} C 196 ${c.y}, 200 120, 238 120"
+        stroke="${c.hot ? '#8B5CF6' : '#67E8F9'}" stroke-width="1.6" fill="none"
+        stroke-dasharray="180" stroke-dashoffset="${wires ? 0 : 180}"
+        opacity="${wires ? 0.95 : 0}"
+        style="transition:stroke-dashoffset 1s ease, opacity .4s"/>`).join('')}
+
+    <g opacity="${wires ? 1 : 0}" style="transition:opacity .5s">
+      <rect x="238" y="102" width="112" height="36" rx="10" fill="#20202B"
+        stroke="${verdict ? '#F87171' : '#67E8F9'}" style="transition:stroke .5s"/>
+      <text x="294" y="124" text-anchor="middle" fill="#F5F3FF" font-size="11"
+        font-family="var(--mono)">users.email</text>
+    </g>
+
+    <g opacity="${verdict ? 1 : 0}" style="transition:opacity .6s">
+      <text x="294" y="196" text-anchor="middle" fill="#F87171" font-size="40"
+        font-family="var(--ui)" font-weight="700"
+        letter-spacing="-1.5">${ticked}</text>
+      <text x="294" y="215" text-anchor="middle" fill="#F87171" font-size="9.5"
+        font-family="var(--ui)" font-weight="600"
+        letter-spacing="1">TOGETHER · CRITICAL</text>
+    </g>`;
+}
+
+function playStage() {
+  const svg = document.getElementById('stage');
+  const caption = document.getElementById('stageCaption');
+  if (!svg || !caption) return;
+  const say = (i) => { caption.innerHTML = `<span>${BEATS[i]}</span>`; };
+
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    drawStage(3, 1);
+    say(3);
+    return;
+  }
+  let beat = 0, start = performance.now();
+  say(0);
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / 2300);
+    drawStage(beat, t);
+    if (t >= 1) {
+      // hold on the payoff a beat longer than the setup
+      const wait = beat === BEATS.length - 1 ? 1400 : 250;
+      if (now - start > 2300 + wait) {
+        beat = (beat + 1) % BEATS.length;
+        say(beat);
+        start = now;
+      }
+    }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+playStage();
 
 /* ── setup, which comes before anything else ─────────────────
    GitHub first because it is the one that needs something outside this app,
@@ -1110,7 +1249,7 @@ function loadRepo() {
   $('#branches').innerHTML = '<p class="loading">reading</p>';
 
   api('status').then(d => {
-    $('#repoName').textContent = base(d.repo_path || REPO || '.') || 'repo';
+    $('#repoName').textContent = base(d.repo_path || REPO || '.') || 'project';
     window.__graph = d.graph;
 
     const pairRisks = d.risks.filter(r => r.tasks.length === 2);
@@ -1609,7 +1748,15 @@ function loadUsage() {
       $('#usageOut').innerHTML = '<p class="empty">No briefs issued yet.</p>';
       return;
     }
-    $('#moneySaved').childNodes[0].nodeValue = '$' + d.dollars_avoided.toFixed(2) + ' ';
+    // Below a cent, dollars read as zero and understate a real saving. Show
+    // the tokens instead rather than printing $0.00 next to a true number.
+    const tiny = d.dollars_avoided < 0.01;
+    $('#moneySaved').childNodes[0].nodeValue =
+      (tiny ? d.tokens_avoided.toLocaleString() : '$' + d.dollars_avoided.toFixed(2))
+      + ' ';
+    $('#moneySaved').querySelector('small').textContent = tiny
+      ? 'tokens not spent on agents re-reading this codebase'
+      : 'not spent on agents re-reading this codebase';
     $('#statSpent').textContent = '$' + d.dollars_spent.toFixed(2);
     $('#statTokens').textContent = d.tokens_avoided.toLocaleString();
     $('#statReuse').textContent = (d.reuse_rate * 100).toFixed(0) + '%';
@@ -1717,7 +1864,7 @@ loadPlan(false);
 setInterval(loadLive, 8000);
 api('scan').then(d => {
   if (!REPO) { REPO = d.repo; lsSet('repo', REPO); }
-  $('#repoPath').value = REPO;
+  $('#repoName').textContent = base(REPO) || 'choose a project';
   loadRepo();
   loadSetup();
   if (lsGet('setup')) showApp(true);

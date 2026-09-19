@@ -10,7 +10,7 @@ from . import store
 from . import github, llm
 from .agent import brief, observations, request_skeleton
 from .create import new_project
-from .demo import build as build_demo
+from .demo import build as build_demo, seed as seed_demo
 from .risk_engine import (analyze_change, interactions,
                           repository_risk)
 from .work import in_flight
@@ -133,6 +133,9 @@ def build_parser():
     dm = sub.add_parser("demo", help="build a sample project with three "
                                      "conflicting changes already in it")
     dm.add_argument("path")
+    dm.add_argument("--serve", action="store_true",
+                    help="seed it and open the dashboard on it")
+    dm.add_argument("--port", type=int, default=8800)
 
     people = sub.add_parser("people", help="who is on this project")
     people.add_argument("action", nargs="?", default="list",
@@ -160,7 +163,15 @@ def main(argv=None):
             print(f"Built a demo project at {out['path']}")
             for b in out["branches"]:
                 print(f"  {b['author']:<8} {b['branch']:<28} {b['message']}")
+            seeded = seed_demo(out["path"])
+            print(f"  seeded {seeded['sessions']} agent session(s) and "
+                  f"{seeded['people']} people")
+            if args.serve:
+                from .server import serve as serve_dash
+                print(f"\n  http://127.0.0.1:{args.port}\n")
+                return serve_dash(out["path"], args.port)
             print(f"\nTry:  prophecy -C {out['path']} risk")
+            print(f"  or:  prophecy demo {out['path']}-2 --serve")
         return 0
     if args.cmd == "new":
         result = new_project(args.path, args.name, args.github, not args.public)

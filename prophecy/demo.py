@@ -183,3 +183,66 @@ def build(path):
                      "message": spec["message"]})
     run(root, "git", "checkout", "-q", "main")
     return {"path": str(root), "branches": made}
+
+
+# Two agents already at work, so the team view is not an empty table during a
+# demo. Both are real sessions written through the normal path — nothing here
+# fakes a number that the rest of the app would not have produced.
+SEED_SESSIONS = [
+    {"agent": "ada", "task": "Make email required during signup",
+     "note": ("app/models.py",
+              "create_user has five importers; every one of them omits email "
+              "today, so the default cannot just be dropped")},
+    {"agent": "grace", "task": "Redesign the signup form",
+     "note": ("api/signup.py",
+              "signup() builds the user directly rather than going through "
+              "the auth path, so changes here bypass login()")},
+]
+
+
+def seed(root):
+    """Give the project a history so the first screen has something in it."""
+    from . import store as store_mod
+    from .agent import brief, observations
+    from .predict import predict
+    from .risk import risks
+    from .scan import scan
+    from .work import in_flight
+
+    repo = scan(root)
+    db = store_mod.connect(root)
+
+    for person in ("ada", "grace", "linus"):
+        store_mod.add_member(db, person, github=person)
+
+    forecasts = []
+    for entry in SEED_SESSIONS:
+        agent, task = entry["agent"], entry["task"]
+        store_mod.join_session(db, f"seed-{agent}", repo["sha"], agent, task, "mcp")
+        forecast = predict(repo, task)
+        forecasts.append(forecast)
+        found = risks(repo, forecasts)
+        data = brief(repo, [forecast], found, db=db, agent=agent,
+                     store=store_mod)
+        store_mod.log(db, repo["sha"], "joined", agent,
+                      f"joined, working on {task}",
+                      data["suffixes"][0]["tokens"])
+        path, text = entry["note"]
+        store_mod.add_note(db, repo["sha"], agent, path, text)
+        store_mod.log(db, repo["sha"], "shared", agent,
+                      f"shared something about {path}: {text}")
+
+    # brief everyone once more now that the notes exist, so the findings
+    # actually reach the other agent rather than sitting unread
+    for entry, forecast in zip(SEED_SESSIONS, forecasts):
+        brief(repo, [forecast], risks(repo, forecasts), db=db,
+              agent=entry["agent"], store=store_mod)
+
+    work = in_flight(repo, "main", db, store_mod)
+    for note in observations(repo, work):
+        if not store_mod.note_exists(db, note["file"], note["note"]):
+            store_mod.add_note(db, repo["sha"], note["agent"], note["file"],
+                               note["note"])
+            store_mod.log(db, repo["sha"], "shared", "prophecy",
+                          f"noted about {note['file']}: {note['note']}")
+    return {"sessions": len(SEED_SESSIONS), "people": 3}
