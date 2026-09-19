@@ -63,6 +63,8 @@ def build_parser():
                     help="include a real branch as another agent's work")
     ag.add_argument("--agent", help="who this brief is for; used to keep an "
                                     "agent from being handed its own notes")
+    ag.add_argument("--budget", type=int, metavar="N",
+                    help="cap each agent's task section at N tokens")
     ag.add_argument("--exact", action="store_true",
                     help="count tokens through the API instead of estimating")
     ag.add_argument("--request", action="store_true",
@@ -303,7 +305,7 @@ def cmd_brief(repo, args, db):
     found_risks = risks(repo, forecasts)
     store.save_risks(db, found_risks)
     data = brief(repo, forecasts, found_risks, exact=args.exact,
-                 db=db, agent=args.agent, store=store)
+                 db=db, agent=args.agent, store=store, budget=args.budget)
 
     if args.request:
         if not args.json:
@@ -331,6 +333,8 @@ def cmd_brief(repo, args, db):
         for s in data["suffixes"]:
             shared = (f"   +{s['notes_pulled']} note(s) from other agents"
                       if s.get("notes_pulled") else "")
+            if s.get("trimmed"):
+                shared += f"   -{len(s['trimmed'])} file(s) over budget"
             print(f"  task: {s['task'][:24]:<24} {s['tokens']:>8}{shared}")
         print(f"  {e['agents']} agent(s) reading every code file "
               f"{e['repo_if_each_agent_reads_every_file']:>8}")
@@ -446,42 +450,76 @@ def cmd_fleet(repo, args, db):
     high_shared = [r for r in shared_risks if r["risk_level"] == "high"]
     solo_high = [r for r in found
                  if len(r["tasks"]) == 1 and r["risk_level"] == "high"]
-    summary = [
-        f"{len(work)} piece(s) of work in flight here, from "
-        f"{len(people)} person or agent: {', '.join(people[:5])}.",
-        (f"{len(overlap)} file(s) are being changed by more than one of them: "
-         + ", ".join(o["file"] for o in overlap[:3]) + ".")
-        if overlap else "Nobody is changing the same file as anyone else.",
-    ]
+    sessions = [w for w in work if w["kind"] == "session"]
+    branch_work = [w for w in work if w["kind"] == "branch"]
+    pulls = [w for w in work if w["kind"] == "pull_request"]
+
+    def count(n, one, many=None):
+        return f"{n} {one}" if n == 1 else f"{n} {many or one + 's'}"
+
+    # Narration rather than fields: this is the part a person reads first, and
+    # "3 piece(s) of work" reads like a form even when the numbers are right.
+    sources = []
+    if sessions:
+        sources.append(count(len(sessions), "live agent session"))
+    if branch_work:
+        sources.append(count(len(branch_work), "branch", "branches"))
+    if pulls:
+        sources.append(count(len(pulls), "open pull request"))
+    listed = (", ".join(sources[:-1]) + " and " + sources[-1]
+              if len(sources) > 1 else sources[0])
+    opening = (
+        f"Right now there is {listed}"
+        f" in flight here, across {count(len(people), 'person', 'people')}"
+        f" — {', '.join(people[:4])}."
+    )
+    summary = [opening]
+
+    if overlap:
+        where = ", ".join(o["file"] for o in overlap[:3])
+        summary.append(
+            f"They are not all in separate corners: {where} "
+            f"{'is' if len(overlap) == 1 else 'are'} being changed by more "
+            "than one of them."
+        )
+    else:
+        summary.append(
+            "Nobody is changing the same file as anyone else, so there is "
+            "nothing to sequence today."
+        )
+
     if high_shared:
         summary.append(
-            f"{len(high_shared)} of those overlaps are worth sorting out "
-            "before the work lands, rather than at merge time."
+            f"{count(len(high_shared), 'of those overlaps looks', 'of those overlaps look')}"
+            " worth settling before the work lands rather than at merge time "
+            "— they are in the same functions, not just the same files."
         )
     if solo_high:
         summary.append(
-            f"Separately, {len(solo_high)} change(s) alter an interface other "
-            "files depend on, which affects whoever imports them."
+            f"Separately, {count(len(solo_high), 'change')} here "
+            f"{'alters' if len(solo_high) == 1 else 'alter'} an interface "
+            "other files import, which reaches people who are not working on "
+            "it at all."
         )
     if fresh:
         summary.append(
-            f"{len(fresh)} thing(s) worth telling whoever works here next — "
-            "who else is in each file, which signatures are about to change, "
-            "which files to regenerate rather than merge. Read from the "
-            "repository, so nobody has to write them down."
+            f"I can pass on {count(len(fresh), 'thing')} to whoever works here "
+            "next — who else is in each file, which signatures are about to "
+            "change, which files want regenerating rather than merging. All of "
+            "it is read from the repository, so nobody has to write it down."
         )
     summary.append(
-        f"Everyone here needs the same {data['prefix_tokens']:,} tokens of "
-        "background about this repository. Sent once and cached, each agent "
-        f"then costs about {e['brief_per_later_call']:,} tokens a turn instead "
-        f"of the {e['repo_if_each_agent_reads_every_file']:,} it takes to read "
-        "the repo from scratch."
+        f"Everyone working here needs the same {data['prefix_tokens']:,} tokens "
+        "of background. Send that once and cache it, and each agent costs about "
+        f"{e['brief_per_later_call']:,} tokens a turn afterwards, against the "
+        f"{e['repo_if_each_agent_reads_every_file']:,} it takes to read this "
+        "repository from scratch."
     )
     if not data["cacheable"]:
         summary.append(
-            "This repository is small enough that the shared half lands under "
-            "the size a model will cache, so treat the saving as a briefing "
-            "convenience rather than a billing one."
+            "One caveat: this repository is small enough that the shared half "
+            "lands under the size a model will cache, so treat that as a "
+            "briefing convenience rather than a billing one."
         )
 
     out = {
@@ -502,6 +540,15 @@ def cmd_fleet(repo, args, db):
         "recorded": apply_it,
         "summary": summary,
     }
+    owners = {w["forecast"]["task"]: w["agent"] for w in work}
+    for r in found:
+        people = sorted({owners[t] for t in r["tasks"] if t in owners})
+        r["owners"] = people
+        if len(people) > 1:
+            r["recommendation"] += f" Talk to {' and '.join(people)} first."
+        elif people and len(r["tasks"]) == 1:
+            r["recommendation"] += f" {people[0]} owns this one."
+
     if not args.json:
         for line in summary:
             print(line)
@@ -513,6 +560,11 @@ def cmd_fleet(repo, args, db):
             print("\n  shared ground:")
             for item in overlap:
                 print(f"    {item['file']:<44} {', '.join(item['agents'])}")
+        if found:
+            print("\n  who needs to talk to whom:")
+            for r in found[:6]:
+                print(f"    {MARK[r['risk_level']]} {r['risk_type']:<22} "
+                      f"{r['recommendation'][:88]}")
         if fresh:
             print("\n  would tell the next agent:")
             for note in fresh[:6]:

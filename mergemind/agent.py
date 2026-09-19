@@ -212,7 +212,8 @@ def grow_prefix(repo, measure, floor=MIN_CACHEABLE_TOKENS):
     return best, depth
 
 
-def brief(repo, forecasts, risks, exact=False, db=None, agent=None, store=None):
+def brief(repo, forecasts, risks, exact=False, db=None, agent=None, store=None,
+          budget=None):
     """One cached prefix, one suffix per agent, and the arithmetic.
 
     With a database, each suffix also carries what other agents found in the
@@ -228,11 +229,47 @@ def brief(repo, forecasts, risks, exact=False, db=None, agent=None, store=None):
             notes = store.notes_for(
                 db, [x["file"] for x in f["files"]], agent=agent or f["task"],
             )
+        trimmed = []
+
+        def render(files, kept_notes, dropped):
+            """Render including the trim notice, so the budget check sees the
+            real size. Measuring before appending the notice is how the first
+            version came in over its own number."""
+            body = volatile_suffix(repo, dict(f, files=files), risks, kept_notes)
+            if dropped:
+                body += (
+                    "\n\n## Trimmed to fit a token budget\n"
+                    f"{len(dropped)} lower-ranked file(s) were left out: "
+                    + ", ".join(f"`{d}`" for d in dropped)
+                    + ". Ask for them by name if the work goes that way."
+                )
+            return body
+
+        text = render(f["files"], notes, [])
+        if budget:
+            kept, kept_notes = list(f["files"]), list(notes)
+            # files first, then borrowed findings, then admit defeat rather
+            # than quietly blowing through the number
+            while estimate_tokens(text) > budget and (kept or kept_notes):
+                if kept:
+                    trimmed.append(kept.pop()["file"])
+                else:
+                    kept_notes.pop()
+                text = render(kept, kept_notes, trimmed)
+            notes = kept_notes
+            if estimate_tokens(text) > budget:
+                text += (
+                    f"\n\n> This section is about {estimate_tokens(text)} "
+                    f"tokens against a {budget} budget. What is left is the "
+                    "task itself; there is nothing further to cut."
+                )
+
         suffixes.append({
             "task": f["task"],
-            "text": volatile_suffix(repo, f, risks, notes),
+            "text": text,
             "notes_pulled": len(notes),
             "notes": notes,
+            "trimmed": trimmed,
         })
 
     measure = (lambda t: count_tokens(t) or estimate_tokens(t)) if exact \
