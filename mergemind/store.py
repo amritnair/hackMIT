@@ -116,6 +116,14 @@ def add_note(db, sha, agent, file, note):
     db.commit()
 
 
+def note_exists(db, file, note):
+    """Observations are re-derived on every run; writing them again each time
+    would turn the shared context into the same sentence forty times."""
+    return db.execute(
+        "SELECT 1 FROM notes WHERE file = ? AND note = ? LIMIT 1", (file, note)
+    ).fetchone() is not None
+
+
 def notes_for(db, files, agent=None, limit=12):
     """Notes other agents left about these files, newest first.
 

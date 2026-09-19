@@ -56,6 +56,8 @@ class Handler(BaseHTTPRequestHandler):
         repo = scan(path)
         if name == "file":
             return _file_detail(repo, query.get("path", [""])[0])
+        if name == "repos":
+            return {"repos": _discover_repos()}
         if name == "mcp_config":
             from .mcp import config_snippet
             return {"config": config_snippet(path), "repo": path}
@@ -79,7 +81,7 @@ class Handler(BaseHTTPRequestHandler):
             agent=query.get("agent", [None])[0],
             file=query.get("file", [""])[0],
             text=query.get("text", [""])[0],
-            dry=query.get("dry", ["0"])[0] in ("1", "true"),
+            confirm=query.get("confirm", ["0"])[0] in ("1", "true"),
             config=False,
             limit=int(query.get("limit", ["25"])[0]),
             ref=query.get("ref", ["HEAD"])[0],
@@ -97,6 +99,54 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+
+SKIP = {"node_modules", "venv", ".venv", "vendor", "Library", "Applications"}
+
+
+def _discover_repos(limit=60):
+    """Git repositories under the places people actually keep them.
+
+    Depth-limited on purpose: walking a whole home directory to populate a
+    dropdown is a good way to make the page feel broken.
+    """
+    home = Path.home()
+    roots = [home, *(home / n for n in (
+        "Projects", "projects", "code", "Code", "src", "dev", "Developer",
+        "repos", "work", "Documents", "Desktop", "git",
+    ))]
+    found, seen = [], set()
+
+    def looks_like_repo(d):
+        return (d / ".git").exists()
+
+    for root in roots:
+        if not root.is_dir():
+            continue
+        try:
+            entries = sorted(root.iterdir())
+        except PermissionError:
+            continue
+        for entry in entries:
+            if len(found) >= limit:
+                break
+            if not entry.is_dir() or entry.name.startswith(".") \
+                    or entry.name in SKIP:
+                continue
+            candidates = [entry]
+            if not looks_like_repo(entry):
+                try:  # one level further down, for ~/code/org/repo layouts
+                    candidates = [c for c in sorted(entry.iterdir())
+                                  if c.is_dir() and not c.name.startswith(".")][:40]
+                except PermissionError:
+                    continue
+            for candidate in candidates:
+                key = str(candidate.resolve())
+                if key in seen or not looks_like_repo(candidate):
+                    continue
+                seen.add(key)
+                found.append({"name": candidate.name, "path": key})
+    return sorted(found, key=lambda r: r["name"].lower())
 
 
 def _not_a_repo(path):

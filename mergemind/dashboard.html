@@ -51,6 +51,7 @@
   .wordmark em { font-style: normal; color: var(--text-3); font-weight: 400; }
 
   form.repo { display: flex; flex: 1 1 260px; min-width: 200px; }
+  form.repo { position: relative; }
   form.repo input {
     flex: 1; font: 11px/1 var(--mono); color: var(--text);
     background: var(--bg); border: 1px solid var(--line-2); border-right: 0;
@@ -318,10 +319,11 @@
 <header>
   <h1 class="wordmark"><i class="dot"></i>mergemind<em>/</em><span id="repoName">—</span></h1>
   <form class="repo" id="repoForm">
-    <input id="repoPath" spellcheck="false" autocomplete="off"
-           aria-label="Path to a git repository on this machine"
-           placeholder="/path/to/a/git/repo">
-    <button type="submit">analyze</button>
+    <input id="repoPath" spellcheck="false" autocomplete="off" list="repoList"
+           aria-label="Repository"
+           placeholder="pick a repository, or type a path">
+    <datalist id="repoList"></datalist>
+    <button type="submit">open</button>
   </form>
   <nav>
     <button data-tab="agents" aria-selected="true">agents</button>
@@ -493,40 +495,14 @@
     </div>
 
     <div class="panel">
-      <h3>the fleet <span class="tag predicted">one row per agent</span>
-        <button class="ghost" id="addAgent">+ add agent</button></h3>
-      <div class="body">
-        <div id="fleet"></div>
-        <button class="act" id="runFleet">brief the fleet</button>
-        <p class="hint">Each agent gets its own task section. The repository
-          section is identical for all of them, so it is sent once.</p>
-      </div>
+      <h3>the plan <span class="tag predicted" id="planState">nothing applied yet</span>
+        <button class="ghost" id="recheck">re-check</button></h3>
+      <div class="body" id="planOut"><p class="loading">reading the repository</p></div>
     </div>
 
     <div class="panel" id="collisionPanel" hidden>
       <h3>agents heading for the same code <span class="tag predicted">predicted</span></h3>
       <div class="body flush" id="fleetRisks"></div>
-    </div>
-
-    <div class="panel">
-      <h3>what each agent was sent</h3>
-      <div class="body" id="fleetOut"><p class="empty">No briefs built yet.</p></div>
-    </div>
-
-    <div class="panel">
-      <h3>pass a finding to the next agent <span class="tag observed">shared</span></h3>
-      <div class="body">
-        <p class="hint" style="margin:0 0 12px">Record what an agent learned
-          about a file. The next agent sent to that file is told, in the task
-          half — so the cached half never moves.</p>
-        <div class="row">
-          <input class="field" id="noteAgent" placeholder="which agent" style="flex:0 0 150px">
-          <input class="field" id="noteFile" placeholder="path/to/file.py" style="flex:1">
-        </div>
-        <input class="field" id="noteText" placeholder="what it found">
-        <button class="act" id="saveNote">share it</button>
-        <div id="noteOut"></div>
-      </div>
     </div>
 
     <div class="panel">
@@ -603,17 +579,54 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
   if (b.dataset.tab === 'history') loadInsights();
-  if (b.dataset.tab === 'agents') { loadUsage(); loadLive(); }
+  if (b.dataset.tab === 'agents') { loadUsage(); loadLive(); loadPlan(false); }
   if (b.dataset.tab === 'prs') checkGitHub();
 });
 
-/* ── repo picker ──────────────────────────────────────────── */
-$('#repoForm').onsubmit = e => {
-  e.preventDefault();
-  REPO = $('#repoPath').value.trim();
+/* ── repo picker ──────────────────────────────────────────────
+   A native datalist rather than a bespoke dropdown: it types like a path
+   field for anyone who knows the path, and lists what is on the machine for
+   anyone who does not. Recently opened repos sort to the top. */
+let REPOS = [];
+
+function recents() {
+  try { return JSON.parse(localStorage.getItem('mergemind.recent') || '[]'); }
+  catch { return []; }
+}
+
+function remember(path) {
+  const list = [path, ...recents().filter(p => p !== path)].slice(0, 8);
+  try { localStorage.setItem('mergemind.recent', JSON.stringify(list)); } catch {}
+}
+
+function fillRepoList() {
+  const recent = recents();
+  const known = new Map(REPOS.map(r => [r.path, r.name]));
+  const ordered = [
+    ...recent.filter(p => p !== REPO).map(p => [p, known.get(p) || base(p)]),
+    ...REPOS.filter(r => !recent.includes(r.path) && r.path !== REPO)
+      .map(r => [r.path, r.name]),
+  ];
+  $('#repoList').innerHTML = ordered.map(([path, name]) =>
+    `<option value="${esc(path)}">${esc(name)}</option>`).join('');
+}
+
+function openRepo(path) {
+  REPO = path.trim().replace(/\/$/, '');
+  if (!REPO) return;
   localStorage.setItem('mergemind.repo', REPO);
+  remember(REPO);
+  fillRepoList();
   loadRepo();
-};
+}
+
+$('#repoForm').onsubmit = e => { e.preventDefault(); openRepo($('#repoPath').value); };
+// picking from the list should just open it, without a second click
+$('#repoPath').addEventListener('change', e => {
+  if (REPOS.some(r => r.path === e.target.value)) openRepo(e.target.value);
+});
+
+api('repos').then(d => { REPOS = d.repos || []; fillRepoList(); }).catch(() => {});
 
 /* ── risk rendering ───────────────────────────────────────── */
 function riskHTML(r) {
@@ -1008,128 +1021,83 @@ $('#runSim').onclick = runSim;
 let BRIEF = null;
 let FLEET = [];
 
-/* ── the fleet ──────────────────────────────────────────────── */
-function drawFleet() {
-  $('#fleet').innerHTML = FLEET.map((a, i) => `
-    <div class="agent-row">
-      <input class="field" style="flex:0 0 150px" data-fleet="name" data-i="${i}"
-             value="${esc(a.name)}" placeholder="agent name" autocomplete="off">
-      <input class="field" style="flex:1" data-fleet="task" data-i="${i}"
-             value="${esc(a.task)}" placeholder="what it is working on"
-             autocomplete="off">
-      <button data-remove="${i}" aria-label="remove agent"
-        ${FLEET.length === 1 ? 'disabled' : ''}>remove</button>
-    </div>`).join('');
+/* ── the plan ───────────────────────────────────────────────
+   Nothing here is typed in. The work is read from live agent sessions, from
+   branches, and from open pull requests; the findings are read from the
+   repository. The page proposes, the person confirms, and only then is
+   anything written down. */
+let PLAN = null;
+
+function planHTML(d) {
+  const applied = d.recorded;
+  return `${d.summary.map(line => `<p style="margin:0 0 8px">${esc(line)}</p>`).join('')}
+    ${d.assignments.length ? `<h4 class="eyebrow" style="margin:14px 0 6px">who is working here</h4>
+    <table><thead><tr><th>agent</th><th>on</th><th>files</th>
+      <th>found by</th></tr></thead><tbody>
+    ${d.assignments.map(a => `<tr>
+      <td>${esc(a.agent)}</td>
+      <td>${esc(a.label)}</td>
+      <td class="num">${a.files.length}</td>
+      <td class="dim">${esc(a.kind.replace('_', ' '))}</td></tr>`).join('')}
+    </tbody></table>` : ''}
+
+    ${d.overlap.length ? `<h4 class="eyebrow" style="margin:14px 0 6px">shared ground</h4>
+    <table><tbody>${d.overlap.map(o => `<tr>
+      <td><button class="chip" data-file="${esc(o.file)}">${esc(o.file)}</button></td>
+      <td class="dim">${o.work.map(esc).join(' · ')}</td></tr>`).join('')}
+    </tbody></table>` : ''}
+
+    ${d.observations.length ? `<h4 class="eyebrow" style="margin:14px 0 6px">
+      ${applied ? 'told to whoever works here next' : 'would be told to whoever works here next'}</h4>
+    <table><tbody>${d.observations.map(o => `<tr>
+      <td style="width:34%"><button class="chip" data-file="${esc(o.file)}">${esc(o.file)}</button></td>
+      <td class="dim">${esc(o.note)}</td></tr>`).join('')}
+    </tbody></table>` : `<p class="hint">Nothing new to pass on — everything
+      readable from the repository has already been shared.</p>`}
+
+    <p style="margin-top:14px">${applied
+      ? '<span class="status good">Applied. Briefs recorded and findings shared.</span>'
+      : `<button class="act" id="confirmPlan">apply this</button>
+         <span class="hint" style="margin-left:10px">Writes the briefs and
+         shares the findings. Nothing has been written yet.</span>`}</p>`;
 }
 
-function seedFleet() {
-  FLEET = [
-    { name: 'agent-a', task: '' },
-    { name: 'agent-b', task: '' },
-  ];
-  drawFleet();
-}
+function loadPlan(confirm) {
+  $('#planOut').innerHTML = '<p class="loading">reading the repository</p>';
+  api('fleet', confirm ? { confirm: '1' } : {}).then(d => {
+    PLAN = d;
+    if (!d.assignments) {
+      $('#planOut').innerHTML = `<p class="empty">${esc(d.summary[0])}</p>`;
+      return;
+    }
+    $('#planOut').innerHTML = planHTML(d);
+    $('#planState').textContent = d.recorded ? 'applied' : 'nothing applied yet';
+    $('#planState').className = d.recorded ? 'tag observed' : 'tag predicted';
 
-$('#addAgent').onclick = () => {
-  FLEET.push({ name: `agent-${String.fromCharCode(97 + FLEET.length)}`, task: '' });
-  drawFleet();
-};
-document.addEventListener('input', e => {
-  const f = e.target.closest('[data-fleet]');
-  if (!f) return;
-  FLEET[Number(f.dataset.i)][f.dataset.fleet] = f.target ? '' : f.value;
-  FLEET[Number(f.dataset.i)][f.dataset.fleet] = f.value;
-});
-document.addEventListener('click', e => {
-  const r = e.target.closest('[data-remove]');
-  if (!r) return;
-  FLEET.splice(Number(r.dataset.remove), 1);
-  drawFleet();
-});
+    const risks = d.risks || [];
+    $('#collisionPanel').hidden = !risks.length;
+    $('#fleetRisks').innerHTML = risks.map(riskHTML).join('');
 
-$('#runFleet').onclick = () => {
-  const live = FLEET.filter(a => a.task.trim());
-  if (!live.length) { showBanner('Give at least one agent something to do.'); return; }
-  hideBanner();
-  $('#runFleet').disabled = true;
-  $('#fleetOut').innerHTML = '<p class="loading">briefing the fleet</p>';
-
-  // one call per agent, so each is recorded under its own name and is handed
-  // what the others already found
-  const calls = live.map(a =>
-    api('brief', { task: a.task, agent: a.name }).then(d => ({ agent: a, data: d })));
-
-  Promise.all(calls).then(results => {
-    BRIEF = results[0].data;
-    const e = BRIEF.economics;
-    $('#briefPrefix').textContent = BRIEF.prefix;
-    $('#briefPrefix').className = '';
-
-    $('#fleetOut').innerHTML = results.map(({ agent, data }) => {
-      const s = data.suffixes[0];
-      return `<div class="agent-card">
-        <h5>${esc(agent.name)}
-          <span class="dim" style="font-weight:400">${s.tokens} task tokens</span></h5>
-        <div class="dim" style="font:400 12px/1.5 var(--sans)">${esc(agent.task)}</div>
-        ${s.notes_pulled ? `<p class="hint" style="color:var(--observed)">
-          handed ${s.notes_pulled} finding(s) from other agents — it does not
-          have to rediscover them</p>` : ''}
-        <div class="files">${(data.suffixes[0].files || []).map(f =>
-          `<button class="chip" data-file="${esc(f)}">${esc(f)}</button>`).join('')}</div>
-        <p class="hint"><button class="ghost" data-showbrief="${esc(agent.name)}">
-          see what it was sent</button></p>
-        <pre hidden id="brief-${esc(agent.name)}">${esc(s.text)}</pre>
-      </div>`;
-    }).join('');
-
+    const e = d.economics;
     $('#fleetStats').hidden = false;
-    $('#statSaved').textContent = e.saved_per_later_call.toLocaleString();
-    $('#statNotes').textContent = results
-      .reduce((n, r) => n + (r.data.suffixes[0].notes_pulled || 0), 0);
-    $('#fleetLine').textContent = live.length + ' agents · '
+    $('#fleetLine').textContent = d.assignments.length + ' in flight · '
       + e.brief_per_later_call.toLocaleString() + ' tokens a turn once cached'
       + ' · ~$' + e.dollars_per_later_call;
-
-    // agents about to edit the same code
-    api('simulate', { task: live.map(a => a.task) }).then(d => {
-      const risks = d.risks || [];
-      $('#collisionPanel').hidden = !risks.length;
-      $('#fleetRisks').innerHTML = risks.map(riskHTML).join('');
-    }).catch(() => {});
-
-    loadUsage();
+    $('#briefPrefix').textContent = '';
+    if (d.recorded) { loadUsage(); loadLive(); }
   }).catch(() => {
-    $('#fleetOut').innerHTML = '<p class="empty">Could not brief that repo.</p>';
-  }).finally(() => { $('#runFleet').disabled = false; });
-};
-
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-showbrief]');
-  if (!b) return;
-  const pre = $(`#brief-${CSS.escape(b.dataset.showbrief)}`);
-  pre.hidden = !pre.hidden;
-  b.textContent = pre.hidden ? 'see what it was sent' : 'hide';
-});
-
-$('#saveNote').onclick = () => {
-  const agent = $('#noteAgent').value.trim();
-  const file = $('#noteFile').value.trim();
-  const text = $('#noteText').value.trim();
-  if (!agent || !file || !text) {
-    $('#noteOut').innerHTML = '<p class="status bad">All three fields, please.</p>';
-    return;
-  }
-  api('note', { agent, file, text }).then(d => {
-    $('#noteOut').innerHTML = d.error
-      ? `<p class="status bad">${esc(d.error)}</p>`
-      : `<p class="status good">Saved. The next agent sent to
-         ${esc(file)} gets it.</p>`;
-    $('#noteText').value = '';
-    loadUsage();
-  }).catch(() => {
-    $('#noteOut').innerHTML = '<p class="status bad">That file is not in this repo.</p>';
+    $('#planOut').innerHTML = '<p class="empty">Could not read that repository.</p>';
   });
-};
+}
+
+$('#recheck').onclick = () => loadPlan(false);
+document.addEventListener('click', e => {
+  if (e.target.id === 'confirmPlan') {
+    e.target.disabled = true;
+    e.target.textContent = 'applying…';
+    loadPlan(true);
+  }
+});
 
 /* ── github, in plain words ─────────────────────────────────── */
 function checkGitHub() {
@@ -1326,9 +1294,9 @@ $('#runBackfill').onclick = () => {
 };
 
 /* ── boot ─────────────────────────────────────────────────── */
-seedFleet();
 loadLive();
 loadUsage();
+loadPlan(false);
 setInterval(loadLive, 8000);
 api('scan').then(d => {
   if (!REPO) { REPO = d.repo; localStorage.setItem('mergemind.repo', REPO); }

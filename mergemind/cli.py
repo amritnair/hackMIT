@@ -8,7 +8,7 @@ import sys
 
 from . import store
 from . import github, llm
-from .agent import brief, request_skeleton
+from .agent import brief, observations, request_skeleton
 from .backfill import replay, report
 from .branches import as_forecast, branches
 from .merge import compare, trial_merge
@@ -79,8 +79,8 @@ def build_parser():
     fleet = sub.add_parser("fleet",
                            help="find the work in flight and brief everyone on it")
     fleet.add_argument("tasks", nargs="*", help="extra work not yet in a branch")
-    fleet.add_argument("--dry", action="store_true",
-                       help="describe what would happen without recording anything")
+    fleet.add_argument("--confirm", action="store_true",
+                       help="apply the plan; without this it only describes it")
 
     explain = sub.add_parser("explain", help="show one risk in full")
     explain.add_argument("risk_id")
@@ -345,7 +345,7 @@ def cmd_brief(repo, args, db):
     return data
 
 
-def _work_in_flight(repo, args):
+def _work_in_flight(repo, args, db=None):
     """Find who is already working here, without being told.
 
     Branches and open pull requests are the work that exists. Anything typed
@@ -353,6 +353,15 @@ def _work_in_flight(repo, args):
     to talk to, not just which file is busy.
     """
     work = []
+    for session in store.live_sessions(db) if db is not None else []:
+        if not session["task"]:
+            continue
+        work.append({
+            "agent": session["agent"],
+            "label": f"{session['agent']}: {session['task']}",
+            "kind": "session",
+            "forecast": predict(repo, session["task"]),
+        })
     for name, info in branches(repo["repo"], args.base).items():
         if "error" in info or not info["changed_files"]:
             continue
@@ -383,7 +392,7 @@ def _work_in_flight(repo, args):
 
 
 def cmd_fleet(repo, args, db):
-    work = _work_in_flight(repo, args)
+    work = _work_in_flight(repo, args, db)
     if not work:
         message = ("Nothing is in flight here — no branches with changes, no "
                    "open pull requests. Name some work and I will plan for it.")
@@ -408,11 +417,20 @@ def cmd_fleet(repo, args, db):
         key=lambda o: (-len(o["work"]), o["file"]),
     )
 
+    # what mergemind can tell the next agent without anyone writing it down
+    derived = observations(repo, work)
+    fresh = [o for o in derived if not store.note_exists(db, o["file"], o["note"])]
+
+    apply_it = args.confirm
     data = brief(repo, forecasts, found,
-                 db=None if args.dry else db,
-                 agent=None if args.dry else work[0]["agent"],
-                 store=None if args.dry else store)
-    if not args.dry:
+                 db=db if apply_it else None,
+                 agent=work[0]["agent"] if apply_it else None,
+                 store=store if apply_it else None)
+    if apply_it:
+        for note in fresh:
+            store.add_note(db, repo["sha"], note["agent"], note["file"], note["note"])
+            store.log(db, repo["sha"], "shared", "mergemind",
+                      f"{note['file']}: {note['note'][:70]}")
         store.save_risks(db, found)
         for w, suffix in zip(work[1:], data["suffixes"][1:]):
             store.record_brief(
@@ -445,6 +463,13 @@ def cmd_fleet(repo, args, db):
             f"Separately, {len(solo_high)} change(s) alter an interface other "
             "files depend on, which affects whoever imports them."
         )
+    if fresh:
+        summary.append(
+            f"{len(fresh)} thing(s) worth telling whoever works here next — "
+            "who else is in each file, which signatures are about to change, "
+            "which files to regenerate rather than merge. Read from the "
+            "repository, so nobody has to write them down."
+        )
     summary.append(
         f"Everyone here needs the same {data['prefix_tokens']:,} tokens of "
         "background about this repository. Sent once and cached, each agent "
@@ -473,7 +498,8 @@ def cmd_fleet(repo, args, db):
         "economics": e,
         "prefix_tokens": data["prefix_tokens"],
         "cacheable": data["cacheable"],
-        "recorded": not args.dry,
+        "observations": fresh,
+        "recorded": apply_it,
         "summary": summary,
     }
     if not args.json:
@@ -487,8 +513,13 @@ def cmd_fleet(repo, args, db):
             print("\n  shared ground:")
             for item in overlap:
                 print(f"    {item['file']:<44} {', '.join(item['agents'])}")
-        if args.dry:
-            print("\nNothing recorded. Run without --dry to brief them.")
+        if fresh:
+            print("\n  would tell the next agent:")
+            for note in fresh[:6]:
+                print(f"    {note['file']:<32} {note['note'][:70]}")
+        print("\n" + ("Applied: briefs recorded and findings shared."
+                       if apply_it else
+                       "Nothing recorded yet. Re-run with --confirm to apply."))
     return out
 
 

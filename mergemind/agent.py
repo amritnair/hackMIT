@@ -317,3 +317,56 @@ def request_skeleton(data, index=0):
             {"role": "user", "content": data["suffixes"][index]["text"]}
         ],
     }
+
+
+def observations(repo, work):
+    """Things worth telling the next agent that nobody has to type.
+
+    Every one of these is read from the repository or from a branch diff, so
+    they are facts rather than advice. Attributed to mergemind, not to a
+    person, because no person wrote them.
+    """
+    found = []
+    seen = set()
+
+    def add(file, note):
+        if (file, note) not in seen:
+            seen.add((file, note))
+            found.append({"file": file, "note": note, "agent": "mergemind"})
+
+    # who else is in here right now
+    touching = {}
+    for item in work:
+        for f in item["forecast"]["files"]:
+            touching.setdefault(f["file"], []).append(item)
+    for path, items in touching.items():
+        if len(items) > 1:
+            others = ", ".join(sorted({i["label"] for i in items}))
+            add(path, f"More than one piece of work is in this file: {others}.")
+
+    for item in work:
+        # a signature that is about to change is the single most useful thing
+        # to know before you call it
+        for change in item["forecast"].get("signature_changes", []):
+            if change.get("kind") == "moved":
+                add(change["file"],
+                    f"{item['label']} moves {change['symbol']} to "
+                    f"{change['moved_to']}; import it from there, not here.")
+            else:
+                add(change["file"],
+                    f"{item['label']} changes {change['symbol']} from "
+                    f"{change['before']} to {change['after']}.")
+
+        for f in item["forecast"]["files"]:
+            path = f["file"]
+            callers = repo["callers"].get(path, [])
+            if len(callers) >= 5:
+                add(path, f"{len(callers)} files import this; changing what it "
+                          "exports reaches all of them.")
+            if path in repo["regenerated_files"]:
+                add(path, "Generated or high-churn file. Take one side and "
+                          "regenerate rather than merging it by hand.")
+            if path in repo["schema_files"]:
+                add(path, "Schema or migration. Two of these landing together "
+                          "collide even when the text merges.")
+    return found
