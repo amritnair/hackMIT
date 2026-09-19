@@ -1,285 +1,959 @@
 <!doctype html>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mergemind</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
+  /* Predicted things are drawn hollow and hatched. Observed things are drawn
+     solid. That distinction is the whole argument of the tool, so it is the
+     whole visual system too. */
   :root {
-    --bg: #14161a; --panel: #1c1f25; --line: #2b3038; --ink: #e6e8eb;
-    --dim: #8b929c; --accent: #7aa2f7; --high: #f7768e; --med: #e0af68;
-    --low: #6a7381;
+    --paper:    #E7EBEE;
+    --panel:    #FBFCFC;
+    --ink:      #0E1417;
+    --graphite: #59666F;
+    --rule:     #C2CCD3;
+    --rule-firm:#94A3AC;
+    --high:     #A81F3C;
+    --medium:   #AD6A14;
+    --observed: #0B6157;
+    --shadow:   0 1px 0 rgba(14,20,23,.05), 0 8px 24px -16px rgba(14,20,23,.4);
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --display: "Bricolage Grotesque", var(--sans);
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 400 14px/1.55 var(--sans);
+    -webkit-font-smoothing: antialiased;
   }
+  ::selection { background: var(--ink); color: var(--paper); }
+  :focus-visible { outline: 2px solid var(--observed); outline-offset: 2px; }
+
+  /* ── header ─────────────────────────────────────────────── */
   header {
-    display: flex; gap: 20px; align-items: baseline;
-    padding: 14px 20px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 30; background: var(--paper);
+    border-bottom: 1px solid var(--rule-firm);
+    padding: 12px 24px; display: flex; gap: 20px; align-items: center;
+    flex-wrap: wrap;
   }
-  h1 { font-size: 15px; margin: 0; letter-spacing: .04em; }
-  #sha { color: var(--dim); font-size: 12px; }
-  nav { margin-left: auto; display: flex; gap: 4px; }
+  .wordmark {
+    font: 800 17px/1 var(--display); letter-spacing: -.035em; margin: 0;
+  }
+  .wordmark em { font-style: normal; color: var(--graphite); }
+  form.repo { display: flex; flex: 1 1 320px; min-width: 240px; gap: 0; }
+  form.repo input {
+    flex: 1; font: 500 12px/1 var(--mono); color: var(--ink);
+    background: var(--panel); border: 1px solid var(--rule-firm);
+    border-right: 0; padding: 9px 11px; min-width: 0;
+  }
+  form.repo button {
+    font: 500 12px/1 var(--mono); border: 1px solid var(--ink);
+    background: var(--ink); color: var(--paper); padding: 9px 14px;
+    cursor: pointer; white-space: nowrap;
+  }
+  form.repo button:hover { background: var(--observed); border-color: var(--observed); }
+  nav { display: flex; gap: 2px; }
   nav button {
-    background: none; border: 1px solid transparent; color: var(--dim);
-    padding: 4px 10px; cursor: pointer; font: inherit; border-radius: 3px;
+    font: 500 12px/1 var(--mono); background: none; border: 1px solid transparent;
+    color: var(--graphite); padding: 8px 12px; cursor: pointer;
   }
-  nav button[aria-selected=true] { color: var(--ink); border-color: var(--line); background: var(--panel); }
-  button.run {
-    margin-top: 10px; background: var(--bg); border: 1px solid var(--line);
-    color: var(--ink); padding: 6px 14px; font: inherit; border-radius: 3px;
-    cursor: pointer;
+  nav button:hover { color: var(--ink); }
+  nav button[aria-selected="true"] {
+    color: var(--ink); border-color: var(--rule-firm); background: var(--panel);
   }
-  button.run:hover { border-color: var(--accent); color: var(--accent); }
-  main { padding: 20px; max-width: 1100px; }
+
+  /* ── layout ─────────────────────────────────────────────── */
+  main { max-width: 1180px; margin: 0 auto; padding: 0 24px 80px; }
   section[hidden] { display: none; }
+
+  .banner {
+    margin: 14px 0 0; padding: 11px 14px; border: 1px solid var(--high);
+    background: var(--panel); font: 500 12px/1.5 var(--mono); color: var(--high);
+  }
+  .banner[hidden] { display: none; }
+
+  /* the hero states what is true right now, in the repo's own nouns */
+  .thesis { padding: 46px 0 30px; border-bottom: 1px solid var(--rule); }
+  .eyebrow {
+    font: 500 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    color: var(--graphite); margin: 0 0 16px;
+  }
+  .thesis h2 {
+    font: 800 clamp(26px, 4.6vw, 46px)/1.06 var(--display);
+    letter-spacing: -.035em; margin: 0; max-width: 20ch;
+  }
+  .thesis h2 mark {
+    background: none; color: var(--high); font-family: var(--mono);
+    font-weight: 600; font-size: .82em; letter-spacing: -.01em;
+  }
+  .thesis p { margin: 16px 0 0; max-width: 56ch; color: var(--graphite); }
+
   .panel {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 4px; padding: 14px 16px; margin-bottom: 14px;
+    background: var(--panel); border: 1px solid var(--rule-firm);
+    margin: 22px 0; box-shadow: var(--shadow);
   }
-  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--dim); margin: 0 0 10px; font-weight: 500; }
-  input[type=text] {
-    width: 100%; background: var(--bg); border: 1px solid var(--line);
-    color: var(--ink); padding: 8px 10px; font: inherit; border-radius: 3px;
+  .panel > h3 {
+    font: 500 11px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+    color: var(--graphite); margin: 0; padding: 13px 18px;
+    border-bottom: 1px solid var(--rule); display: flex; gap: 12px;
+    align-items: center; justify-content: space-between;
   }
-  input:focus { outline: 1px solid var(--accent); }
-  .risk { border-left: 2px solid var(--low); padding: 6px 0 6px 12px; margin: 10px 0; }
-  .risk.high { border-color: var(--high); }
-  .risk.medium { border-color: var(--med); }
-  .risk .head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-  .id { color: var(--dim); font-size: 12px; }
-  .type { color: var(--accent); }
-  .risk ul { margin: 6px 0; padding-left: 18px; color: var(--dim); }
-  .rec { color: var(--ink); }
-  .hint { color: var(--dim); font-size: 12px; }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  td, th { text-align: left; padding: 4px 10px 4px 0; vertical-align: top; }
-  th { color: var(--dim); font-weight: 500; }
-  code { color: var(--accent); }
-  .ev { color: var(--dim); font-size: 12px; }
-  circle.test { fill: var(--low); }
-  circle.schema { fill: var(--med); }
-  pre { white-space: pre-wrap; color: var(--dim); font-size: 12px; }
-  .spin { color: var(--dim); }
+  .panel .body { padding: 18px; }
+  .panel .body.flush { padding: 0; }
+  .hint { color: var(--graphite); font-size: 13px; margin: 10px 0 0; }
+  .hint:first-child { margin-top: 0; }
+
+  /* ── controls ───────────────────────────────────────────── */
+  .field {
+    width: 100%; font: 400 14px/1.4 var(--mono); color: var(--ink);
+    background: var(--paper); border: 1px solid var(--rule-firm);
+    padding: 11px 13px; margin-bottom: 9px;
+  }
+  .field::placeholder { color: var(--rule-firm); }
+  button.act {
+    font: 500 12px/1 var(--mono); background: var(--ink); color: var(--paper);
+    border: 1px solid var(--ink); padding: 10px 16px; cursor: pointer;
+  }
+  button.act:hover:not(:disabled) { background: var(--observed); border-color: var(--observed); }
+  button.act:disabled { opacity: .45; cursor: progress; }
+  button.ghost {
+    font: 500 11px/1 var(--mono); background: none; color: var(--graphite);
+    border: 1px solid var(--rule-firm); padding: 6px 10px; cursor: pointer;
+  }
+  button.ghost:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* ── the predicted / observed system ────────────────────── */
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; font: 500 10px/1 var(--mono);
+    letter-spacing: .1em; text-transform: uppercase; padding: 4px 7px;
+    border: 1px solid currentColor;
+  }
+  .tag.predicted { color: var(--graphite); border-style: dashed; }
+  .tag.observed { color: var(--panel); background: var(--observed);
+    border-color: var(--observed); }
+
+  .risk {
+    border-top: 1px solid var(--rule); padding: 0;
+  }
+  .risk:first-child { border-top: 0; }
+  .risk > summary {
+    padding: 13px 18px; cursor: pointer; display: grid; gap: 4px 12px;
+    grid-template-columns: 4px 1fr auto; align-items: baseline;
+    list-style: none;
+  }
+  .risk > summary::-webkit-details-marker { display: none; }
+  .risk > summary:hover { background: var(--paper); }
+  .risk .bar { grid-row: 1 / span 2; align-self: stretch; background: var(--rule-firm); }
+  .risk.high .bar { background: var(--high); }
+  .risk.medium .bar { background: var(--medium); }
+  .risk .headline { font: 500 13px/1.4 var(--mono); }
+  .risk .headline b { font-weight: 600; }
+  .risk.high .headline b { color: var(--high); }
+  .risk.medium .headline b { color: var(--medium); }
+  .risk .meta { font: 400 11px/1 var(--mono); color: var(--graphite); white-space: nowrap; }
+  .risk .between { grid-column: 2; font: 400 12px/1.5 var(--sans); color: var(--graphite); }
+  .risk .detail { padding: 0 18px 16px 34px; }
+  .risk ul { margin: 0 0 12px; padding-left: 16px; }
+  .risk li { font: 400 12px/1.6 var(--mono); color: var(--graphite); margin-bottom: 3px; }
+  .risk .rec {
+    border-left: 2px solid var(--ink); padding: 6px 0 6px 12px;
+    font: 500 13px/1.45 var(--sans);
+  }
+
+  .chip {
+    font: 500 12px/1 var(--mono); background: var(--paper);
+    border: 1px solid var(--rule-firm); padding: 5px 8px; cursor: pointer;
+    color: var(--ink);
+  }
+  .chip:hover { border-color: var(--observed); color: var(--observed); }
+
+  table { border-collapse: collapse; width: 100%; font: 400 13px/1.5 var(--mono); }
+  th {
+    font: 500 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--graphite); text-align: left; padding: 0 14px 8px 0;
+    border-bottom: 1px solid var(--rule); font-weight: 500;
+  }
+  td { padding: 8px 14px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .dim { color: var(--graphite); }
+
+  /* ── graph ──────────────────────────────────────────────── */
+  #graphWrap { position: relative; }
+  #graph { display: block; width: 100%; height: 460px; cursor: grab; }
+  #graph.dragging { cursor: grabbing; }
+  #graph text { font: 400 10px/1 var(--mono); fill: var(--graphite); pointer-events: none; }
+  #graph .node { cursor: pointer; }
+  #graph .node circle { transition: fill .15s, stroke .15s; }
+  #graph .edge { stroke: var(--rule-firm); stroke-width: 1; opacity: .5; }
+  #graph .edge.lit { stroke: var(--observed); opacity: 1; stroke-width: 1.5; }
+  #graph .node.faded { opacity: .22; }
+  #graph .node.lit text { fill: var(--ink); font-weight: 500; }
+  .legend {
+    display: flex; gap: 16px; flex-wrap: wrap; padding: 11px 18px;
+    border-top: 1px solid var(--rule); font: 400 11px/1 var(--mono);
+    color: var(--graphite); align-items: center;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+    border: 1.5px solid var(--ink);
+  }
+  .legend i.contested { background: var(--high); border-color: var(--high); }
+  .legend i.plain { background: var(--ink); }
+  .legend i.test { background: none; }
+
+  /* ── drawer ─────────────────────────────────────────────── */
+  #drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 92vw);
+    background: var(--panel); border-left: 1px solid var(--rule-firm);
+    box-shadow: -20px 0 40px -30px rgba(14,20,23,.6);
+    transform: translateX(101%); transition: transform .22s cubic-bezier(.3,.7,.3,1);
+    z-index: 40; overflow-y: auto;
+  }
+  #drawer.open { transform: none; }
+  #drawer header {
+    position: sticky; top: 0; border-bottom: 1px solid var(--rule);
+    background: var(--panel); padding: 14px 18px; gap: 10px;
+  }
+  #drawer h3 { font: 600 13px/1.4 var(--mono); margin: 0; flex: 1; word-break: break-all; }
+  #drawer .body { padding: 18px; }
+  #drawer h4 {
+    font: 500 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--graphite); margin: 20px 0 8px;
+  }
+  #drawer h4:first-child { margin-top: 0; }
+  #drawer .sym {
+    font: 400 12px/1.5 var(--mono); padding: 4px 0;
+    border-bottom: 1px dotted var(--rule);
+  }
+  #drawer .sym span { color: var(--graphite); }
+
+  .empty { color: var(--graphite); font-size: 13px; padding: 4px 0; }
+  pre {
+    font: 400 12px/1.6 var(--mono); white-space: pre-wrap; word-break: break-word;
+    margin: 0; max-height: 380px; overflow-y: auto; background: var(--paper);
+    border: 1px solid var(--rule); padding: 14px;
+  }
+  .money { font: 600 15px/1 var(--mono); }
+  .money.good { color: var(--observed); }
+  .loading { font: 400 12px/1 var(--mono); color: var(--graphite); }
+  .loading::after {
+    content: ""; display: inline-block; width: 1ch;
+    animation: dots 1.1s steps(4, end) infinite;
+  }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; }
+    50% { content: ".."; } 75% { content: "..."; } }
+
+  .stagger { animation: rise .3s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+  @media (max-width: 720px) {
+    header { padding: 10px 16px; gap: 12px; }
+    main { padding: 0 16px 60px; }
+    nav { order: 3; width: 100%; overflow-x: auto; }
+    #graph { height: 380px; }
+  }
 </style>
 
 <header>
-  <h1>mergemind</h1>
-  <span id="sha"></span>
+  <h1 class="wordmark">mergemind<em>/</em><span id="repoName">—</span></h1>
+  <form class="repo" id="repoForm">
+    <input id="repoPath" spellcheck="false" autocomplete="off"
+           aria-label="Path to a git repository on this machine"
+           placeholder="/path/to/a/git/repo">
+    <button type="submit">analyze</button>
+  </form>
   <nav>
     <button data-tab="overview" aria-selected="true">overview</button>
     <button data-tab="task">task</button>
     <button data-tab="simulate">simulate</button>
-    <button data-tab="insights">insights</button>
+    <button data-tab="agents">agents</button>
+    <button data-tab="history">history</button>
   </nav>
 </header>
 
 <main>
+  <p class="banner" id="banner" hidden></p>
+
   <section id="overview">
-    <div class="panel"><h2>repository</h2><div id="repo" class="spin">reading…</div></div>
-    <div class="panel"><h2>dependencies</h2>
-      <svg id="graph" viewBox="0 0 900 420" style="width:100%;height:420px"></svg>
-      <p class="hint">Bigger dot means more files import it. Those are the ones
-        two people should not rewrite in the same week.</p>
+    <div class="thesis">
+      <p class="eyebrow" id="heroEyebrow">reading the repository</p>
+      <h2 id="heroLine" class="loading">scanning</h2>
+      <p id="heroSub"></p>
     </div>
-    <div class="panel"><h2>branches</h2><div id="branches" class="spin">reading…</div></div>
+
+    <div class="panel">
+      <h3>who depends on whom
+        <button class="ghost" id="reflow">re-settle</button></h3>
+      <div class="body flush" id="graphWrap">
+        <svg id="graph" role="img" aria-label="File dependency graph"></svg>
+      </div>
+      <div class="legend">
+        <span><i class="contested"></i> contested by two branches</span>
+        <span><i class="plain"></i> source file</span>
+        <span><i class="test"></i> test file</span>
+        <span class="dim">drag to move · click for detail</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>branches in flight</h3>
+      <div class="body" id="branches"><p class="loading">reading</p></div>
+    </div>
+
+    <div class="panel">
+      <h3>risks from branches on their own</h3>
+      <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">—</p></div>
+    </div>
   </section>
 
   <section id="task" hidden>
-    <div class="panel"><h2>describe work that does not exist yet</h2>
-      <input type="text" id="taskInput" placeholder="Add rate limiting to the API"
-             autocomplete="off">
-      <button class="run" id="runTask">forecast</button>
-      <p class="hint">No branch needed, no code needed. Enter works too.</p>
+    <div class="thesis">
+      <p class="eyebrow">before anyone writes code</p>
+      <h2>Describe work that does not exist yet.</h2>
+      <p>No branch, no diff. The forecast is matched against what is really in
+        the repo, and anything it cannot ground is listed separately.</p>
     </div>
-    <div class="panel"><h2>predicted impact</h2><div id="taskOut" class="hint">waiting for a task.</div></div>
+    <div class="panel">
+      <h3>task</h3>
+      <div class="body">
+        <input class="field" id="taskInput" autocomplete="off" spellcheck="false"
+               placeholder="Add rate limiting to the API">
+        <button class="act" id="runTask">forecast</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>predicted impact <span class="tag predicted">predicted</span></h3>
+      <div class="body" id="taskOut"><p class="empty">Nothing forecast yet.</p></div>
+    </div>
   </section>
 
   <section id="simulate" hidden>
-    <div class="panel"><h2>two or more pieces of work, one per line</h2>
-      <input type="text" id="simA" placeholder="Add rate limiting to the API" autocomplete="off">
-      <br><br>
-      <input type="text" id="simB" placeholder="Add authentication middleware" autocomplete="off">
-      <br><br>
-      <input type="text" id="simC" placeholder="(optional third)" autocomplete="off">
-      <button class="run" id="runSimBtn">compare</button>
-      <p class="hint">Two or more filled in. Enter works too.</p>
+    <div class="thesis">
+      <p class="eyebrow">two or three people, one repo</p>
+      <h2>Find the collision on Monday.</h2>
+      <p>Each piece of work is forecast separately, then compared. Overlap in a
+        file is worth knowing; overlap in a function that twelve files import
+        is worth a conversation.</p>
     </div>
-    <div class="panel"><h2>collisions</h2><div id="simOut" class="hint">nothing run yet.</div></div>
-    <div class="panel"><h2>ways to sequence it</h2><div id="stratOut" class="hint">—</div></div>
+    <div class="panel">
+      <h3>work in parallel</h3>
+      <div class="body">
+        <input class="field" id="simA" autocomplete="off" placeholder="Add rate limiting to the API">
+        <input class="field" id="simB" autocomplete="off" placeholder="Add authentication middleware">
+        <input class="field" id="simC" autocomplete="off" placeholder="third task, optional">
+        <button class="act" id="runSim">compare</button>
+        <p class="hint" id="simBranchHint"></p>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>collisions <span class="tag predicted">predicted</span></h3>
+      <div class="body flush" id="simOut"><p class="empty" style="padding:18px">Nothing compared yet.</p></div>
+    </div>
+    <div class="panel">
+      <h3>ways to sequence it</h3>
+      <div class="body" id="stratOut"><p class="empty">—</p></div>
+    </div>
   </section>
 
-  <section id="insights" hidden>
-    <div class="panel"><h2>what this repo has taught us</h2><div id="insOut" class="spin">reading…</div></div>
-    <div class="panel"><h2>grade the forecast against history</h2>
-      <p class="hint">Replays old merge commits: rewinds to where each pair of
-        branches diverged, forecasts from there, then re-runs the merge for
-        real. Slow — a minute or so per fifty merges.</p>
-      <button class="run" id="runBackfill">replay 25 merges</button>
-      <div id="backOut"></div>
+  <section id="agents" hidden>
+    <div class="thesis">
+      <p class="eyebrow">several agents, one repo</p>
+      <h2>Pay for the repo once, not once per agent.</h2>
+      <p>Caching is a prefix match rendered tools → system → messages, so one
+        changed byte near the front invalidates everything after it. The repo
+        half of the context is identical for every agent on this commit, so it
+        goes in front of the breakpoint. Each task goes behind it.</p>
+    </div>
+    <div class="panel">
+      <h3>what each agent is working on</h3>
+      <div class="body">
+        <input class="field" id="agA" autocomplete="off" placeholder="Add rate limiting to the API">
+        <input class="field" id="agB" autocomplete="off" placeholder="Refactor request handling">
+        <input class="field" id="agC" autocomplete="off" placeholder="third agent, optional">
+        <button class="act" id="runBrief">build the briefs</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>token arithmetic</h3>
+      <div class="body" id="briefMath"><p class="empty">Nothing built yet.</p></div>
+    </div>
+    <div class="panel">
+      <h3>cached prefix <span class="tag observed">same for every agent</span>
+        <button class="ghost" data-copy="prefix">copy</button></h3>
+      <div class="body"><pre id="briefPrefix" class="empty">—</pre></div>
+    </div>
+    <div class="panel">
+      <h3>after the breakpoint <span class="tag predicted">one per agent</span></h3>
+      <div class="body" id="briefSuffixes"><p class="empty">—</p></div>
+    </div>
+  </section>
+
+  <section id="history" hidden>
+    <div class="thesis">
+      <p class="eyebrow">forecast against reality</p>
+      <h2>Replay merges that already happened.</h2>
+      <p>Rewind to where two branches diverged, scan the code as it was then,
+        forecast, and re-run the merge for real. The forecast never sees the
+        merge commit.</p>
+    </div>
+    <div class="panel">
+      <h3>this repo so far</h3>
+      <div class="body" id="insOut"><p class="loading">reading</p></div>
+    </div>
+    <div class="panel">
+      <h3>grade the forecast <span class="tag observed">observed</span></h3>
+      <div class="body">
+        <button class="act" id="runBackfill">replay 25 merges</button>
+        <p class="hint">Roughly a minute per fifty merges. Each one runs in a
+          temporary worktree and is torn down afterwards.</p>
+        <div id="backOut"></div>
+      </div>
     </div>
   </section>
 </main>
 
+<aside id="drawer" aria-hidden="true">
+  <header>
+    <h3 id="drawerTitle">file</h3>
+    <button class="ghost" id="drawerClose" aria-label="Close">close</button>
+  </header>
+  <div class="body" id="drawerBody"></div>
+</aside>
+
 <script>
 const $ = s => document.querySelector(s);
-const esc = s => String(s).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-const api = (cmd, params={}) => {
+const esc = s => String(s).replace(/[<>&"]/g, c =>
+  ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
+const base = n => n.split('/').pop();
+
+let REPO = new URLSearchParams(location.search).get('repo')
+  || localStorage.getItem('mergemind.repo') || '';
+let CONTESTED = new Set();
+
+function api(cmd, params = {}) {
   const q = new URLSearchParams();
+  if (REPO) q.append('repo', REPO);
   for (const [k, v] of Object.entries(params))
     (Array.isArray(v) ? v : [v]).filter(Boolean).forEach(x => q.append(k, x));
-  return fetch(`/api/${cmd}?${q}`).then(r => r.json());
-};
+  return fetch(`/api/${cmd}?${q}`).then(r => r.json()).then(d => {
+    if (d && d.error) { showBanner(d.error); throw new Error(d.error); }
+    hideBanner();
+    return d;
+  });
+}
+const showBanner = m => { $('#banner').textContent = m; $('#banner').hidden = false; };
+const hideBanner = () => { $('#banner').hidden = true; };
 
+/* ── tabs ─────────────────────────────────────────────────── */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('nav button').forEach(x =>
-    x.setAttribute('aria-selected', x === b));
+    x.setAttribute('aria-selected', String(x === b)));
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
-  if (b.dataset.tab === 'insights') loadInsights();
+  if (b.dataset.tab === 'history') loadInsights();
 });
 
+/* ── repo picker ──────────────────────────────────────────── */
+$('#repoForm').onsubmit = e => {
+  e.preventDefault();
+  REPO = $('#repoPath').value.trim();
+  localStorage.setItem('mergemind.repo', REPO);
+  loadRepo();
+};
+
+/* ── risk rendering ───────────────────────────────────────── */
 function riskHTML(r) {
-  return `<div class="risk ${r.risk_level}">
-    <div class="head">
-      <span class="id">[${r.id}]</span>
-      <span class="type">${esc(r.risk_type)}</span>
-      <span class="id">${r.risk_score} · confidence ${r.confidence}</span>
+  const files = r.files || [];
+  return `<details class="risk ${r.risk_level}">
+    <summary>
+      <i class="bar"></i>
+      <span class="headline"><b>${esc(r.risk_type.replace(/_/g, ' '))}</b>
+        ${files.length ? '· ' + esc(base(files[0])) +
+          (files.length > 1 ? ` +${files.length - 1}` : '') : ''}</span>
+      <span class="meta">${r.risk_score} · ${r.id}</span>
+      <span class="between">${r.tasks.map(esc).join('  ↔  ')}</span>
+    </summary>
+    <div class="detail">
+      <ul>${r.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
+      <p class="rec">${esc(r.recommendation)}</p>
+      ${files.length ? `<p class="hint">${files.map(f =>
+        `<button class="chip" data-file="${esc(f)}">${esc(f)}</button>`).join(' ')}</p>` : ''}
     </div>
-    <div>${r.tasks.map(esc).join('  ↔  ')}</div>
-    <ul>${r.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
-    <div class="rec">→ ${esc(r.recommendation)}</div>
-  </div>`;
+  </details>`;
 }
 
 function forecastHTML(f) {
-  if (!f.files.length) return `<p class="hint">Nothing in this repo matched "${esc(f.task)}".</p>`;
-  return `<p>"${esc(f.task)}" · confidence ${f.confidence}</p>
-    <table><tr><th>score</th><th>file</th><th>why</th></tr>
-    ${f.files.map(x => `<tr><td>${x.score}</td><td><code>${esc(x.file)}</code></td>
-      <td class="ev">${esc(x.evidence[0] || '')}</td></tr>`).join('')}</table>
-    ${f.unsupported_terms.length ? `<p class="hint">No repo evidence for:
-      ${f.unsupported_terms.map(esc).join(', ')} — either new ground, or a miss.</p>` : ''}`;
+  if (!f.files.length) return `<p class="empty">Nothing in this repo matched
+    “${esc(f.task)}”. Either it is new ground, or the words in the task share
+    no vocabulary with the code that would change.</p>`;
+  return `<p class="hint" style="margin:0 0 12px">
+      <span class="tag predicted">confidence ${f.confidence}</span></p>
+    <table><thead><tr><th style="width:56px">score</th><th>file</th><th>why</th></tr></thead>
+    <tbody>${f.files.map(x => `<tr>
+      <td class="num">${x.score}</td>
+      <td><button class="chip" data-file="${esc(x.file)}">${esc(x.file)}</button></td>
+      <td class="dim">${esc(x.evidence[0] || '')}</td></tr>`).join('')}</tbody></table>
+    ${f.unsupported_terms.length ? `<p class="hint">No repo evidence for
+      <b>${f.unsupported_terms.map(esc).join(', ')}</b> — either new ground,
+      or the forecast missed something.</p>` : ''}`;
 }
 
-function drawGraph(graph) {
-  const svg = $('#graph');
-  // Only the files anything actually depends on, and only enough of them to
-  // stay readable. A hairball of 80 nodes tells you nothing.
-  const top = graph.nodes.filter(n => n.depended_on_by > 0)
-    .sort((a, b) => b.depended_on_by - a.depended_on_by).slice(0, 16);
-  const pos = {}, cx = 450, cy = 210;
-  top.forEach((n, i) => {
-    const a = (i / top.length) * Math.PI * 2 - Math.PI / 2;
-    pos[n.id] = [cx + Math.cos(a) * 300, cy + Math.sin(a) * 175];
+/* clicking any file chip anywhere opens the drawer */
+document.addEventListener('click', e => {
+  const chip = e.target.closest('[data-file]');
+  if (chip) openFile(chip.dataset.file);
+});
+
+/* ── drawer ───────────────────────────────────────────────── */
+function openFile(path) {
+  $('#drawer').classList.add('open');
+  $('#drawer').setAttribute('aria-hidden', 'false');
+  $('#drawerTitle').textContent = path;
+  $('#drawerBody').innerHTML = '<p class="loading">reading</p>';
+  api('file', { path }).then(d => {
+    const kind = d.is_regenerated ? 'generated or high-churn'
+      : d.is_schema ? 'schema or migration' : d.is_test ? 'test' : 'source';
+    $('#drawerBody').innerHTML = `
+      <p class="hint" style="margin:0"><span class="tag observed">${kind}</span>
+        <span class="dim"> ${d.lines} lines</span></p>
+      <h4>imported by ${d.callers.length}</h4>
+      ${d.callers.length ? d.callers.map(c =>
+        `<div class="sym"><button class="chip" data-file="${esc(c)}">${esc(c)}</button></div>`).join('')
+        : '<p class="empty">Nothing in this repo imports it.</p>'}
+      <h4>symbols</h4>
+      ${d.symbols.length ? d.symbols.map(s =>
+        `<div class="sym">${esc(s.signature)} <span>:${s.line}</span></div>`).join('')
+        : '<p class="empty">No symbols parsed.</p>'}
+      <h4>imports</h4>
+      ${d.imports.length ? `<p class="hint" style="margin:0">${d.imports.map(esc).join(', ')}</p>`
+        : '<p class="empty">None.</p>'}`;
+  }).catch(() => {
+    $('#drawerBody').innerHTML = '<p class="empty">Not a parsed code file.</p>';
   });
-  const edges = graph.edges.filter(e => pos[e.from] && pos[e.to]);
+}
+const closeDrawer = () => {
+  $('#drawer').classList.remove('open');
+  $('#drawer').setAttribute('aria-hidden', 'true');
+};
+$('#drawerClose').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+/* ── graph ────────────────────────────────────────────────── */
+// ponytail: O(n²) repulsion, with n capped at 26. A quadtree would be correct
+// and pointless at this size.
+const G = { nodes: [], links: [], raf: null, drag: null };
+
+function layout(graph) {
+  const svg = $('#graph');
+  const W = svg.clientWidth || 900, H = svg.clientHeight || 460;
+  const pick = graph.nodes.filter(n => n.depended_on_by > 0).slice(0, 26);
+  const ids = new Set(pick.map(n => n.id));
+  G.nodes = pick.map((n, i) => ({
+    ...n,
+    r: 5 + Math.min(n.depended_on_by * 2.2, 13),
+    x: W / 2 + Math.cos(i) * 40, y: H / 2 + Math.sin(i * 1.7) * 40,
+    vx: 0, vy: 0,
+  }));
+  const index = Object.fromEntries(G.nodes.map(n => [n.id, n]));
+  G.links = graph.edges.filter(e => ids.has(e.from) && ids.has(e.to))
+    .map(e => ({ s: index[e.from], t: index[e.to] }));
+  G.W = W; G.H = H;
+  run(220);
+}
+
+function tick() {
+  const { nodes, links, W, H } = G;
+  for (let i = 0; i < nodes.length; i++) {
+    const a = nodes[i];
+    for (let j = i + 1; j < nodes.length; j++) {
+      const b = nodes[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d2 = dx * dx + dy * dy || 1;
+      const push = 5200 / d2;
+      const d = Math.sqrt(d2);
+      a.vx -= dx / d * push; a.vy -= dy / d * push;
+      b.vx += dx / d * push; b.vy += dy / d * push;
+    }
+  }
+  for (const l of links) {
+    const dx = l.t.x - l.s.x, dy = l.t.y - l.s.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const pull = (d - 130) * 0.012;
+    l.s.vx += dx / d * pull; l.s.vy += dy / d * pull;
+    l.t.vx -= dx / d * pull; l.t.vy -= dy / d * pull;
+  }
+  for (const n of nodes) {
+    n.vx += (W / 2 - n.x) * 0.004;
+    n.vy += (H / 2 - n.y) * 0.008;
+    if (n === G.drag) { n.vx = n.vy = 0; continue; }
+    n.vx *= 0.86; n.vy *= 0.86;
+    n.x = Math.max(n.r + 70, Math.min(W - n.r - 70, n.x + n.vx));
+    n.y = Math.max(n.r + 14, Math.min(H - n.r - 14, n.y + n.vy));
+  }
+}
+
+function run(steps) {
+  cancelAnimationFrame(G.raf);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) { for (let i = 0; i < steps; i++) tick(); return draw(); }
+  let left = steps;
+  const step = () => {
+    tick(); draw();
+    if (--left > 0) G.raf = requestAnimationFrame(step);
+  };
+  step();
+}
+
+function draw() {
+  const svg = $('#graph');
   svg.innerHTML =
-    edges.map(e => `<line x1="${pos[e.from][0]}" y1="${pos[e.from][1]}"
-        x2="${pos[e.to][0]}" y2="${pos[e.to][1]}" stroke="#2b3038"/>`).join('') +
-    top.map(n => {
-      const [x, y] = pos[n.id], r = 4 + Math.min(n.depended_on_by * 2.5, 12);
-      const cls = n.is_schema ? 'schema' : n.is_test ? 'test' : '';
-      const right = x > cx;
-      const label = n.id.length > 28 ? '…' + n.id.slice(-27) : n.id;
-      return `<circle cx="${x}" cy="${y}" r="${r}" class="${cls}" fill="#7aa2f7"/>
-        <title>${esc(n.id)} — ${n.depended_on_by} importer(s)</title>
-        <text x="${right ? x + r + 5 : x - r - 5}" y="${y + 4}" fill="#8b929c"
-          font-size="11" text-anchor="${right ? 'start' : 'end'}"
-          font-family="ui-monospace,monospace">${esc(label)}</text>`;
+    G.links.map(l => `<line class="edge" data-s="${esc(l.s.id)}" data-t="${esc(l.t.id)}"
+      x1="${l.s.x}" y1="${l.s.y}" x2="${l.t.x}" y2="${l.t.y}"/>`).join('') +
+    G.nodes.map(n => {
+      const right = n.x > G.W / 2;
+      const contested = CONTESTED.has(n.id);
+      const fill = contested ? 'var(--high)' : n.is_test ? 'var(--panel)' : 'var(--ink)';
+      const stroke = contested ? 'var(--high)' : 'var(--ink)';
+      const label = base(n.id);
+      return `<g class="node" data-file="${esc(n.id)}" data-id="${esc(n.id)}">
+        <circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${fill}"
+          stroke="${stroke}" stroke-width="1.5"/>
+        <text x="${right ? n.x + n.r + 6 : n.x - n.r - 6}" y="${n.y + 3.5}"
+          text-anchor="${right ? 'start' : 'end'}">${esc(label)}</text>
+        <title>${esc(n.id)} — imported by ${n.depended_on_by}</title>
+      </g>`;
     }).join('');
 }
 
-api('status').then(d => {
-  $('#sha').textContent = `${d.base} · ${Object.keys(d.branches).length} other branch(es)`;
-  drawGraph(d.graph);
-  const bs = Object.values(d.branches).filter(b => !b.error);
-  $('#branches').innerHTML = bs.length ? `<table>
-    <tr><th>branch</th><th>±</th><th>files</th><th>signature changes</th><th>who</th></tr>
-    ${bs.map(b => `<tr><td><code>${esc(b.name)}</code></td>
-      <td>+${b.ahead}/-${b.behind}</td><td>${b.changed_files.length}</td>
-      <td class="ev">${b.signature_changes.map(c =>
-        esc(`${c.before} → ${c.after}`)).join('<br>') || '—'}</td>
-      <td class="ev">${esc(b.author)}, ${esc(b.last_commit)}</td></tr>`).join('')}</table>
-    ${d.risks.length ? '<h2 style="margin-top:16px">risks from branches alone</h2>'
-      + d.risks.map(riskHTML).join('') : ''}`
-    : '<p class="hint">Only one branch here. Make another and this fills in.</p>';
+/* hover lights up a file and everything that imports it */
+$('#graph').addEventListener('mouseover', e => {
+  const g = e.target.closest('.node');
+  if (!g) return;
+  const id = g.dataset.id;
+  const near = new Set([id]);
+  G.links.forEach(l => {
+    if (l.s.id === id) near.add(l.t.id);
+    if (l.t.id === id) near.add(l.s.id);
+  });
+  $('#graph').querySelectorAll('.node').forEach(n =>
+    n.classList.toggle('faded', !near.has(n.dataset.id)));
+  $('#graph').querySelectorAll('.node').forEach(n =>
+    n.classList.toggle('lit', near.has(n.dataset.id)));
+  $('#graph').querySelectorAll('.edge').forEach(l =>
+    l.classList.toggle('lit', l.dataset.s === id || l.dataset.t === id));
+});
+$('#graph').addEventListener('mouseleave', () => {
+  $('#graph').querySelectorAll('.node').forEach(n =>
+    n.classList.remove('faded', 'lit'));
+  $('#graph').querySelectorAll('.edge').forEach(l => l.classList.remove('lit'));
 });
 
-api('scan').then(d => {
-  $('#repo').innerHTML = `<table>
-    <tr><td>path</td><td><code>${esc(d.repo)}</code></td></tr>
-    <tr><td>commit</td><td><code>${esc(d.sha.slice(0, 10))}</code> on
-      <code>${esc(d.branch)}</code></td></tr>
-    <tr><td>code files</td><td>${d.file_count}</td></tr>
-    <tr><td>schema/migrations</td><td>${d.schema_files.length || '—'}</td></tr>
-    <tr><td>manifests</td><td>${d.manifests.map(esc).join(', ') || '—'}</td></tr>
-  </table>`;
+/* drag a node; the rest of the graph reacts */
+$('#graph').addEventListener('pointerdown', e => {
+  const g = e.target.closest('.node');
+  if (!g) return;
+  G.drag = G.nodes.find(n => n.id === g.dataset.id);
+  G.moved = false;
+  $('#graph').classList.add('dragging');
+  $('#graph').setPointerCapture(e.pointerId);
+});
+$('#graph').addEventListener('pointermove', e => {
+  if (!G.drag) return;
+  const box = $('#graph').getBoundingClientRect();
+  G.drag.x = e.clientX - box.left;
+  G.drag.y = e.clientY - box.top;
+  G.moved = true;
+  run(40);
+});
+$('#graph').addEventListener('pointerup', e => {
+  if (G.drag && !G.moved) openFile(G.drag.id);
+  G.drag = null;
+  $('#graph').classList.remove('dragging');
+  run(60);
+});
+$('#reflow').onclick = () => layout(window.__graph);
+addEventListener('resize', () => { if (window.__graph) layout(window.__graph); });
+
+/* ── loading a repo ───────────────────────────────────────── */
+function loadRepo() {
+  $('#repoPath').value = REPO;
+  $('#heroLine').textContent = 'scanning';
+  $('#heroLine').className = 'loading';
+  $('#branches').innerHTML = '<p class="loading">reading</p>';
+
+  api('status').then(d => {
+    $('#repoName').textContent = base(d.repo_path || REPO || '.') || 'repo';
+    window.__graph = d.graph;
+
+    const pairRisks = d.risks.filter(r => r.tasks.length === 2);
+    CONTESTED = new Set(pairRisks.flatMap(r => r.files || []));
+    layout(d.graph);
+
+    const branches = Object.values(d.branches).filter(b => !b.error);
+    writeHero(branches, pairRisks, d.base);
+    writeBranches(branches, d.base);
+    $('#branchRisks').innerHTML = d.risks.length
+      ? d.risks.map(riskHTML).join('')
+      : `<p class="empty" style="padding:18px">No branch is changing a shared
+         interface on its own right now.</p>`;
+    $('#simBranchHint').textContent = branches.length
+      ? `Branches here: ${branches.map(b => b.name).join(', ')}.`
+      : '';
+  }).catch(() => {
+    $('#heroLine').className = '';
+    $('#heroLine').textContent = 'Pick a repository.';
+    $('#heroEyebrow').textContent = 'nothing loaded';
+    $('#heroSub').textContent = '';
+    $('#branches').innerHTML = '';
+    $('#graph').innerHTML = '';
+  });
+
+  api('scan').then(d => { window.__scan = d; }).catch(() => {});
+}
+
+function writeHero(branches, risks, baseName) {
+  const eyebrow = $('#heroEyebrow'), line = $('#heroLine'), sub = $('#heroSub');
+  line.className = 'stagger';
+  if (risks.length) {
+    const top = risks[0];
+    const file = (top.files || [])[0];
+    eyebrow.textContent = `base ${baseName} · ${branches.length} branch(es) in flight`;
+    line.innerHTML = file
+      ? `<mark>${esc(base(file))}</mark> is contested by ${top.tasks.length} pieces of work.`
+      : `${risks.length} pieces of work overlap.`;
+    sub.textContent = top.recommendation;
+  } else if (branches.length) {
+    eyebrow.textContent = `base ${baseName} · ${branches.length} branch(es) in flight`;
+    line.innerHTML = 'No two branches are touching the same file.';
+    sub.textContent = 'Nothing to coordinate yet. Forecast a task on the next '
+      + 'tab to see what the next piece of work would collide with.';
+  } else {
+    eyebrow.textContent = `base ${baseName} · no other branches`;
+    line.innerHTML = 'One branch, nothing to collide with.';
+    sub.textContent = 'Forecast a task to see where work would land, or point '
+      + 'this at a repo with branches in flight.';
+  }
+}
+
+function writeBranches(branches, baseName) {
+  if (!branches.length) {
+    $('#branches').innerHTML = `<p class="empty">Only ${esc(baseName)} here.</p>`;
+    return;
+  }
+  $('#branches').innerHTML = `<table>
+    <thead><tr><th>branch</th><th>ahead/behind</th><th>files</th>
+      <th>signature changes</th><th>last commit</th><th></th></tr></thead>
+    <tbody>${branches.map(b => `<tr>
+      <td><b>${esc(b.name)}</b><div class="dim" style="font-size:11px">${esc(b.subject)}</div></td>
+      <td class="num">+${b.ahead} / −${b.behind}</td>
+      <td class="num">${b.changed_files.length}</td>
+      <td class="dim">${b.signature_changes.length
+        ? b.signature_changes.map(c => esc(`${c.before} → ${c.after}`)).join('<br>')
+        : '—'}</td>
+      <td class="dim">${esc(b.author)}<br>${esc(b.last_commit)}</td>
+      <td><button class="ghost" data-verify="${esc(b.name)}">merge it</button></td>
+    </tr>`).join('')}</tbody></table>
+    <p class="hint">“merge it” really merges the branch into
+      ${esc(baseName)} in a throwaway worktree, then throws the worktree away.
+      Your checkout is not touched.</p>`;
+}
+
+/* run a real merge from the branch table */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-verify]');
+  if (!b) return;
+  const name = b.dataset.verify;
+  b.disabled = true; b.textContent = 'merging…';
+  api('verify', { branch: name }).then(d => {
+    const o = d.outcome, c = d.comparison;
+    b.replaceWith(Object.assign(document.createElement('span'), {
+      className: o.merged_clean ? 'tag observed' : 'tag',
+      style: o.merged_clean ? '' : 'color:var(--high)',
+      textContent: o.merged_clean ? 'merged clean' :
+        `conflicts in ${o.conflicted_files.length}`,
+    }));
+    if (!o.merged_clean) {
+      showBanner(`${name}: conflicts in ${o.conflicted_files.join(', ')} — `
+        + `${c.predicted_and_conflicted.length} of them were flagged in advance.`);
+    }
+  }).catch(() => { b.disabled = false; b.textContent = 'merge it'; });
 });
 
+/* ── task ─────────────────────────────────────────────────── */
 function runTask() {
   const task = $('#taskInput').value.trim();
   if (!task) return;
-  $('#taskOut').innerHTML = '<span class="spin">forecasting…</span>';
-  api('plan', { task }).then(f => $('#taskOut').innerHTML = forecastHTML(f));
+  $('#runTask').disabled = true;
+  $('#taskOut').innerHTML = '<p class="loading">forecasting</p>';
+  api('plan', { task })
+    .then(f => { $('#taskOut').innerHTML = forecastHTML(f); })
+    .catch(() => { $('#taskOut').innerHTML = '<p class="empty">Could not read that repo.</p>'; })
+    .finally(() => { $('#runTask').disabled = false; });
 }
 $('#runTask').onclick = runTask;
 $('#taskInput').onkeydown = e => { if (e.key === 'Enter') runTask(); };
 
+/* ── simulate ─────────────────────────────────────────────── */
 function runSim() {
   const tasks = ['#simA', '#simB', '#simC'].map(s => $(s).value.trim()).filter(Boolean);
-  if (tasks.length < 2) return;
-  $('#simOut').innerHTML = '<span class="spin">comparing…</span>';
+  if (tasks.length < 2) { showBanner('Two pieces of work minimum — one thing cannot collide with itself.'); return; }
+  hideBanner();
+  $('#runSim').disabled = true;
+  $('#simOut').innerHTML = '<p class="loading" style="padding:18px">comparing</p>';
   api('simulate', { task: tasks }).then(d => {
     $('#simOut').innerHTML = (d.risks.length
-      ? `<p>${d.risks.length} predicted risk(s). Predicted — nothing has been
-         merged or run.</p>` + d.risks.map(riskHTML).join('')
-      : '<p class="hint">No overlap found between these. Either they are genuinely '
-        + 'independent, or they share no vocabulary with the code they touch.</p>')
-      + d.forecasts.map(forecastHTML).join('<hr style="border-color:#2b3038">');
-    $('#stratOut').innerHTML = d.strategies.map(s => `<div class="risk">
-      <div class="head"><span class="type">${esc(s.strategy)}</span>
-      <span class="id">${s.open_risks} risk(s) left open</span></div>
-      <ul>${s.coordination_steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
-      <div class="ev">${esc(s.note)}</div></div>`).join('');
-  });
+      ? d.risks.map(riskHTML).join('')
+      : `<p class="empty" style="padding:18px">No overlap between these.
+         Either they are genuinely independent, or they share no vocabulary
+         with the code they touch.</p>`)
+      + `<div style="padding:18px;border-top:1px solid var(--rule)">
+         ${d.forecasts.map(forecastHTML).join('<hr style="border:0;border-top:1px solid var(--rule);margin:18px 0">')}
+         </div>`;
+    $('#stratOut').innerHTML = d.strategies.map(s => `<div class="risk" style="border:0">
+      <p style="margin:0 0 4px"><b>${esc(s.strategy)}</b>
+        <span class="meta dim"> — ${s.open_risks} risk(s) left open</span></p>
+      <ul style="margin:6px 0">${s.coordination_steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+      <p class="hint" style="margin:0">${esc(s.note)}</p></div>`).join('');
+  }).catch(() => {
+    $('#simOut').innerHTML = '<p class="empty" style="padding:18px">Could not read that repo.</p>';
+  }).finally(() => { $('#runSim').disabled = false; });
 }
-$('#runSimBtn').onclick = runSim;
+$('#runSim').onclick = runSim;
 ['#simA', '#simB', '#simC'].forEach(s =>
   $(s).onkeydown = e => { if (e.key === 'Enter') runSim(); });
 
+/* ── history ──────────────────────────────────────────────── */
+let BRIEF = null;
+
+function runBrief() {
+  const tasks = ['#agA', '#agB', '#agC'].map(s => $(s).value.trim()).filter(Boolean);
+  if (!tasks.length) { showBanner('Give at least one agent something to do.'); return; }
+  hideBanner();
+  $('#runBrief').disabled = true;
+  $('#briefMath').innerHTML = '<p class="loading">building</p>';
+  api('brief', { task: tasks }).then(d => {
+    BRIEF = d;
+    const e = d.economics;
+    $('#briefMath').innerHTML = `<table><tbody>
+      <tr><td>cached prefix</td><td class="num">${d.prefix_tokens}</td>
+        <td class="dim">${d.cacheable ? 'over the cache floor' : 'under the cache floor'}</td></tr>
+      ${d.suffixes.map(s => `<tr><td>${esc(s.task)}</td>
+        <td class="num">${s.tokens}</td><td class="dim">sent every call</td></tr>`).join('')}
+      <tr><td>${e.agents} agent(s) reading every code file</td>
+        <td class="num">${e.repo_if_each_agent_reads_every_file.toLocaleString()}</td>
+        <td class="dim">what this replaces</td></tr>
+      <tr><td>brief, first call</td><td class="num">${e.brief_first_call.toLocaleString()}</td>
+        <td class="dim">writes the cache at 1.25×</td></tr>
+      <tr><td><b>brief, cache warm</b></td>
+        <td class="num"><b>${e.brief_per_later_call.toLocaleString()}</b></td>
+        <td class="dim">reads it back at 0.1×</td></tr>
+      </tbody></table>
+      <p style="margin-top:14px"><span class="money good">
+        $${e.dollars_per_later_call}</span>
+        <span class="dim"> per later call, against </span>
+        <span class="money">$${e.dollars_if_each_agent_reads_every_file}</span></p>
+      <p class="hint">${esc(e.note)}</p>
+      ${(d.warnings || []).map(w => `<p class="banner" style="margin-top:12px">${esc(w)}</p>`).join('')}`;
+    $('#briefPrefix').textContent = d.prefix;
+    $('#briefPrefix').className = '';
+    $('#briefSuffixes').innerHTML = d.suffixes.map((s, i) => `
+      <h4 class="eyebrow" style="margin:${i ? '22px' : '0'} 0 8px">
+        ${esc(s.task)} — ${s.tokens} tokens
+        <button class="ghost" data-copy="suffix:${i}">copy</button></h4>
+      <pre>${esc(s.text)}</pre>`).join('');
+  }).catch(() => {
+    $('#briefMath').innerHTML = '<p class="empty">Could not build briefs for that repo.</p>';
+  }).finally(() => { $('#runBrief').disabled = false; });
+}
+$('#runBrief').onclick = runBrief;
+['#agA', '#agB', '#agC'].forEach(s =>
+  $(s).onkeydown = e => { if (e.key === 'Enter') runBrief(); });
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-copy]');
+  if (!b || !BRIEF) return;
+  const key = b.dataset.copy;
+  const text = key === 'prefix' ? BRIEF.prefix
+    : BRIEF.suffixes[Number(key.split(':')[1])].text;
+  navigator.clipboard.writeText(text).then(() => {
+    const was = b.textContent;
+    b.textContent = 'copied';
+    setTimeout(() => { b.textContent = was; }, 1200);
+  });
+});
+
+function loadInsights() {
+  api('insights').then(d => {
+    const types = Object.entries(d.by_type);
+    $('#insOut').innerHTML = `<table><tbody>
+      <tr><td>snapshots</td><td class="num">${d.snapshots}</td></tr>
+      <tr><td>risks recorded</td><td class="num">${d.risks_recorded}</td></tr>
+      <tr><td>merges run by hand</td><td class="num">${d.merges_run} (${d.merged_clean} clean)</td></tr>
+      <tr><td>merges replayed from history</td><td class="num">${d.merges_replayed}</td></tr>
+      </tbody></table>
+      ${types.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">by type</h4>
+      <table><tbody>${types.map(([k, n]) =>
+        `<tr><td>${esc(k.replace(/_/g, ' '))}</td><td class="num">${n}</td></tr>`).join('')}
+      </tbody></table>` : ''}
+      <p class="hint">${esc(d.accuracy)}</p>`;
+  }).catch(() => { $('#insOut').innerHTML = '<p class="empty">No history for this repo.</p>'; });
+}
+
 $('#runBackfill').onclick = () => {
-  $('#backOut').innerHTML = '<p class="spin">replaying… this takes a while.</p>';
+  const btn = $('#runBackfill');
+  btn.disabled = true;
+  const started = Date.now();
+  const timer = setInterval(() => {
+    btn.textContent = `replaying… ${Math.round((Date.now() - started) / 1000)}s`;
+  }, 1000);
+  $('#backOut').innerHTML = '<p class="loading" style="margin-top:14px">'
+    + 'rewinding, forecasting, merging</p>';
   api('backfill', { limit: 25 }).then(d => {
     const s = d.summary, levels = Object.entries(s.by_level || {});
-    $('#backOut').innerHTML = `<table>
-      <tr><td>merges replayed</td><td>${s.merges_replayed}
-        (${s.merges_with_conflicts} conflicted)</td></tr>
-      <tr><td>files touched</td><td>${s.files_in_play}</td></tr>
-      <tr><td>files flagged</td><td>${s.files_flagged}</td></tr>
-      <tr><td>really conflicted</td><td>${s.conflicted_files}
-        — ${s.files_caught} flagged, ${s.files_missed} missed</td></tr>
-      <tr><td>median lead time</td><td>${s.median_lead_hours ?? '—'} hours</td></tr>
-    </table>
-    ${levels.length ? `<p>conflict rate by risk level:</p><table>
-      <tr><th>level</th><th>flagged</th><th>conflicted</th><th>rate</th></tr>
-      ${levels.map(([l, b]) => `<tr><td>${esc(l)}</td><td>${b.flagged}</td>
-        <td>${b.conflicted}</td><td>${(b.rate * 100).toFixed(1)}%</td></tr>`).join('')}
-      </table>` : ''}
-    <p class="hint">${esc(s.recall_note)}</p>
-    <p>${esc(s.verdict)}</p>`;
+    $('#backOut').innerHTML = `<table style="margin-top:16px"><tbody>
+      <tr><td>merges replayed</td><td class="num">${s.merges_replayed}
+        <span class="dim">(${s.merges_with_conflicts} conflicted)</span></td></tr>
+      <tr><td>files touched</td><td class="num">${s.files_in_play}</td></tr>
+      <tr><td>files flagged</td><td class="num">${s.files_flagged}</td></tr>
+      <tr><td>really conflicted</td><td class="num">${s.conflicted_files}
+        <span class="dim">— ${s.files_caught} flagged, ${s.files_missed} missed</span></td></tr>
+      <tr><td>median warning lead time</td><td class="num">${s.median_lead_hours ?? '—'} h</td></tr>
+      </tbody></table>
+      ${levels.length ? `<h4 class="eyebrow" style="margin:20px 0 8px">
+        conflict rate by risk level</h4>
+      <table><thead><tr><th>level</th><th>flagged</th><th>conflicted</th><th>rate</th></tr></thead>
+      <tbody>${levels.map(([l, b]) => `<tr><td>${esc(l)}</td>
+        <td class="num">${b.flagged}</td><td class="num">${b.conflicted}</td>
+        <td class="num"><b>${(b.rate * 100).toFixed(1)}%</b></td></tr>`).join('')}
+      </tbody></table>` : ''}
+      <p class="hint">${esc(s.recall_note)}</p>
+      <p style="margin-top:12px"><b>${esc(s.verdict)}</b></p>`;
+    loadInsights();
+  }).catch(() => {
+    $('#backOut').innerHTML = '<p class="empty">Replay failed. The server log has the detail.</p>';
+  }).finally(() => {
+    clearInterval(timer);
+    btn.disabled = false;
+    btn.textContent = 'replay 25 merges';
   });
 };
 
-function loadInsights() {
-  api('insights').then(d => $('#insOut').innerHTML = `<table>
-    <tr><td>snapshots</td><td>${d.snapshots}</td></tr>
-    <tr><td>risks recorded</td><td>${d.risks_recorded}</td></tr>
-    <tr><td>merges run</td><td>${d.merges_run} (${d.merged_clean} clean)</td></tr>
-    </table>
-    <p>by type:</p><table>${Object.entries(d.by_type).map(([k, n]) =>
-      `<tr><td>${n}</td><td>${esc(k)}</td></tr>`).join('') || '<tr><td>—</td></tr>'}</table>
-    <p class="hint">forecast accuracy: ${esc(d.accuracy)}. Numbers here stay
-      absent until there is enough history to mean anything.</p>`);
-}
+/* ── boot ─────────────────────────────────────────────────── */
+api('scan').then(d => {
+  if (!REPO) { REPO = d.repo; localStorage.setItem('mergemind.repo', REPO); }
+  $('#repoPath').value = REPO;
+  loadRepo();
+}).catch(() => loadRepo());
 </script>

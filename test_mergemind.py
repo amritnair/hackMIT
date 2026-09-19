@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 import mergemind
-from mergemind import backfill, branches, merge, store
+from mergemind import agent, backfill, branches, merge, store
 
 FIXTURE = {
     "api/middleware.py": (
@@ -99,8 +99,46 @@ def main():
 
         check_branches(root, repo)
         check_backfill(root)
+        check_brief(repo)
 
     print("ok")
+
+
+def check_brief(repo):
+    """The cached half must be byte-identical between runs, and the task half
+    must carry everything that differs."""
+    rate = mergemind.predict(repo, "Add rate limiting to the API")
+    auth = mergemind.predict(repo, "Add authentication middleware")
+    found = mergemind.risks(repo, [rate, auth])
+    data = agent.brief(repo, [rate, auth], found)
+
+    # a prefix that differs between calls is a cache miss, every time
+    again = agent.brief(repo, [rate, auth], found)
+    assert data["prefix"] == again["prefix"]
+    assert agent.stable_prefix(repo) == agent.stable_prefix(repo)
+
+    # the stable half says nothing about either task
+    assert "rate limiting" not in data["prefix"]
+    assert "authentication" not in data["prefix"]
+    assert "api/middleware.py" in data["prefix"]  # it is load-bearing
+
+    # the volatile half carries the task, its files and its coordination
+    first = data["suffixes"][0]
+    assert first["task"] == "Add rate limiting to the API"
+    assert "rate_limit(request, limit)" in first["text"]
+    assert "Agree on who owns" in first["text"]
+    assert data["suffixes"][1]["text"] != first["text"]
+
+    # this fixture is tiny, so it cannot clear the cache floor and must say so
+    assert not data["cacheable"]
+    assert data["warnings"] and "do not apply" in data["warnings"][0]
+
+    # the request puts the breakpoint on the repo half, not the task half
+    req = agent.request_skeleton(data)
+    assert req["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert req["system"][0]["text"] == data["prefix"]
+    assert req["messages"][0]["content"] == first["text"]
+    assert "cache_control" not in req["messages"][0]
 
 
 def check_backfill(root):

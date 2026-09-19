@@ -59,7 +59,28 @@ grades the forecast against what happened. Optionally runs your tests in the
 merged tree. Your own checkout is never touched.
 
 `context` writes the whole thing out as markdown you can hand to a person or
-paste into an agent's prompt. `serve` puts all of it on localhost.
+paste into an agent's prompt. `serve` puts all of it on localhost, where you
+can point it at any git repo on the machine.
+
+`brief` is the same idea shaped for several agents at once. Prompt caching is
+a prefix match — one changed byte near the front invalidates everything after
+it — so the brief is split in two. The repo half (load-bearing files, their
+public signatures, where the tests live, which files to regenerate rather
+than merge) is byte-identical for every agent on a commit, so it goes in
+front of the cache breakpoint. Each agent's task, its files and its
+coordination notes go behind it, where changing them costs nothing.
+
+On flask, two agents: a 1,533-token cached prefix plus about 1,100 tokens of
+task each. Against 294,652 tokens if both agents read every code file to
+orient themselves. The prefix is paid for once at 1.25x and read back at
+about a tenth of input price after that.
+
+`brief --request` prints a Messages request with the breakpoint already in
+the right place, so the split is something you can run rather than something
+you have to reimplement. If the prefix comes out under the roughly 1,024
+tokens a model needs before it caches anything, the command says so and tells
+you the savings figures do not apply — a request under that floor succeeds at
+full price without mentioning it.
 
 ## what it does not do
 
@@ -110,6 +131,8 @@ mergemind plan "Add SMS reminders" # forecast one task
 mergemind predict                  # risks between existing branches
 mergemind simulate "task one" "task two" --branch some-branch
 mergemind context "Add rate limiting" --against "Refactor request handling"
+mergemind brief "task one" "task two"   # cache-shaped context per agent
+mergemind brief "task" --request        # a Messages request, breakpoint placed
 mergemind explain R2fa01f          # one risk in full, from any earlier run
 mergemind verify some-branch --test "pytest"
 mergemind insights
@@ -117,7 +140,9 @@ mergemind serve                    # dashboard on localhost:8000
 ```
 
 The dashboard is one HTML file served by the standard library. There is no
-build step and no node_modules. State goes in `.mergemind/mergemind.db`.
+build step and no node_modules. The repo field in its header takes any git
+repo on the machine, so you do not have to restart the server to look at a
+different one. State goes in `.mergemind/mergemind.db`.
 
 `-C <path>` points it at another repo. `--json` on any command gives you the
 whole structure instead of the summary.

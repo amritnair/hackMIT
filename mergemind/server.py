@@ -5,6 +5,7 @@ static HTML file. No build step, no node_modules, nothing to install.
 """
 
 import json
+import subprocess
 import traceback
 from argparse import Namespace
 from functools import partial
@@ -45,20 +46,29 @@ class Handler(BaseHTTPRequestHandler):
 
     def _call(self, name, query):
         from .cli import COMMANDS
+        # The dashboard can point at any repo on this machine. The server is
+        # bound to localhost and acts as the person running it, so the check
+        # here is for a useful error message, not for isolation.
+        path = (query.get("repo", [""])[0] or self.repo_path).strip()
+        problem = _not_a_repo(path)
+        if problem:
+            return {"error": problem}
+        repo = scan(path)
+        if name == "file":
+            return _file_detail(repo, query.get("path", [""])[0])
         if name not in COMMANDS:
             return {"error": f"unknown command {name}"}
-        repo = scan(self.repo_path)
-        db = store.connect(self.repo_path)
+        db = store.connect(path)
         store.save_snapshot(db, repo)
         args = Namespace(
-            json=True, repo=self.repo_path,
+            json=True, repo=path,
             base=query.get("base", ["main"])[0],
             task=query.get("task", [""])[0],
             tasks=query.get("task", []),
             against=query.get("against", []),
             branch=query.get("branch", []),
             risk_id=query.get("risk_id", [""])[0],
-            test=None,
+            test=None, exact=False, request=False,
             limit=int(query.get("limit", ["25"])[0]),
             ref=query.get("ref", ["HEAD"])[0],
         )
@@ -75,6 +85,43 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+
+def _not_a_repo(path):
+    """A sentence the person can act on, or None if the path is fine."""
+    directory = Path(path).expanduser()
+    if not directory.exists():
+        return f"No such directory: {directory}"
+    if not directory.is_dir():
+        return f"{directory} is a file, not a directory"
+    inside = subprocess.run(
+        ["git", "-C", str(directory), "rev-parse", "--git-dir"],
+        capture_output=True, text=True,
+    )
+    if inside.returncode:
+        return f"{directory} is not a git repository. Run git init, or pick another folder."
+    if subprocess.run(["git", "-C", str(directory), "rev-parse", "HEAD"],
+                      capture_output=True).returncode:
+        return f"{directory} is a git repository with no commits yet."
+    return None
+
+
+def _file_detail(repo, path):
+    """Everything known about one file, for the detail drawer."""
+    from .scan import is_regenerated
+    info = repo["files"].get(path)
+    if not info:
+        return {"error": f"{path} is not a code file in this repo"}
+    return {
+        "path": path,
+        "lines": info["lines"],
+        "symbols": info["symbols"],
+        "imports": info["imports"],
+        "callers": repo["callers"].get(path, []),
+        "is_test": info["is_test"],
+        "is_schema": path in repo["schema_files"],
+        "is_regenerated": is_regenerated(path),
+    }
 
 
 def _graph(repo):
@@ -97,6 +144,7 @@ def _graph(repo):
         }
         for rel, info in repo["files"].items()
     ]
+    nodes.sort(key=lambda n: -n["depended_on_by"])
     return {"nodes": nodes, "edges": edges}
 
 

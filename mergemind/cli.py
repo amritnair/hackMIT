@@ -7,6 +7,7 @@ import shlex
 import sys
 
 from . import store
+from .agent import brief, request_skeleton
 from .backfill import replay, report
 from .branches import as_forecast, branches
 from .merge import compare, trial_merge
@@ -42,6 +43,16 @@ def build_parser():
     ctx.add_argument("task")
     ctx.add_argument("--against", action="append", default=[],
                      help="other in-flight task (repeatable)")
+
+    ag = sub.add_parser("brief",
+                        help="cache-shaped context for one or more agents")
+    ag.add_argument("tasks", nargs="+")
+    ag.add_argument("--branch", action="append", default=[],
+                    help="include a real branch as another agent's work")
+    ag.add_argument("--exact", action="store_true",
+                    help="count tokens through the API instead of estimating")
+    ag.add_argument("--request", action="store_true",
+                    help="print a Messages request with the cache breakpoint placed")
 
     explain = sub.add_parser("explain", help="show one risk in full")
     explain.add_argument("risk_id")
@@ -175,6 +186,51 @@ def cmd_context(repo, args, db):
     if not args.json:
         print(markdown)
     return {"forecast": forecast, "risks": found, "markdown": markdown}
+
+
+def cmd_brief(repo, args, db):
+    found = branches(repo["repo"], args.base)
+    forecasts = [predict(repo, t) for t in args.tasks]
+    forecasts += [as_forecast(found[n]) for n in args.branch if n in found]
+    found_risks = risks(repo, forecasts)
+    store.save_risks(db, found_risks)
+    data = brief(repo, forecasts, found_risks, exact=args.exact)
+
+    if args.request:
+        if not args.json:
+            print(json.dumps(request_skeleton(data), indent=2))
+        return request_skeleton(data)
+
+    if not args.json:
+        e = data["economics"]
+        print("=" * 62)
+        print("CACHED PREFIX — same bytes for every agent on this commit")
+        print("=" * 62)
+        print(data["prefix"])
+        for s in data["suffixes"]:
+            print()
+            print("=" * 62)
+            print(f"AFTER THE BREAKPOINT — {s['task']}")
+            print("=" * 62)
+            print(s["text"])
+        print()
+        print("-" * 62)
+        label = "counted" if data["exact"] else "estimated"
+        print(f"tokens ({label})")
+        print(f"  cached prefix                  {data['prefix_tokens']:>8}")
+        for s in data["suffixes"]:
+            print(f"  task: {s['task'][:24]:<24} {s['tokens']:>8}")
+        print(f"  {e['agents']} agent(s) reading every code file "
+              f"{e['repo_if_each_agent_reads_every_file']:>8}")
+        print(f"  this brief, first call         {e['brief_first_call']:>8}")
+        print(f"  this brief, once cache is warm {e['brief_per_later_call']:>8}")
+        print(f"  difference per later call      {e['saved_per_later_call']:>8}"
+              f"   ~${e['dollars_per_later_call']} vs "
+              f"${e['dollars_if_each_agent_reads_every_file']}")
+        print(f"\n{e['note']}")
+        for warning in data["warnings"]:
+            print(f"\nwarning: {warning}")
+    return data
 
 
 def cmd_explain(repo, args, db):
@@ -319,7 +375,7 @@ COMMANDS = {
     "scan": cmd_scan, "status": cmd_status, "plan": cmd_plan,
     "predict": cmd_predict, "simulate": cmd_simulate, "context": cmd_context,
     "explain": cmd_explain, "verify": cmd_verify, "insights": cmd_insights,
-    "backfill": cmd_backfill,
+    "backfill": cmd_backfill, "brief": cmd_brief,
 }
 
 if __name__ == "__main__":

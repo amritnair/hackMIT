@@ -182,17 +182,38 @@ def _parse_ts(source):
     return symbols, sorted(set(TS_IMPORT.findall(source)))
 
 
+def _module_path(rel):
+    """The name a file is imported by. A package entry point is its directory:
+    `from flask import x` refers to `src/flask/__init__.py`, whose own stem
+    ends in `__init__` and would otherwise match nothing."""
+    path = Path(rel)
+    if path.stem in ("__init__", "index"):
+        return path.parent.as_posix()
+    return path.with_suffix("").as_posix()
+
+
 def _callers(files):
-    """module path -> files that import it. Suffix match, so it is a superset."""
+    """module path -> files that import it.
+
+    Each import resolves to at most one file. Matching on the path tail alone
+    lets a test fixture called `flask.py` absorb every `from flask import ...`
+    in the repository and come out looking like the most depended-on module in
+    the codebase, so when several files could satisfy an import we take the
+    real one: source before tests, then the shortest path.
+    """
+    stems = {rel: _module_path(rel) for rel in files}
     index = {}
-    for rel, info in files.items():
-        stem = Path(rel).with_suffix("").as_posix()
-        for other, other_info in files.items():
-            if other == rel:
+    for source, info in files.items():
+        for imp in info["imports"]:
+            normalized = imp.replace(".", "/").lstrip("./")
+            if not normalized:
                 continue
-            for imp in other_info["imports"]:
-                normalized = imp.replace(".", "/").lstrip("./")
-                if normalized and stem.endswith(normalized):
-                    index.setdefault(rel, []).append(other)
-                    break
+            candidates = [
+                rel for rel, stem in stems.items()
+                if rel != source and stem.endswith(normalized)
+            ]
+            if not candidates:
+                continue
+            best = min(candidates, key=lambda rel: (files[rel]["is_test"], len(rel)))
+            index.setdefault(best, []).append(source)
     return {k: sorted(set(v)) for k, v in index.items()}
