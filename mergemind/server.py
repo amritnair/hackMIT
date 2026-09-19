@@ -56,6 +56,16 @@ class Handler(BaseHTTPRequestHandler):
         repo = scan(path)
         if name == "file":
             return _file_detail(repo, query.get("path", [""])[0])
+        if name == "setup":
+            return _setup_state(path)
+        if name == "new":
+            from .create import new_project
+            return new_project(
+                query.get("path", [""])[0],
+                query.get("name", [None])[0],
+                query.get("github", [None])[0] or None,
+                query.get("private", ["1"])[0] != "0",
+            )
         if name == "repos":
             return {"repos": _discover_repos()}
         if name == "mcp_config":
@@ -82,6 +92,10 @@ class Handler(BaseHTTPRequestHandler):
             file=query.get("file", [""])[0],
             text=query.get("text", [""])[0],
             confirm=query.get("confirm", ["0"])[0] in ("1", "true"),
+            action=query.get("action", ["list"])[0],
+            name=query.get("name", [""])[0],
+            github=query.get("github", [""])[0],
+            role=query.get("role", [""])[0],
             config=False,
             limit=int(query.get("limit", ["25"])[0]),
             ref=query.get("ref", ["HEAD"])[0],
@@ -102,6 +116,37 @@ class Handler(BaseHTTPRequestHandler):
 
 
 SKIP = {"node_modules", "venv", ".venv", "vendor", "Library", "Applications"}
+
+
+def _setup_state(path):
+    """How far through setup this project is, and what is left to do."""
+    from . import github, store as store_mod
+    problem = _not_a_repo(path)
+    if problem:
+        return {"repo_ok": False, "problem": problem, "github": None,
+                "agents": 0, "people": 0}
+
+    slug, remote_error = None, None
+    try:
+        slug = github.slug(path)
+        if slug:
+            github.pull_requests(path, limit=1)
+        else:
+            remote_error = "This project has no GitHub remote yet."
+    except github.GitHubUnavailable as exc:
+        remote_error = str(exc)
+
+    db = store_mod.connect(path)
+    sessions = db.execute("SELECT COUNT(*) n FROM sessions").fetchone()["n"]
+    return {
+        "repo_ok": True,
+        "problem": None,
+        "github": slug if slug and not remote_error else None,
+        "github_problem": remote_error,
+        "agents": sessions,
+        "live": len(store_mod.live_sessions(db)),
+        "people": len(store_mod.members(db)),
+    }
 
 
 def _discover_repos(limit=60):

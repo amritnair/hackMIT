@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, kind TEXT, agent TEXT,
     detail TEXT, tokens INT DEFAULT 0, at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, github TEXT,
+    role TEXT, added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(name)
+);
 CREATE TABLE IF NOT EXISTS outcomes (
     id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, base TEXT, branch TEXT,
     merged_clean INT, tests_passed INT, detail TEXT,
@@ -144,6 +149,11 @@ def notes_for(db, files, agent=None, limit=12):
     return [dict(row) for row in db.execute(sql, params)]
 
 
+# Anthropic list price for input tokens, dollars per million. The saving is
+# reported in money because tokens are not a unit anyone budgets in.
+PRICE_PER_MTOK = 5.00
+
+
 def usage(db):
     """How the agents actually used this, and what the sharing bought.
 
@@ -186,6 +196,8 @@ def usage(db):
         "tokens_sent": sent_actual,
         "tokens_if_each_agent_read_the_repo": sent_naive,
         "tokens_avoided": sent_naive - sent_actual,
+        "dollars_avoided": round((sent_naive - sent_actual) / 1e6 * PRICE_PER_MTOK, 2),
+        "dollars_spent": round(sent_actual / 1e6 * PRICE_PER_MTOK, 2),
         "notes_written": db.execute("SELECT COUNT(*) n FROM notes").fetchone()["n"],
         "notes_pulled": sum(r["notes_pulled"] or 0 for r in per_agent),
         "per_agent": per_agent,
@@ -193,6 +205,34 @@ def usage(db):
         "note": "Reuse is counted by identical prefix bytes on one commit — "
                 "what a cache could serve, not confirmation that it did.",
     }
+
+
+def add_member(db, name, github="", role=""):
+    db.execute(
+        "INSERT INTO members (name, github, role) VALUES (?,?,?)"
+        " ON CONFLICT(name) DO UPDATE SET github=excluded.github,"
+        " role=excluded.role",
+        (name, github, role),
+    )
+    db.commit()
+
+
+def remove_member(db, name):
+    db.execute("DELETE FROM members WHERE name = ?", (name,))
+    db.commit()
+
+
+def members(db):
+    return [dict(r) for r in db.execute("SELECT * FROM members ORDER BY name")]
+
+
+def whose(db, handle):
+    """Map a git author or GitHub login onto someone on the project."""
+    row = db.execute(
+        "SELECT name FROM members WHERE github = ? OR name = ? LIMIT 1",
+        (handle, handle),
+    ).fetchone()
+    return row["name"] if row else handle
 
 
 def log(db, sha, kind, agent, detail, tokens=0):

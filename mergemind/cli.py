@@ -9,6 +9,7 @@ import sys
 from . import store
 from . import github, llm
 from .agent import brief, observations, request_skeleton
+from .create import new_project
 from .work import in_flight
 from .backfill import replay, report
 from .branches import as_forecast, branches
@@ -105,6 +106,21 @@ def build_parser():
 
     sub.add_parser("sessions", help="which agents are working here right now")
 
+    new = sub.add_parser("new", help="start a project already wired for agents")
+    new.add_argument("path")
+    new.add_argument("--name")
+    new.add_argument("--github", metavar="OWNER/NAME",
+                     help="also create it on GitHub (this publishes a repo)")
+    new.add_argument("--public", action="store_true",
+                     help="make the GitHub repo public instead of private")
+
+    people = sub.add_parser("people", help="who is on this project")
+    people.add_argument("action", nargs="?", default="list",
+                        choices=["list", "add", "remove"])
+    people.add_argument("name", nargs="?")
+    people.add_argument("--github", default="", help="their GitHub handle")
+    people.add_argument("--role", default="")
+
     serve = sub.add_parser("serve", help="dashboard on localhost")
     serve.add_argument("--port", type=int, default=8000)
     return parser
@@ -112,6 +128,24 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    if args.cmd == "new":
+        result = new_project(args.path, args.name, args.github, not args.public)
+        if args.json:
+            json.dump(result, sys.stdout, indent=2)
+            print()
+        elif result.get("error"):
+            print(result["error"], file=sys.stderr)
+            return 1
+        else:
+            print(f"Created {result['name']} at {result['path']}")
+            print("  agent settings committed in .mcp.json — any agent opening "
+                  "this project joins on its own")
+            if result.get("remote"):
+                print(f"  pushed to {result['remote']}")
+            elif result.get("github_error"):
+                print(f"  GitHub step failed: {result['github_error']}",
+                      file=sys.stderr)
+        return 0
     if args.cmd == "mcp":
         from .mcp import config_snippet, serve as serve_mcp
         if args.config:
@@ -530,7 +564,7 @@ def cmd_fleet(repo, args, db):
         "recorded": apply_it,
         "summary": summary,
     }
-    owners = {w["forecast"]["task"]: w["agent"] for w in work}
+    owners = {w["forecast"]["task"]: store.whose(db, w["agent"]) for w in work}
     for r in found:
         people = sorted({owners[t] for t in r["tasks"] if t in owners})
         r["owners"] = people
@@ -563,6 +597,29 @@ def cmd_fleet(repo, args, db):
                        if apply_it else
                        "Nothing recorded yet. Re-run with --confirm to apply."))
     return out
+
+
+def cmd_people(repo, args, db):
+    if args.action == "add":
+        if not args.name:
+            print("who? mergemind people add <name> [--github handle]",
+                  file=sys.stderr)
+            return {"error": "no name"}
+        store.add_member(db, args.name, args.github, args.role)
+    elif args.action == "remove" and args.name:
+        store.remove_member(db, args.name)
+
+    people = store.members(db)
+    if not args.json:
+        if not people:
+            print("Nobody added yet. `mergemind people add <name> "
+                  "--github <handle>` links a person to the commits and pull "
+                  "requests they author.")
+        for person in people:
+            print(f"  {person['name'][:22]:<22} "
+                  f"{('@' + person['github']) if person['github'] else '':<20}"
+                  f"{person['role']}")
+    return {"people": people}
 
 
 def cmd_sessions(repo, args, db):
@@ -774,7 +831,7 @@ COMMANDS = {
     "explain": cmd_explain, "verify": cmd_verify, "insights": cmd_insights,
     "backfill": cmd_backfill, "brief": cmd_brief, "pr": cmd_pr,
     "note": cmd_note, "usage": cmd_usage, "fleet": cmd_fleet,
-    "sessions": cmd_sessions,
+    "sessions": cmd_sessions, "people": cmd_people,
 }
 
 if __name__ == "__main__":

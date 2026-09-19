@@ -4,548 +4,510 @@
 <title>mergemind</title>
 
 <style>
-  /* A tool, not a landing page. Flat surfaces, hairlines, one accent used for
-     state rather than decoration, and type at the size real UI uses. */
   :root {
-    --bg:      #17181a;
-    --panel:   #1d1e21;
-    --raised:  #232427;
-    --line:    #2c2e32;
-    --line-2:  #3a3d42;
-    --text:    #dcdee1;
-    --text-2:  #9a9ea5;
-    --text-3:  #6f747c;
-    --accent:  #6d9fd0;
-    --red:     #cf6b6b;
-    --amber:   #c39a52;
-    --green:   #6fa886;
-    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --bg: #000000; --card: #0B0B0D; --raised: #141417;
+    --line: #1F1F23; --line-2: #2E2E34;
+    --text: #FFFFFF; --text-2: #A1A1A8; --text-3: #6A6A72;
+    --accent: #6E8BFF; --good: #4ED8A0; --warn: #E8B14C; --bad: #FF6B6B;
+    --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 13px/1.5 var(--ui);
-    -webkit-font-smoothing: antialiased;
-  }
-  ::selection { background: #3a4a5c; }
-  :focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
-  ::-webkit-scrollbar { width: 9px; height: 9px; }
-  ::-webkit-scrollbar-thumb { background: #34363a; border-radius: 0; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.6 var(--ui); -webkit-font-smoothing: antialiased; }
+  ::selection { background: #2A3560; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #232328; border-radius: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  a, code { color: var(--accent); }
+  h1, h2, h3, h4 { letter-spacing: -.03em; margin: 0; font-weight: 700; }
+  .display { font-size: clamp(32px, 5.2vw, 58px); line-height: 1.03; }
+  .title { font-size: clamp(23px, 3vw, 33px); line-height: 1.14; }
+  .lede { font-size: 16.5px; color: var(--text-2); max-width: 62ch; margin: 16px 0 0; }
+  code { font: .92em var(--mono); color: var(--text); }
 
-  /* ── header ─────────────────────────────────────────────── */
-  header {
-    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
-    padding: 7px 12px; background: var(--panel);
-    border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 30;
-  }
-  .wordmark {
-    margin: 0; font: 600 12px/1 var(--ui); letter-spacing: 0;
-    display: flex; align-items: center; gap: 6px; color: var(--text);
-  }
-  .wordmark .dot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--text-3);
-  }
-  .wordmark em { font-style: normal; color: var(--text-3); font-weight: 400; }
-
-  form.repo { display: flex; flex: 1 1 260px; min-width: 200px; }
-  form.repo { position: relative; }
-  form.repo input {
-    flex: 1; font: 11px/1 var(--mono); color: var(--text);
-    background: var(--bg); border: 1px solid var(--line-2); border-right: 0;
-    padding: 5px 8px; min-width: 0; border-radius: 3px 0 0 3px;
-  }
-  form.repo input:focus { outline: none; border-color: var(--accent); }
-  form.repo button {
-    font: 11px/1 var(--ui); border: 1px solid var(--line-2);
-    background: var(--raised); color: var(--text); padding: 5px 10px;
-    cursor: pointer; border-radius: 0 3px 3px 0;
-  }
-  form.repo button:hover { background: #2a2c30; }
-
-  nav { display: flex; gap: 0; }
-  nav button {
-    font: 12px/1 var(--ui); background: none; border: 0; border-bottom: 2px solid transparent;
-    color: var(--text-2); padding: 6px 10px; cursor: pointer;
-  }
+  header { position: sticky; top: 0; z-index: 40;
+    background: rgba(0,0,0,.72); backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--line); padding: 11px 22px;
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .wordmark { font: 700 16px/1 var(--ui); letter-spacing: -.03em;
+    display: flex; align-items: center; gap: 8px; }
+  .wordmark .mark { width: 17px; height: 17px; border-radius: 5px;
+    background: linear-gradient(140deg, #fff 28%, #7C8CFF); }
+  .wordmark em { font-style: normal; color: var(--text-3); font-weight: 500; }
+  form.repo { display: flex; flex: 0 1 290px; min-width: 180px; }
+  form.repo input { flex: 1; font: 13px/1 var(--ui); color: var(--text);
+    background: var(--raised); border: 1px solid var(--line-2); border-right: 0;
+    padding: 8px 14px; min-width: 0; border-radius: 999px 0 0 999px; }
+  form.repo input:focus { outline: none; }
+  form.repo button { font: 500 13px/1 var(--ui); border: 1px solid var(--line-2);
+    border-left: 0; background: var(--raised); color: var(--text-2);
+    padding: 8px 16px; cursor: pointer; border-radius: 0 999px 999px 0; }
+  form.repo button:hover { color: var(--text); }
+  nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
+  nav button { font: 500 13px/1 var(--ui); background: none; border: 0;
+    color: var(--text-3); padding: 8px 13px; cursor: pointer; border-radius: 999px; }
   nav button:hover { color: var(--text); }
-  nav button[aria-selected="true"] {
-    color: var(--text); border-bottom-color: var(--accent);
-  }
+  nav button[aria-selected="true"] { color: var(--bg); background: var(--text); }
+  main { max-width: 1060px; margin: 0 auto; padding: 0 22px 120px; }
+  section[hidden], [hidden] { display: none; }
 
-  /* ── layout ─────────────────────────────────────────────── */
-  main { max-width: 1120px; margin: 0 auto; padding: 0 12px 60px; }
-  section[hidden] { display: none; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font: 500 14px/1 var(--ui); padding: 12px 22px; border-radius: 999px;
+    border: 1px solid transparent; background: var(--text); color: var(--bg);
+    transition: transform .12s ease, opacity .12s ease; }
+  .btn:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn:disabled { opacity: .45; cursor: progress; }
+  .btn.secondary { background: var(--raised); color: var(--text);
+    border-color: var(--line-2); }
+  .btn.secondary:hover { background: #1C1C21; }
+  .btn.small { font-size: 13px; padding: 8px 16px; }
 
-  .banner {
-    margin: 10px 0 0; padding: 7px 10px; border: 1px solid var(--line-2);
-    border-left: 2px solid var(--red); background: var(--panel);
-    font: 12px/1.5 var(--ui); color: var(--text);
-  }
-  .banner[hidden] { display: none; }
+  .hero { padding: 72px 0 34px; }
+  .steps { display: grid; gap: 13px; margin: 28px 0 0; }
+  .step { background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 24px 26px; display: grid; gap: 3px 18px;
+    grid-template-columns: 34px 1fr auto; align-items: start; }
+  .step .n { width: 27px; height: 27px; border-radius: 999px; display: grid;
+    place-items: center; font: 600 13px/1 var(--mono); background: var(--raised);
+    color: var(--text-2); border: 1px solid var(--line-2); }
+  .step.done .n { background: var(--good); color: #05140E; border-color: var(--good); }
+  .step h3 { font-size: 18.5px; }
+  .step .body { grid-column: 2 / -1; margin-top: 10px; }
+  .step p { margin: 6px 0 0; color: var(--text-2); font-size: 14.5px; max-width: 66ch; }
+  .step .state { font: 500 13px/1 var(--ui); white-space: nowrap; }
+  .state.ok { color: var(--good); }
+  .state.todo { color: var(--text-3); }
 
-  /* a status line, not a hero */
-  .thesis { padding: 14px 0 10px; border-bottom: 1px solid var(--line); }
-  .eyebrow {
-    font: 11px/1 var(--mono); color: var(--text-3); margin: 0 0 6px;
-    letter-spacing: 0; text-transform: none;
-  }
-  .thesis h2 {
-    font: 600 15px/1.4 var(--ui); letter-spacing: 0; margin: 0; max-width: none;
-    color: var(--text);
-  }
-  .thesis h2 mark { background: none; color: var(--text); font-family: var(--mono); }
-  .thesis p { margin: 5px 0 0; max-width: 78ch; color: var(--text-2); font-size: 12px; }
-
-  .panel {
-    background: var(--panel); border: 1px solid var(--line);
-    border-radius: 3px; margin: 10px 0;
-  }
-  .panel > h3 {
-    font: 500 11px/1 var(--ui); letter-spacing: 0; text-transform: none;
-    color: var(--text-2); margin: 0; padding: 7px 10px;
-    border-bottom: 1px solid var(--line); display: flex; gap: 10px;
-    align-items: center; justify-content: space-between;
-  }
-  .panel .body { padding: 10px; }
-  .panel .body.flush { padding: 0; }
-  .hint { color: var(--text-3); font-size: 12px; margin: 7px 0 0; }
+  .card { background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; margin: 14px 0; overflow: hidden; }
+  .card > h3 { font: 600 14px/1 var(--ui); letter-spacing: -.01em;
+    color: var(--text); margin: 0; padding: 16px 20px;
+    border-bottom: 1px solid var(--line); display: flex; gap: 12px;
+    align-items: center; justify-content: space-between; }
+  .card .body { padding: 18px 20px; }
+  .card .body.flush { padding: 0; }
+  .hint { color: var(--text-3); font-size: 13.5px; margin: 10px 0 0; }
   .hint:first-child { margin-top: 0; }
 
-  /* ── controls ───────────────────────────────────────────── */
-  .field {
-    width: 100%; font: 12px/1.4 var(--mono); color: var(--text);
-    background: var(--bg); border: 1px solid var(--line-2);
-    padding: 6px 8px; margin-bottom: 6px; border-radius: 3px;
-  }
-  .field:focus { outline: none; border-color: var(--accent); }
-  .field::placeholder { color: var(--text-3); }
-  button.act {
-    font: 12px/1 var(--ui); color: var(--text); border: 1px solid var(--line-2);
-    background: var(--raised); padding: 6px 12px; cursor: pointer; border-radius: 3px;
-  }
-  button.act:hover:not(:disabled) { background: #2a2c30; border-color: #474b52; }
-  button.act:disabled { opacity: .5; cursor: progress; }
-  button.ghost {
-    font: 11px/1 var(--ui); background: none; color: var(--text-2);
-    border: 1px solid var(--line-2); padding: 4px 8px; cursor: pointer;
-    border-radius: 3px;
-  }
-  button.ghost:hover { color: var(--text); background: var(--raised); }
-  label.toggle {
-    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-    font: 12px/1 var(--ui); color: var(--text-2); margin-left: 10px;
-  }
-  label.toggle input { accent-color: var(--accent); width: 13px; height: 13px; }
+  .headline-stat { background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 30px 28px; margin: 20px 0 14px;
+    display: grid; gap: 24px; grid-template-columns: minmax(190px, 1.1fr) 1fr;
+    align-items: center; }
+  .headline-stat .money { font: 700 clamp(42px, 6.8vw, 70px)/1 var(--ui);
+    letter-spacing: -.045em; }
+  .headline-stat .money small { display: block; margin-top: 10px;
+    font: 500 14px/1.45 var(--ui); color: var(--text-2); letter-spacing: 0; }
+  .sub-stats { display: grid; gap: 1px; background: var(--line);
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); }
+  .sub-stats div { background: var(--card); padding: 13px 15px; }
+  .sub-stats b { display: block; font: 600 19px/1.2 var(--ui);
+    letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .sub-stats span { display: block; margin-top: 3px; font-size: 12.5px;
+    color: var(--text-3); }
 
-  /* ── predicted / observed ───────────────────────────────── */
-  .tag {
-    display: inline-flex; align-items: center; font: 10px/1 var(--mono);
-    letter-spacing: 0; text-transform: none; padding: 2px 5px;
-    border: 1px solid var(--line-2); border-radius: 2px; color: var(--text-3);
-  }
+  .tag { display: inline-flex; align-items: center; font: 500 11px/1 var(--ui);
+    padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-2);
+    color: var(--text-3); white-space: nowrap; }
   .tag.predicted { border-style: dashed; }
-  .tag.observed { color: var(--green); border-color: #3c5548; }
-  .tag.model { color: var(--amber); border-color: #4e4432; }
+  .tag.observed { color: var(--good); border-color: rgba(78,216,160,.35);
+    background: rgba(78,216,160,.08); }
+  .tag.model { color: var(--warn); border-color: rgba(232,177,76,.35); }
 
   .risk { border-top: 1px solid var(--line); }
   .risk:first-child { border-top: 0; }
-  .risk > summary {
-    padding: 7px 10px; cursor: pointer; display: grid; gap: 2px 10px;
-    grid-template-columns: 2px 1fr auto; align-items: baseline; list-style: none;
-  }
+  .risk > summary { padding: 14px 20px; cursor: pointer; display: grid;
+    gap: 3px 14px; grid-template-columns: 3px 1fr auto; align-items: baseline;
+    list-style: none; }
   .risk > summary::-webkit-details-marker { display: none; }
   .risk > summary:hover { background: var(--raised); }
-  .risk .bar { grid-row: 1 / span 2; align-self: stretch; background: var(--line-2); }
-  .risk.high .bar { background: var(--red); }
-  .risk.medium .bar { background: var(--amber); }
-  .risk .headline { font: 12px/1.4 var(--mono); }
-  .risk.high .headline b { color: var(--red); font-weight: 500; }
-  .risk.medium .headline b { color: var(--amber); font-weight: 500; }
-  .risk .meta { font: 11px/1 var(--mono); color: var(--text-3); white-space: nowrap; }
-  .risk .between { grid-column: 2; font: 12px/1.45 var(--ui); color: var(--text-2); }
-  .risk .detail { padding: 0 10px 10px 24px; }
-  .risk ul { margin: 0 0 8px; padding-left: 14px; }
-  .risk li { font: 11.5px/1.6 var(--mono); color: var(--text-2); }
-  .risk .rec {
-    border-left: 2px solid var(--line-2); padding: 3px 0 3px 9px;
-    font: 12px/1.45 var(--ui); color: var(--text);
-  }
+  .risk .bar { grid-row: 1 / span 2; align-self: stretch; border-radius: 3px;
+    background: var(--line-2); }
+  .risk.high .bar { background: var(--bad); }
+  .risk.medium .bar { background: var(--warn); }
+  .risk .headline { font: 600 14.5px/1.4 var(--ui); letter-spacing: -.01em; }
+  .risk.high .headline b { color: var(--bad); }
+  .risk.medium .headline b { color: var(--warn); }
+  .risk .meta { font: 12px/1 var(--mono); color: var(--text-3); white-space: nowrap; }
+  .risk .between { grid-column: 2; font-size: 13.5px; color: var(--text-2); }
+  .risk .detail { padding: 0 20px 16px 37px; }
+  .risk ul { margin: 0 0 12px; padding-left: 16px; }
+  .risk li { font: 12.5px/1.65 var(--mono); color: var(--text-2); }
+  .risk .rec { border-left: 2px solid var(--accent); padding: 5px 0 5px 12px;
+    font-size: 14px; }
 
-  .chip {
-    font: 11.5px/1 var(--mono); background: var(--raised); color: var(--text);
-    border: 1px solid var(--line-2); padding: 3px 6px; cursor: pointer;
-    border-radius: 3px;
-  }
+  .chip { font: 12.5px/1 var(--mono); background: var(--raised);
+    color: var(--text); border: 1px solid var(--line-2); padding: 5px 10px;
+    cursor: pointer; border-radius: 999px; }
   .chip:hover { border-color: var(--accent); color: var(--accent); }
 
-  table { border-collapse: collapse; width: 100%; font: 12px/1.45 var(--mono); }
-  th {
-    font: 500 11px/1 var(--ui); letter-spacing: 0; text-transform: none;
-    color: var(--text-3); text-align: left; padding: 0 10px 5px 0;
-    border-bottom: 1px solid var(--line);
-  }
-  td { padding: 4px 10px 4px 0; border-bottom: 1px solid var(--line);
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th { font: 500 12px/1 var(--ui); color: var(--text-3); text-align: left;
+    padding: 0 14px 9px 0; border-bottom: 1px solid var(--line); font-weight: 500; }
+  td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line);
     vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums;
+    font-family: var(--mono); }
   .dim { color: var(--text-3); }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
 
-  /* ── numbers ────────────────────────────────────────────── */
-  .stats {
-    display: grid; gap: 1px; margin: 10px 0; background: var(--line);
-    border: 1px solid var(--line); grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  }
-  .stat { background: var(--panel); padding: 9px 11px; }
-  .stat b {
-    display: block; font: 500 18px/1.2 var(--mono); color: var(--text);
-    font-variant-numeric: tabular-nums; letter-spacing: -.01em;
-  }
-  .stat span { display: block; margin-top: 2px; font: 11px/1.35 var(--ui); color: var(--text-3); }
-  .money { font: 13px/1 var(--mono); color: var(--text); }
-  .money.good { color: var(--green); }
+  .field { width: 100%; font: 14px/1.4 var(--ui); color: var(--text);
+    background: var(--raised); border: 1px solid var(--line-2);
+    padding: 11px 14px; margin-bottom: 8px; border-radius: 12px; }
+  .field:focus { outline: none; border-color: var(--accent); }
+  .field::placeholder { color: var(--text-3); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  label.toggle { display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer; font-size: 13.5px; color: var(--text-2); margin-left: 12px; }
+  label.toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
 
-  /* ── graph ──────────────────────────────────────────────── */
-  #graph { display: block; width: 100%; height: 420px; cursor: grab; }
+  pre { font: 12.5px/1.65 var(--mono); white-space: pre-wrap;
+    word-break: break-word; margin: 0; max-height: 320px; overflow-y: auto;
+    background: #08080A; border: 1px solid var(--line); padding: 14px 16px;
+    border-radius: 12px; color: var(--text-2); }
+  details summary { cursor: pointer; font-size: 13.5px; color: var(--accent);
+    list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details > *:not(summary) { margin-top: 12px; }
+
+  .empty { color: var(--text-3); font-size: 13.5px; }
+  .loading { font-size: 13.5px; color: var(--text-3); }
+  .loading::after { content: ""; display: inline-block; width: 1ch;
+    animation: dots 1.1s steps(4, end) infinite; }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; }
+    50% { content: ".."; } 75% { content: "..."; } }
+  .banner { margin: 14px 0 0; padding: 12px 16px; border-radius: 12px;
+    border: 1px solid rgba(255,107,107,.35); background: rgba(255,107,107,.08);
+    color: #FFB4B4; font-size: 13.5px; }
+  .status.good { color: var(--good); font-size: 13.5px; }
+  .status.bad { color: var(--bad); font-size: 13.5px; }
+
+  #graph { display: block; width: 100%; height: 430px; cursor: grab; }
   #graph.dragging { cursor: grabbing; }
-  #graph text { font: 10px/1 var(--mono); fill: var(--text-3); pointer-events: none; }
+  #graph text { font: 10.5px/1 var(--mono); fill: var(--text-3);
+    pointer-events: none; }
   #graph .node { cursor: pointer; }
-  #graph .edge { stroke: #2e3135; stroke-width: 1; }
-  #graph .edge.lit { stroke: var(--accent); stroke-width: 1.2; }
-  #graph .node.faded { opacity: .2; }
+  #graph .edge { stroke: #1E1E24; stroke-width: 1; }
+  #graph .edge.lit { stroke: var(--accent); stroke-width: 1.4; }
+  #graph .node.faded { opacity: .18; }
   #graph .node.lit text { fill: var(--text); }
-  .legend {
-    display: flex; gap: 14px; flex-wrap: wrap; padding: 7px 10px;
-    border-top: 1px solid var(--line); font: 11px/1 var(--ui);
-    color: var(--text-3); align-items: center;
-  }
-  .legend span { display: inline-flex; align-items: center; gap: 5px; }
-  .legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 13px 20px;
+    border-top: 1px solid var(--line); font-size: 12.5px; color: var(--text-3);
+    align-items: center; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block;
     border: 1px solid var(--accent); }
-  .legend i.contested { background: var(--red); border-color: var(--red); }
+  .legend i.contested { background: var(--bad); border-color: var(--bad); }
   .legend i.plain { background: var(--accent); }
   .legend i.test { background: none; border-color: var(--text-3); }
 
-  /* ── drawer ─────────────────────────────────────────────── */
-  #drawer {
-    position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 94vw);
-    background: var(--panel); border-left: 1px solid var(--line-2);
-    transform: translateX(101%); transition: transform .12s ease-out;
-    z-index: 40; overflow-y: auto;
-  }
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0;
+    width: min(440px, 94vw); background: var(--card);
+    border-left: 1px solid var(--line-2); transform: translateX(101%);
+    transition: transform .18s cubic-bezier(.3,.8,.3,1); z-index: 50;
+    overflow-y: auto; }
   #drawer.open { transform: none; }
-  #drawer header {
-    position: sticky; top: 0; border-bottom: 1px solid var(--line);
-    background: var(--panel); padding: 7px 10px; gap: 8px;
-  }
-  #drawer h3 { font: 500 12px/1.4 var(--mono); margin: 0; flex: 1; word-break: break-all; }
-  #drawer .body { padding: 10px; }
-  #drawer h4 {
-    font: 500 11px/1 var(--ui); letter-spacing: 0; text-transform: none;
-    color: var(--text-3); margin: 14px 0 5px;
-  }
+  #drawer header { position: sticky; top: 0; background: var(--card);
+    border-bottom: 1px solid var(--line); padding: 14px 18px; }
+  #drawer h3 { font: 600 14px/1.4 var(--mono); flex: 1; word-break: break-all; }
+  #drawer .body { padding: 18px; }
+  #drawer h4 { font: 500 12px/1 var(--ui); color: var(--text-3); margin: 20px 0 8px; }
   #drawer h4:first-child { margin-top: 0; }
-  #drawer .sym { font: 11.5px/1.55 var(--mono); padding: 2px 0;
-    border-bottom: 1px solid var(--line); color: var(--text); }
+  #drawer .sym { font: 12.5px/1.6 var(--mono); padding: 4px 0;
+    border-bottom: 1px solid var(--line); }
   #drawer .sym span { color: var(--text-3); }
 
-  .empty { color: var(--text-3); font-size: 12px; padding: 2px 0; }
-  .loading { font: 12px/1 var(--mono); color: var(--text-3); }
-  .loading::after {
-    content: ""; display: inline-block; width: 1ch;
-    animation: dots 1.1s steps(4, end) infinite;
-  }
-  @keyframes dots { 0% { content: ""; } 25% { content: "."; }
-    50% { content: ".."; } 75% { content: "..."; } }
-  pre {
-    font: 11.5px/1.55 var(--mono); white-space: pre-wrap; word-break: break-word;
-    margin: 0; max-height: 340px; overflow-y: auto; background: var(--bg);
-    border: 1px solid var(--line); padding: 9px; border-radius: 3px;
-    color: var(--text-2);
-  }
-
-  /* ── sessions ───────────────────────────────────────────── */
-  .row { display: flex; gap: 6px; }
-  details summary {
-    cursor: pointer; font: 12px/1.6 var(--ui); color: var(--accent);
-    list-style: none; padding: 2px 0;
-  }
-  details summary::-webkit-details-marker { display: none; }
-  details summary::before { content: "▸ "; color: var(--text-3); }
-  details[open] summary::before { content: "▾ "; }
-  details > *:not(summary) { margin-top: 8px; }
-  .dot-live {
-    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-    background: var(--green); margin-right: 6px;
-  }
-  .feed { border: 1px solid var(--line); border-radius: 3px; }
-  .feed-row {
-    display: grid; grid-template-columns: 16px 96px 1fr auto; gap: 8px;
-    padding: 4px 9px; font: 11.5px/1.5 var(--mono);
-    border-bottom: 1px solid var(--line); align-items: baseline;
-  }
+  .feed { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .feed-row { display: grid; grid-template-columns: 18px 110px 1fr auto;
+    gap: 10px; padding: 9px 14px; font-size: 13px;
+    border-bottom: 1px solid var(--line); align-items: baseline; }
   .feed-row:last-child { border-bottom: 0; }
   .feed-row .mark { color: var(--text-3); text-align: center; }
-  .feed-row .who { color: var(--text); }
   .feed-row .what { color: var(--text-2); }
-  .feed-row .when { font-size: 11px; }
-  .feed-row.overlap .mark, .feed-row.overlap .what { color: var(--red); }
-  .feed-row.shared .mark, .feed-row.shared .what { color: var(--green); }
-
-  .agent-row { display: flex; gap: 6px; align-items: flex-start; }
-  .agent-row .field { margin-bottom: 6px; }
-  .agent-row button {
-    flex: 0 0 auto; background: var(--raised); border: 1px solid var(--line-2);
-    color: var(--text-2); cursor: pointer; border-radius: 3px;
-    padding: 6px 9px; font: 11px/1 var(--ui);
-  }
-  .agent-row button:hover { color: var(--red); }
-  .agent-card {
-    border: 1px solid var(--line); border-radius: 3px; padding: 9px 10px;
-    margin-bottom: 7px; background: var(--bg);
-  }
-  .agent-card h5 {
-    margin: 0 0 2px; font: 500 12px/1.4 var(--mono); color: var(--text);
-    display: flex; gap: 8px; align-items: baseline; justify-content: space-between;
-  }
-  .agent-card .files { margin: 7px 0 0; display: flex; gap: 4px; flex-wrap: wrap; }
-  .status { font: 12px/1.5 var(--ui); }
-  .status.good { color: var(--green); }
-  .status.bad { color: var(--red); }
+  .feed-row .when { font: 11.5px/1 var(--mono); color: var(--text-3); }
+  .feed-row.overlap .mark, .feed-row.overlap .what { color: var(--bad); }
+  .feed-row.shared .mark, .feed-row.shared .what { color: var(--good); }
+  .dot-live { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--good); margin-right: 8px; }
 
   @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; }
-  }
+    * { animation: none !important; transition: none !important; } }
   @media (max-width: 760px) {
-    nav { order: 3; width: 100%; overflow-x: auto; }
+    .headline-stat { grid-template-columns: 1fr; }
+    .step { grid-template-columns: 30px 1fr; }
+    .step .state { grid-column: 2; }
+    nav { width: 100%; overflow-x: auto; margin-left: 0; }
     #graph { height: 340px; }
   }
 </style>
 
 <header>
-  <h1 class="wordmark"><i class="dot"></i>mergemind<em>/</em><span id="repoName">—</span></h1>
+  <h1 class="wordmark"><i class="mark"></i>mergemind<em id="repoName"></em></h1>
   <form class="repo" id="repoForm">
     <input id="repoPath" spellcheck="false" autocomplete="off" list="repoList"
-           aria-label="Repository"
-           placeholder="pick a repository, or type a path">
+           aria-label="Project" placeholder="choose a project">
     <datalist id="repoList"></datalist>
     <button type="submit">open</button>
   </form>
-  <nav>
-    <button data-tab="agents" aria-selected="true">Team</button>
+  <nav id="tabs" hidden>
+    <button data-tab="team" aria-selected="true">Team</button>
     <button data-tab="task">Plan a task</button>
     <button data-tab="simulate">Clashes</button>
     <button data-tab="prs">Pull requests</button>
     <button data-tab="overview">Code map</button>
     <button data-tab="history">Track record</button>
+    <button data-tab="setup">Settings</button>
   </nav>
 </header>
 
 <main>
   <p class="banner" id="banner" hidden></p>
 
-  <section id="overview" hidden>
-    <div class="thesis">
-      <p class="eyebrow" id="heroEyebrow">reading the repository</p>
-      <h2 id="heroLine" class="loading">scanning</h2>
-      <p id="heroSub"></p>
+  <section id="setup">
+    <div class="hero">
+      <h2 class="display">Your team's agents,<br>working from the same page.</h2>
+      <p class="lede">Connect a project once. After that, every agent working in
+        it can see what everyone else is doing, is told what teammates already
+        worked out, and stops paying to rediscover the same codebase.</p>
     </div>
 
-    <div class="panel">
-      <h3>What depends on what
-        <button class="ghost" id="reflow">re-settle</button></h3>
-      <div class="body flush" id="graphWrap">
-        <svg id="graph" role="img" aria-label="File dependency graph"></svg>
+    <div class="steps">
+      <div class="step" id="step1">
+        <i class="n">1</i>
+        <h3>Connect GitHub</h3>
+        <span class="state todo" id="state1">not connected</span>
+        <div class="body" id="github-body"><p class="loading">checking</p></div>
       </div>
-      <div class="legend">
-        <span><i class="contested"></i> contested by two branches</span>
-        <span><i class="plain"></i> source file</span>
-        <span><i class="test"></i> test file</span>
-        <span class="dim">click to focus · click again to reset · drag to move</span>
+
+      <div class="step" id="step2">
+        <i class="n">2</i>
+        <h3>Connect your agents</h3>
+        <span class="state todo" id="state2">no agents yet</span>
+        <div class="body">
+          <p>Paste one block of settings into your coding agent. After that,
+            every agent that opens this project checks in on its own.</p>
+          <p style="margin-top:14px">
+            <button class="btn small" data-copy="mcp">Copy the settings</button>
+            <span class="hint" id="agentSeen" style="margin-left:12px"></span></p>
+          <details style="margin-top:14px">
+            <summary>Show what gets pasted</summary>
+            <pre id="mcpConfig" class="empty">—</pre>
+            <p class="hint">Agents can ask for four things: join this project,
+              share something they worked out, check who else is in the same
+              files, and say when they are done.</p>
+          </details>
+        </div>
+      </div>
+
+      <div class="step" id="step3">
+        <i class="n">3</i>
+        <h3>Add your team</h3>
+        <span class="state todo" id="state3">optional</span>
+        <div class="body">
+          <p>Link people to their GitHub handle, so branches and pull requests
+            are attributed to a person instead of a username.</p>
+          <div class="row" style="margin-top:14px">
+            <input class="field" id="personName" placeholder="Name" style="flex:1 1 150px">
+            <input class="field" id="personHandle" placeholder="github handle" style="flex:1 1 150px">
+            <button class="btn small secondary" id="addPerson">Add</button>
+          </div>
+          <div id="peopleOut"></div>
+        </div>
       </div>
     </div>
 
-    <div class="panel">
-      <h3>Branches being worked on</h3>
-      <div class="body" id="branches"><p class="loading">reading</p></div>
+    <p style="margin-top:24px">
+      <button class="btn" id="enterApp">Open the workspace</button></p>
+
+    <div class="card" style="margin-top:38px">
+      <h3>Start something new</h3>
+      <div class="body">
+        <p class="hint" style="margin:0 0 14px">Creates a git project with the
+          agent settings already committed, so the first agent that opens it
+          joins on its own. Nothing is published unless you fill in the GitHub
+          box.</p>
+        <div class="row">
+          <input class="field" id="newPath" style="flex:2 1 250px"
+                 placeholder="~/code/my-project">
+          <input class="field" id="newGithub" style="flex:1 1 170px"
+                 placeholder="owner/name on GitHub (optional)">
+          <button class="btn small secondary" id="createRepo">Create</button>
+        </div>
+        <label class="toggle" style="margin:2px 0 0"><input type="checkbox" id="newPublic">
+          make the GitHub repo public</label>
+        <div id="newOut"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="team" hidden>
+    <div class="hero" style="padding:42px 0 4px">
+      <h2 class="title" id="teamLine">Shared context, sent once</h2>
+      <p class="lede" id="teamSub">Every agent here needs the same background.
+        Send it once and each one only pays for its own task.</p>
     </div>
 
-    <div class="panel">
-      <h3>Worth knowing about single branches</h3>
-      <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">—</p></div>
+    <div class="headline-stat">
+      <div class="money" id="moneySaved">$0.00
+        <small>not spent on agents re-reading this codebase</small></div>
+      <div class="sub-stats">
+        <div><b id="statSpent">$0.00</b><span>actually spent</span></div>
+        <div><b id="statTokens">0</b><span>tokens avoided</span></div>
+        <div><b id="statReuse">0%</b><span>background reused</span></div>
+        <div><b id="statNotes">0</b><span>findings passed on</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Who is working here <span class="tag observed">live</span>
+        <button class="btn small secondary" id="refreshLive">Refresh</button></h3>
+      <div class="body" id="liveOut"><p class="loading">looking</p></div>
+    </div>
+
+    <div class="card">
+      <h3>What I found <span class="tag predicted" id="planState">nothing saved yet</span>
+        <button class="btn small secondary" id="recheck">Re-check</button></h3>
+      <div class="body" id="planOut"><p class="loading">reading the project</p></div>
+    </div>
+
+    <div class="card" id="collisionPanel" hidden>
+      <h3>Headed for the same code <span class="tag predicted">a guess, not a failure</span></h3>
+      <div class="body flush" id="fleetRisks"></div>
+    </div>
+
+    <div class="card">
+      <h3>The shared background <span class="tag observed">sent once</span>
+        <button class="btn small secondary" data-copy="prefix">Copy</button></h3>
+      <div class="body"><pre id="briefPrefix" class="empty">—</pre></div>
     </div>
   </section>
 
   <section id="task" hidden>
-    <div class="thesis">
-      <p class="eyebrow">forecast</p>
-      <h2>Where a task would land, before it is written</h2>
-      <p>No branch, no diff. Matched against what is really in the repository;
-        anything it cannot ground is listed separately.</p>
+    <div class="hero" style="padding:42px 0 4px">
+      <h2 class="title">Where would this land?</h2>
+      <p class="lede">Describe work nobody has started. It is matched against
+        what is really in the project, and anything it cannot ground is listed
+        separately.</p>
     </div>
-    <div class="panel">
+    <div class="card">
       <h3>Describe the work</h3>
       <div class="body">
-        <input class="field" id="taskInput" autocomplete="off" spellcheck="false"
+        <input class="field" id="taskInput" autocomplete="off"
                placeholder="Add rate limiting to the API">
-        <button class="act" id="runTask">forecast</button>
+        <button class="btn small" id="runTask">Forecast</button>
         <label class="toggle"><input type="checkbox" id="taskLlm">
           also ask a model</label>
       </div>
     </div>
-    <div class="panel">
+    <div class="card">
       <h3>Where it would land <span class="tag predicted">a guess</span></h3>
       <div class="body" id="taskOut"><p class="empty">Nothing forecast yet.</p></div>
     </div>
   </section>
 
   <section id="simulate" hidden>
-    <div class="thesis">
-      <p class="eyebrow">collisions</p>
-      <h2>Two or three pieces of work, compared</h2>
-      <p>Each is forecast separately, then checked against the others. Same
-        file is worth knowing; same function in a widely imported module is
-        worth a conversation.</p>
+    <div class="hero" style="padding:42px 0 4px">
+      <h2 class="title">Two or three things at once</h2>
+      <p class="lede">Each is forecast on its own, then checked against the
+        others. Same file is worth knowing; the same function in a widely
+        imported module is worth a conversation.</p>
     </div>
-    <div class="panel">
+    <div class="card">
       <h3>Things happening at once</h3>
       <div class="body">
-        <input class="field" id="simA" autocomplete="off" placeholder="Add rate limiting to the API">
-        <input class="field" id="simB" autocomplete="off" placeholder="Add authentication middleware">
-        <input class="field" id="simC" autocomplete="off" placeholder="third task, optional">
-        <button class="act" id="runSim">compare</button>
+        <input class="field" id="simA" placeholder="Add rate limiting to the API">
+        <input class="field" id="simB" placeholder="Add authentication middleware">
+        <input class="field" id="simC" placeholder="third thing, optional">
+        <button class="btn small" id="runSim">Compare</button>
         <p class="hint" id="simBranchHint"></p>
       </div>
     </div>
-    <div class="panel">
+    <div class="card">
       <h3>Where they clash <span class="tag predicted">a guess</span></h3>
       <div class="body flush" id="simOut"><p class="empty" style="padding:18px">Nothing compared yet.</p></div>
     </div>
-    <div class="panel">
+    <div class="card">
       <h3>Ways to order the work</h3>
       <div class="body" id="stratOut"><p class="empty">—</p></div>
     </div>
   </section>
 
   <section id="prs" hidden>
-    <div class="thesis">
-      <p class="eyebrow">github</p>
-      <h2>Open pull requests, checked against each other</h2>
-      <p>A pull request is a branch with a description, so the same engine
-        reads it. Read-only: nothing is posted unless you run the command.</p>
+    <div class="hero" style="padding:42px 0 4px">
+      <h2 class="title">Open pull requests, compared</h2>
+      <p class="lede">A pull request is a branch with a description, so the same
+        engine reads it. Read-only: nothing is posted unless you run the
+        command yourself.</p>
     </div>
-
-    <div class="panel">
-      <h3>GitHub</h3>
+    <div class="card">
+      <h3>GitHub <button class="btn small secondary" id="loadPrs">Refresh</button></h3>
       <div class="body" id="prSetup"><p class="loading">checking</p></div>
     </div>
-
-    <div class="panel" id="prListPanel" hidden>
-      <h3>Open pull requests <span class="tag observed">from GitHub</span>
-        <button class="ghost" id="loadPrs">refresh</button></h3>
+    <div class="card" id="prListPanel" hidden>
+      <h3>Open pull requests <span class="tag observed">from GitHub</span></h3>
       <div class="body" id="prList"></div>
     </div>
-
-    <div class="panel" id="prRiskPanel" hidden>
+    <div class="card" id="prRiskPanel" hidden>
       <h3>Where they overlap <span class="tag predicted">a guess</span></h3>
       <div class="body flush" id="prRisks"></div>
     </div>
-
-    <div class="panel" id="prCommentPanel" hidden>
-      <h3>The comment I would leave
-        <span class="tag predicted">not posted</span></h3>
+    <div class="card" id="prCommentPanel" hidden>
+      <h3>The comment I would leave <span class="tag predicted">not posted</span></h3>
       <div class="body">
         <p class="hint" style="margin:0 0 12px">Nothing here has been sent to
-          GitHub. Copy it, or run the command shown underneath — posting is
-          yours to do.</p>
+          GitHub. Copy it, or run the command below — posting is yours to do.</p>
         <pre id="prComment">—</pre>
         <p class="hint"><code id="prCommand"></code></p>
       </div>
     </div>
   </section>
 
-  <section id="agents">
-    <div class="thesis">
-      <p class="eyebrow" id="fleetLine">agents · one repository</p>
-      <h2>Shared repository context, sent once</h2>
-      <p>Every agent here needs the same facts about the codebase. Those go in
-        the half of the prompt that caches; each agent gets only its own files,
-        risks, and whatever the others have already found.</p>
+  <section id="overview" hidden>
+    <div class="hero" style="padding:42px 0 4px">
+      <h2 class="title" id="heroLine">Reading the project</h2>
+      <p class="lede" id="heroSub"></p>
     </div>
-
-    <div class="stats" id="fleetStats" hidden>
-      <div class="stat"><b id="statSaved">—</b><span>tokens not sent</span></div>
-      <div class="stat"><b id="statReuse">—</b><span>prefix reuse</span></div>
-      <div class="stat"><b id="statNotes">—</b><span>findings passed between agents</span></div>
-      <div class="stat"><b id="statBriefs">—</b><span>briefs issued</span></div>
-    </div>
-
-    <div class="panel">
-      <h3>Who is working here <span class="tag observed">live</span>
-        <button class="ghost" id="refreshLive">refresh</button></h3>
-      <div class="body" id="liveOut"><p class="loading">looking</p></div>
-    </div>
-
-    <div class="panel">
-      <h3>Connect your agents <span class="tag predicted">one-time setup</span>
-        <button class="ghost" data-copy="mcp">copy config</button></h3>
-      <div class="body">
-        <p class="hint" style="margin:0 0 10px">Paste one block of settings
-          into your coding agent once. After that, every agent that works in
-          this project checks in here on its own — you do not have to do
-          anything else.</p>
-        <details>
-          <summary>Show the settings to paste</summary>
-          <pre id="mcpConfig" class="empty">—</pre>
-          <p class="hint">Agents get four things they can ask for: join this
-            project, share something they worked out, check who else is in the
-            same files, and say when they are done.</p>
-        </details>
+    <div class="card">
+      <h3>What depends on what
+        <button class="btn small secondary" id="reflow">Re-settle</button></h3>
+      <div class="body flush"><svg id="graph" role="img"
+        aria-label="File dependency graph"></svg></div>
+      <div class="legend">
+        <span><i class="contested"></i> two people in here</span>
+        <span><i class="plain"></i> source file</span>
+        <span><i class="test"></i> test file</span>
+        <span class="dim">click to focus · click again to reset · drag to move</span>
       </div>
     </div>
-
-    <div class="panel">
-      <h3>What I found <span class="tag predicted" id="planState">nothing saved yet</span>
-        <button class="ghost" id="recheck">re-check</button></h3>
-      <div class="body" id="planOut"><p class="loading">reading the repository</p></div>
+    <div class="card">
+      <h3>Branches being worked on</h3>
+      <div class="body" id="branches"><p class="loading">reading</p></div>
     </div>
-
-    <div class="panel" id="collisionPanel" hidden>
-      <h3>Headed for the same code <span class="tag predicted">a guess, not a failure</span></h3>
-      <div class="body flush" id="fleetRisks"></div>
-    </div>
-
-    <div class="panel">
-      <h3>What this has saved so far</h3>
-      <div class="body" id="usageOut"><p class="empty">No briefs issued yet.</p></div>
-    </div>
-
-    <div class="panel">
-      <h3>The shared background <span class="tag observed">sent once</span>
-        <button class="ghost" data-copy="prefix">copy</button></h3>
-      <div class="body"><pre id="briefPrefix" class="empty">—</pre></div>
+    <div class="card">
+      <h3>Worth knowing about single branches</h3>
+      <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">—</p></div>
     </div>
   </section>
 
   <section id="history" hidden>
-    <div class="thesis">
-      <p class="eyebrow">evidence</p>
-      <h2>Forecasts graded against merges that already happened</h2>
-      <p>Rewind to where two branches diverged, forecast from there, then re-run
-        the merge. The forecast never sees the merge commit.</p>
+    <div class="hero" style="padding:42px 0 4px">
+      <h2 class="title">Checked against what actually happened</h2>
+      <p class="lede">Rewind to where two branches diverged, forecast from
+        there, then re-run the merge for real. The forecast never sees the
+        answer.</p>
     </div>
-    <div class="panel">
+    <div class="card">
       <h3>This project so far</h3>
       <div class="body" id="insOut"><p class="loading">reading</p></div>
     </div>
-    <div class="panel">
+    <div class="card">
       <h3>Check the guesses against history <span class="tag observed">real merges</span></h3>
       <div class="body">
-        <button class="act" id="runBackfill">replay 25 merges</button>
-        <p class="hint">Roughly a minute per fifty merges. Each one runs in a
-          temporary worktree and is torn down afterwards.</p>
+        <button class="btn small" id="runBackfill">Replay 25 merges</button>
+        <p class="hint">About a minute per fifty. Each one runs in a temporary
+          copy that is thrown away afterwards.</p>
         <div id="backOut"></div>
       </div>
     </div>
@@ -553,14 +515,15 @@
 </main>
 
 <aside id="drawer" aria-hidden="true">
-  <header>
+  <header style="display:flex;gap:10px;align-items:center">
     <h3 id="drawerTitle">file</h3>
-    <button class="ghost" id="drawerClose" aria-label="Close">close</button>
+    <button class="btn small secondary" id="drawerClose">Close</button>
   </header>
   <div class="body" id="drawerBody"></div>
 </aside>
 
 <script>
+
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[<>&"]/g, c =>
   ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
@@ -591,7 +554,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
   if (b.dataset.tab === 'history') loadInsights();
-  if (b.dataset.tab === 'agents') { loadUsage(); loadLive(); loadPlan(false); }
+  if (b.dataset.tab === 'team') { loadUsage(); loadLive(); loadPlan(false); }
+  if (b.dataset.tab === 'setup') loadSetup();
   if (b.dataset.tab === 'prs') checkGitHub();
 });
 
@@ -639,6 +603,127 @@ $('#repoPath').addEventListener('change', e => {
 });
 
 api('repos').then(d => { REPOS = d.repos || []; fillRepoList(); }).catch(() => {});
+
+/* ── setup, which comes before anything else ─────────────────
+   GitHub first because it is the one that needs something outside this app,
+   agents second because they are what makes the rest work. */
+function showApp(open) {
+  $('#tabs').hidden = !open;
+  $('#setup').hidden = open;
+  if (open) {
+    document.querySelectorAll('nav button').forEach(x =>
+      x.setAttribute('aria-selected', String(x.dataset.tab === 'team')));
+    document.querySelectorAll('main section').forEach(s =>
+      s.hidden = s.id !== 'team');
+    loadUsage(); loadLive(); loadPlan(false);
+  }
+}
+
+function loadSetup() {
+  $('#setup').hidden = false;
+  $('#tabs').hidden = false;
+  document.querySelectorAll('main section').forEach(s => s.hidden = s.id !== 'setup');
+  api('setup').then(d => {
+    const gh = $('#github-body');
+    if (d.github) {
+      $('#step1').classList.add('done');
+      $('#state1').textContent = 'connected';
+      $('#state1').className = 'state ok';
+      gh.innerHTML = `<p>Reading pull requests from
+        <code>${esc(d.github)}</code>. mergemind only reads — it never posts
+        without you running the command.</p>`;
+    } else {
+      $('#step1').classList.remove('done');
+      $('#state1').textContent = 'not connected';
+      $('#state1').className = 'state todo';
+      gh.innerHTML = `<p>${esc(d.github_problem || d.problem ||
+        'This project is not connected to GitHub yet.')}</p>
+        <table style="margin-top:12px"><tbody>
+        <tr><td>Point it at GitHub</td><td class="dim mono">git remote add origin
+          git@github.com:you/repo.git</td></tr>
+        <tr><td>Sign in to the GitHub CLI</td><td class="dim mono">brew install gh
+          &amp;&amp; gh auth login</td></tr></tbody></table>
+        <p class="hint">Or start a fresh project below and it is done for you.</p>`;
+    }
+
+    if (d.agents) {
+      $('#step2').classList.add('done');
+      $('#state2').textContent = d.live ? `${d.live} working now` : 'connected';
+      $('#state2').className = 'state ok';
+      $('#agentSeen').textContent = d.live
+        ? `${d.live} agent${d.live === 1 ? '' : 's'} in the project right now.`
+        : 'Agents have connected here before.';
+    } else {
+      $('#step2').classList.remove('done');
+      $('#state2').textContent = 'no agents yet';
+      $('#state2').className = 'state todo';
+      $('#agentSeen').textContent = 'Nothing has checked in yet.';
+    }
+
+    $('#step3').classList.toggle('done', d.people > 0);
+    $('#state3').textContent = d.people
+      ? `${d.people} on the project` : 'optional';
+    $('#state3').className = d.people ? 'state ok' : 'state todo';
+    loadPeople();
+  }).catch(() => {
+    $('#github-body').innerHTML = '<p class="empty">Pick a project first.</p>';
+  });
+}
+
+function loadPeople() {
+  api('people').then(d => {
+    const people = d.people || [];
+    $('#peopleOut').innerHTML = people.length ? `<table style="margin-top:14px">
+      <tbody>${people.map(p => `<tr><td>${esc(p.name)}</td>
+        <td class="dim mono">${p.github ? '@' + esc(p.github) : ''}</td>
+        <td class="dim">${esc(p.role || '')}</td></tr>`).join('')}</tbody></table>`
+      : '';
+  }).catch(() => {});
+}
+
+$('#addPerson').onclick = () => {
+  const name = $('#personName').value.trim();
+  if (!name) return;
+  api('people', { action: 'add', name, github: $('#personHandle').value.trim() })
+    .then(() => {
+      $('#personName').value = ''; $('#personHandle').value = '';
+      loadSetup();
+    });
+};
+
+$('#createRepo').onclick = () => {
+  const path = $('#newPath').value.trim();
+  if (!path) { $('#newOut').innerHTML =
+    '<p class="status bad">Where should it go?</p>'; return; }
+  const github = $('#newGithub').value.trim();
+  $('#createRepo').disabled = true;
+  $('#newOut').innerHTML = '<p class="loading">creating</p>';
+  api('new', {
+    path, github,
+    private: $('#newPublic').checked ? '0' : '1',
+  }).then(d => {
+    $('#newOut').innerHTML = d.error
+      ? `<p class="status bad">${esc(d.error)}</p>`
+      : `<p class="status good" style="margin-top:12px">Created
+         ${esc(d.name)}. The agent settings are already committed, so the first
+         agent that opens it joins on its own.
+         ${d.remote ? ' Pushed to ' + esc(d.remote) + '.' : ''}
+         ${d.github_error ? ' GitHub step failed: ' + esc(d.github_error) : ''}</p>
+         <p style="margin-top:10px"><button class="btn small secondary"
+           data-open="${esc(d.path)}">Open it</button></p>`;
+  }).catch(() => {
+    $('#newOut').innerHTML = '<p class="status bad">Could not create that.</p>';
+  }).finally(() => { $('#createRepo').disabled = false; });
+};
+
+document.addEventListener('click', e => {
+  const o = e.target.closest('[data-open]');
+  if (o) { openRepo(o.dataset.open); loadSetup(); }
+});
+
+$('#enterApp').onclick = () => { localStorage.setItem('mergemind.setup', '1');
+  showApp(true); };
+
 
 /* ── risk rendering ───────────────────────────────────────── */
 // plain names for the risk types; the machine name stays in the JSON and the
@@ -922,9 +1007,7 @@ function loadRepo() {
       ? `Branches here: ${branches.map(b => b.name).join(', ')}.`
       : '';
   }).catch(() => {
-    $('#heroLine').className = '';
-    $('#heroLine').textContent = 'Pick a repository.';
-    $('#heroEyebrow').textContent = 'nothing loaded';
+    $('#heroLine').textContent = 'Pick a project to look at.';
     $('#heroSub').textContent = '';
     $('#branches').innerHTML = '';
     $('#graph').innerHTML = '';
@@ -934,23 +1017,21 @@ function loadRepo() {
 }
 
 function writeHero(branches, risks, baseName) {
-  const eyebrow = $('#heroEyebrow'), line = $('#heroLine'), sub = $('#heroSub');
-  line.className = 'stagger';
+  const line = $('#heroLine'), sub = $('#heroSub');
   if (risks.length) {
     const top = risks[0];
     const file = (top.files || [])[0];
-    eyebrow.textContent = `base ${baseName} · ${branches.length} branch(es) in flight`;
+    sub.dataset.base = baseName;
     line.innerHTML = file
       ? `<mark>${esc(base(file))}</mark> is contested by ${top.tasks.length} pieces of work.`
       : `${risks.length} pieces of work overlap.`;
     sub.textContent = top.recommendation;
   } else if (branches.length) {
-    eyebrow.textContent = `base ${baseName} · ${branches.length} branch(es) in flight`;
+    sub.dataset.base = baseName;
     line.innerHTML = 'No two branches are touching the same file.';
     sub.textContent = 'Nothing to coordinate yet. Forecast a task on the next '
       + 'tab to see what the next piece of work would collide with.';
   } else {
-    eyebrow.textContent = `base ${baseName} · no other branches`;
     line.innerHTML = 'One branch, nothing to collide with.';
     sub.textContent = 'Forecast a task to see where work would land, or point '
       + 'this at a repo with branches in flight.';
@@ -1058,7 +1139,7 @@ let PLAN = null;
 function planHTML(d) {
   const applied = d.recorded;
   return `${d.summary.map(line => `<p style="margin:0 0 8px">${esc(line)}</p>`).join('')}
-    ${d.assignments.length ? `<h4 class="eyebrow" style="margin:14px 0 6px">who is working here</h4>
+    ${d.assignments.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:14px 0 6px">who is working here</h4>
     <table><thead><tr><th>agent</th><th>on</th><th>files</th>
       <th>found by</th></tr></thead><tbody>
     ${d.assignments.map(a => `<tr>
@@ -1070,13 +1151,13 @@ function planHTML(d) {
       </tr>`).join('')}
     </tbody></table>` : ''}
 
-    ${d.overlap.length ? `<h4 class="eyebrow" style="margin:14px 0 6px">shared ground</h4>
+    ${d.overlap.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:14px 0 6px">shared ground</h4>
     <table><tbody>${d.overlap.map(o => `<tr>
       <td><button class="chip" data-file="${esc(o.file)}">${esc(o.file)}</button></td>
       <td class="dim">${o.work.map(esc).join(' · ')}</td></tr>`).join('')}
     </tbody></table>` : ''}
 
-    ${d.observations.length ? `<h4 class="eyebrow" style="margin:14px 0 6px">
+    ${d.observations.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:14px 0 6px">
       ${applied ? 'told to whoever works here next' : 'would be told to whoever works here next'}</h4>
     <table><tbody>${d.observations.map(o => `<tr>
       <td style="width:34%"><button class="chip" data-file="${esc(o.file)}">${esc(o.file)}</button></td>
@@ -1108,10 +1189,15 @@ function loadPlan(confirm) {
     $('#fleetRisks').innerHTML = risks.map(riskHTML).join('');
 
     const e = d.economics;
-    $('#fleetStats').hidden = false;
-    $('#fleetLine').textContent = d.assignments.length + ' in flight · '
-      + e.brief_per_later_call.toLocaleString() + ' tokens a turn once cached'
-      + ' · ~$' + e.dollars_per_later_call;
+    const n = d.assignments.length;
+    $('#teamLine').textContent = n === 1
+      ? 'One thing in flight right now'
+      : `${n} things in flight right now`;
+    $('#teamSub').textContent = 'Once the shared background is cached, each '
+      + 'agent costs about ' + e.brief_per_later_call.toLocaleString()
+      + ' tokens a turn — against the '
+      + e.repo_if_each_agent_reads_every_file.toLocaleString()
+      + ' it takes to read this project from scratch.';
     $('#briefPrefix').textContent = '';
     if (d.recorded) { loadUsage(); loadLive(); }
   }).catch(() => {
@@ -1210,7 +1296,7 @@ function loadLive() {
       : `<p class="empty">Nobody is connected yet. Once you paste the settings
          below into a coding agent, anyone working on this project shows up
          here with what they are doing.</p>`)
-      + (events.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">feed</h4>
+      + (events.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:18px 0 8px">feed</h4>
         <div class="feed">${events.map(e => `<div class="feed-row ${esc(e.kind)}">
           <span class="mark">${FEED_ICON[e.kind] || '\u00B7'}</span>
           <span class="who">${esc(e.agent)}</span>
@@ -1228,11 +1314,11 @@ function loadUsage() {
       $('#usageOut').innerHTML = '<p class="empty">No briefs issued yet.</p>';
       return;
     }
+    $('#moneySaved').childNodes[0].nodeValue = '$' + d.dollars_avoided.toFixed(2) + ' ';
+    $('#statSpent').textContent = '$' + d.dollars_spent.toFixed(2);
+    $('#statTokens').textContent = d.tokens_avoided.toLocaleString();
     $('#statReuse').textContent = (d.reuse_rate * 100).toFixed(0) + '%';
-    $('#statSaved').textContent = d.tokens_avoided.toLocaleString();
     $('#statNotes').textContent = d.notes_pulled;
-    $('#statBriefs').textContent = d.briefs;
-    $('#fleetStats').hidden = false;
     $('#usageOut').innerHTML = `<table><tbody>
       <tr><td>briefs issued</td><td class="num">${d.briefs}
         <span class="dim">to ${d.agents} agent(s)</span></td></tr>
@@ -1247,7 +1333,7 @@ function loadUsage() {
       <tr><td>findings shared</td><td class="num">${d.notes_written} written,
         ${d.notes_pulled} delivered</td></tr>
       </tbody></table>
-      ${d.per_agent.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">per agent</h4>
+      ${d.per_agent.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:18px 0 8px">per agent</h4>
       <table><thead><tr><th>agent</th><th>briefs</th><th>task tokens</th>
         <th>findings received</th></tr></thead><tbody>
       ${d.per_agent.map(a => `<tr><td>${esc(a.agent)}</td>
@@ -1255,7 +1341,7 @@ function loadUsage() {
         <td class="num">${(a.task_tokens || 0).toLocaleString()}</td>
         <td class="num">${a.notes_pulled || 0}</td></tr>`).join('')}
       </tbody></table>` : ''}
-      ${d.shared_files.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">
+      ${d.shared_files.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:18px 0 8px">
         files more than one agent has been into</h4>
       <table><tbody>${d.shared_files.map(f => `<tr>
         <td><button class="chip" data-file="${esc(f.file)}">${esc(f.file)}</button></td>
@@ -1282,7 +1368,7 @@ function loadInsights() {
       <tr><td>merges run by hand</td><td class="num">${d.merges_run} (${d.merged_clean} clean)</td></tr>
       <tr><td>merges replayed from history</td><td class="num">${d.merges_replayed}</td></tr>
       </tbody></table>
-      ${types.length ? `<h4 class="eyebrow" style="margin:18px 0 8px">by type</h4>
+      ${types.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:18px 0 8px">by type</h4>
       <table><tbody>${types.map(([k, n]) =>
         `<tr><td>${esc(RISK_NAME[k] || k.replace(/_/g, ' '))}</td><td class="num">${n}</td></tr>`).join('')}
       </tbody></table>` : ''}
@@ -1310,7 +1396,7 @@ $('#runBackfill').onclick = () => {
         <span class="dim">— ${s.files_caught} flagged, ${s.files_missed} missed</span></td></tr>
       <tr><td>median warning lead time</td><td class="num">${s.median_lead_hours ?? '—'} h</td></tr>
       </tbody></table>
-      ${levels.length ? `<h4 class="eyebrow" style="margin:20px 0 8px">
+      ${levels.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:20px 0 8px">
         conflict rate by risk level</h4>
       <table><thead><tr><th>level</th><th>flagged</th><th>conflicted</th><th>rate</th></tr></thead>
       <tbody>${levels.map(([l, b]) => `<tr><td>${esc(l)}</td>
@@ -1338,5 +1424,7 @@ api('scan').then(d => {
   if (!REPO) { REPO = d.repo; localStorage.setItem('mergemind.repo', REPO); }
   $('#repoPath').value = REPO;
   loadRepo();
-}).catch(() => loadRepo());
+  loadSetup();
+  if (localStorage.getItem('mergemind.setup')) showApp(true);
+}).catch(() => { loadRepo(); loadSetup(); });
 </script>
