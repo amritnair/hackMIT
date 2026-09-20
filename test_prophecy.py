@@ -194,6 +194,31 @@ def check_mcp(root):
     call("leave_repo_session", agent="ada")
     assert [s["agent"] for s in store.live_sessions(db)] == ["grace"]
 
+    from prophecy.mcp import client_name
+    assert client_name("claude-code") == "Claude Code"
+    assert client_name("cursor") == "Cursor"
+    assert client_name("ChatGPT") == "ChatGPT"
+    assert client_name("brand-new-agent") == "brand-new-agent"
+
+    # handshake and join have to share a process, the way a real client does
+    rpc(root,
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"clientInfo": {"name": "claude-code", "version": "1.0"}}},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+         "params": {"name": "join_repo_session",
+                    "arguments": {"agent": "ada", "task": "Add rate limiting"}}},
+    )
+    db = store.connect(root)
+    ada = next(s for s in store.live_sessions(db) if s["agent"] == "ada")
+    assert ada["client"] == "Claude Code", ada
+    rpc(root, {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+               "params": {"name": "join_repo_session",
+                          "arguments": {"agent": "ada",
+                                        "task": "Add rate limiting",
+                                        "tool": "Cursor"}}})
+    ada = next(s for s in store.live_sessions(db) if s["agent"] == "ada")
+    assert ada["client"] == "Cursor", ada
+
     # an unknown method answers with an error, not a crash
     bad = rpc(root, {"jsonrpc": "2.0", "id": 3, "method": "nonsense"})[0]
     assert bad["error"]["code"] == -32000

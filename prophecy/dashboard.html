@@ -1111,6 +1111,32 @@ function lsSet(key, value) {
   try { localStorage.setItem('prophecy.' + key, value); } catch {}
 }
 
+/* Which coding agent each person is working through, learnt from the MCP
+   handshake and kept here so any card can name an agent the way a person would
+   say it out loud: "Ada's Claude Code", not "ada". */
+const TOOLS = {};
+
+function rememberTools(map) {
+  Object.entries(map || {}).forEach(([agent, tool]) => {
+    if (tool && tool !== 'mcp') TOOLS[agent] = tool;
+  });
+}
+
+// "ada" -> "Ada", "agent-b" -> "Agent-b": only the first letter, because a
+// name is whatever its owner typed and this is not the place to restyle it
+const capital = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+
+/* An agent belongs to somebody and runs on something. Saying both is what
+   makes "who is in this file" answerable — "Ada's Claude Code" tells you who
+   to talk to and what is doing the typing. With no tool on record the name
+   stands alone rather than being padded with a guess. */
+function agentLabel(agent, tool) {
+  if (!agent) return '';
+  if (agent === 'prophecy') return 'Prophecy';
+  const kit = tool || TOOLS[agent];
+  return kit ? `${capital(agent)}'s ${kit}` : capital(agent);
+}
+
 function api(cmd, params = {}) {
   const q = new URLSearchParams();
   if (REPO) q.append('repo', REPO);
@@ -2535,14 +2561,15 @@ function shareTree(d) {
 
   agents.forEach(a => {
     const p = at[`a:${a.agent}`];
-    const w = fit(a.agent,
+    const label = agentLabel(a.agent, a.client);
+    const w = fit(label,
       [`${a.wrote || 0} found · ${a.pulled || 0} received`,
        `${(a.task_tokens || 0).toLocaleString()} tokens of its own`],
       agents.length);
     nodes.push(knot(`a:${a.agent}`, p.x, p.y, w, 54, 'agent', `
       ${live.has(a.agent) ? `<circle class="live" cx="${p.x - w / 2 + 10}"
         cy="${p.y - 10}" r="3.5"/>` : ''}
-      <text class="name" x="${p.x}" y="${p.y - 6}" text-anchor="middle">${esc(a.agent)}</text>
+      <text class="name" x="${p.x}" y="${p.y - 6}" text-anchor="middle">${esc(label)}</text>
       <text class="small" x="${p.x}" y="${p.y + 9}" text-anchor="middle">
         ${a.wrote || 0} found · ${a.pulled || 0} received</text>
       <text class="small" x="${p.x}" y="${p.y + 21}" text-anchor="middle">
@@ -2617,7 +2644,7 @@ function shareDetail(id) {
     const agent = id.slice(2);
     const mine = notes.filter(n => n.agent === agent);
     const row = (d.agents || []).find(a => a.agent === agent) || {};
-    $('#shareDetail').innerHTML = `<h4>${esc(agent)}</h4>
+    $('#shareDetail').innerHTML = `<h4>${esc(agentLabel(agent, row.client))}</h4>
       <p class="hint" style="margin:0 0 4px">Briefed ${row.briefs || 0} time(s),
         wrote ${row.wrote || 0} finding(s) across ${row.files || 0} file(s), and
         was handed ${row.pulled || 0} from other agents.</p>
@@ -2635,13 +2662,13 @@ function shareDetail(id) {
   const who = [...new Set(worked.map(n => n.agent))];
   $('#shareDetail').innerHTML = `<h4>${esc(file)}</h4>
     <p class="hint" style="margin:0 0 4px">${worked.length} finding(s) from
-      ${who.map(esc).join(', ') || 'no agent yet'}.
+      ${who.map(a => esc(agentLabel(a))).join(', ') || 'no agent yet'}.
       ${who.length > 1 ? 'Because more than one agent has been in here, each '
         + 'one after the first was told what the others already found.' : ''}
       ${read.length ? `${read.length} more were read straight out of the
         repository by Prophecy.` : ''}</p>
-    ${[...worked, ...read].slice(0, 5).map(n => `<p class="quote"><b>${esc(n.agent)}</b>
-      — ${esc(n.note)}</p>`).join('')}
+    ${[...worked, ...read].slice(0, 5).map(n => `<p class="quote">
+      <b>${esc(agentLabel(n.agent))}</b> — ${esc(n.note)}</p>`).join('')}
     <p style="margin:10px 0 0"><button class="btn small secondary"
       data-edopen="${esc(file)}">Open ${esc(base(file))}</button></p>`;
 }
@@ -2649,6 +2676,7 @@ function shareDetail(id) {
 function loadSharing() {
   api('sharing').then(d => {
     SHARE.data = d;
+    rememberTools(d.tools);
     shareTree(d);
   }).catch(() => {
     $('#shareStory').textContent = 'No sharing recorded for this project yet.';
@@ -3184,7 +3212,7 @@ function planHTML(d) {
     <table><thead><tr><th>agent</th><th>on</th><th>files</th>
       <th>found by</th></tr></thead><tbody>
     ${d.assignments.map(a => `<tr>
-      <td>${esc(a.agent)}</td>
+      <td>${esc(agentLabel(a.agent))}</td>
       <td>${esc(a.label)}</td>
       <td class="num">${a.files.length}</td>
       <td class="dim">${esc({session: 'live agent', branch: 'branch',
@@ -3328,10 +3356,11 @@ function clamp(text, max) {
 function loadLive() {
   api('sessions').then(d => {
     const live = d.live || [], events = d.events || [];
+    rememberTools(Object.fromEntries(live.map(x => [x.agent, x.client])));
     $('#liveOut').innerHTML = (live.length ? `<table>
       <thead><tr><th>agent</th><th>working on</th><th>joined</th></tr></thead>
       <tbody>${live.map(x => `<tr>
-        <td><span class="dot-live"></span>${esc(x.agent)}</td>
+        <td><span class="dot-live"></span>${esc(agentLabel(x.agent, x.client))}</td>
         <td>${esc(x.task || '\u2014')}</td>
         <td class="dim">${esc((x.joined_at || '').slice(5))}</td></tr>`).join('')}
       </tbody></table>`
@@ -3341,7 +3370,7 @@ function loadLive() {
       + (events.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:18px 0 8px">feed</h4>
         <div class="feed">${events.map(e => `<div class="feed-row ${esc(e.kind)}">
           <span class="mark">${FEED_ICON[e.kind] || '\u00B7'}</span>
-          <span class="who">${esc(e.agent)}</span>
+          <span class="who">${esc(agentLabel(e.agent))}</span>
           <span class="what">${esc(clamp(e.detail, 96))}</span>
           <span class="when dim">${esc((e.at || '').slice(11, 16))}</span>
         </div>`).join('')}</div>` : '');
@@ -3367,7 +3396,7 @@ function severityTag(sev) {
    off the back of shared filenames alone would contradict the panel below,
    which scores exactly that case. */
 function changeStory(a, meets = []) {
-  const who = a.agent ? `<code>${esc(a.agent)}</code>` : 'nobody the project '
+  const who = a.agent ? `<b>${esc(agentLabel(a.agent))}</b>` : 'nobody the project '
     + 'could attribute it to';
   const failures = a.potential_failures || [];
   const worst = failures.find(f => f.severity === 'critical')
@@ -3388,7 +3417,7 @@ function changeStory(a, meets = []) {
   }
   if ((a.concurrent_overlap || []).length) {
     const names = [...new Set(a.concurrent_overlap.map(o => o.agent))];
-    out.push(`It edits the same files as ${names.map(n => `<code>${esc(n)}</code>`)
+    out.push(`It edits the same files as ${names.map(n => `<b>${esc(agentLabel(n))}</b>`)
       .join(' and ')}, which is why this is a conversation and not just a `
       + 'review.');
   } else if (meets.length) {
@@ -3417,7 +3446,7 @@ function analysisHTML(a, meets = []) {
         · ${esc(a.label)}</span>
       <span class="meta">${a.risk_range.min}–${a.risk_range.max} ·
         ${Math.round(a.confidence * 100)}% sure</span>
-      <span class="between">${esc(a.agent || 'unattributed')} ·
+      <span class="between">${esc(agentLabel(a.agent) || 'unattributed')} ·
         ${a.changed_files.length} file(s) ·
         blast radius ${esc(a.blast_radius.size)}</span>
     </summary>
@@ -3425,9 +3454,9 @@ function analysisHTML(a, meets = []) {
       <p class="story">${changeStory(a, mine)}</p>
       ${agent && target ? `<p class="agent-action">
         <button class="btn small secondary" data-notify="${esc(agent)}"
-          data-target="${esc(target)}">Send this to ${esc(agent)}\u2019s agent</button>
-        <span class="hint" data-notify-note>Waits in ${esc(agent)}\u2019s inbox
-          and rides back on their agent\u2019s next <code>check_overlap</code>
+          data-target="${esc(target)}">Send this to ${esc(agentLabel(agent))}</button>
+        <span class="hint" data-notify-note>Waits in their inbox
+          and rides back on their next <code>check_overlap</code>
           or <code>analyze_change</code> call.</span></p>` : ''}
       ${a.intent_contradictions.length ? `<p class="rec" style="border-color:var(--bad)">
         ${a.intent_contradictions.map(esc).join(' ')}</p>` : ''}
@@ -3444,7 +3473,7 @@ function analysisHTML(a, meets = []) {
         <ul>${a.criticality_evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
       ${a.concurrent_overlap.length ? `<h4 class="hint"
         style="font-weight:600;color:var(--text-2);margin:14px 0 6px">At the same time</h4>
-        <ul>${a.concurrent_overlap.map(o => `<li>${esc(o.agent)} on
+        <ul>${a.concurrent_overlap.map(o => `<li>${esc(agentLabel(o.agent))} on
           ${esc(o.with)}: ${o.shared_files.slice(0, 3).map(esc).join(', ')}</li>`)
           .join('')}</ul>` : ''}
       <h4 class="hint" style="font-weight:600;color:var(--text-2);margin:14px 0 6px">
@@ -3513,10 +3542,10 @@ document.addEventListener('click', e => {
     const note = btn.parentElement.querySelector('[data-notify-note]');
     if (note) {
       note.textContent = d.live
-        ? `${agent}'s agent is connected — it gets this on its next call, `
+        ? `${agentLabel(agent)} is connected — it gets this on its next call, `
           + `alongside whatever it was asking for.`
-        : `${agent} has no agent connected right now. This waits, and is handed `
-          + `over the moment one joins.`;
+        : `${agentLabel(agent)} is not connected right now. This waits, and is handed `
+          + `over the moment they join.`;
     }
     loadAgentLoop();
   }).catch(() => {
@@ -3543,6 +3572,7 @@ function loadAgentLoop() {
     api('messages').catch(() => ({ messages: [] })),
   ]).then(([s, m]) => {
     const live = s.live || [], events = s.events || [], sent = m.messages || [];
+    rememberTools(Object.fromEntries(live.map(x => [x.agent, x.client])));
     const waiting = sent.filter(x => !x.delivered_at);
     out.innerHTML = `
       <p class="story">Every agent working here talks to Prophecy over MCP
@@ -3556,14 +3586,14 @@ function loadAgentLoop() {
       ${live.length ? `<table style="margin-top:14px"><thead><tr>
         <th>agent</th><th>working on</th><th>last heard from</th></tr></thead>
         <tbody>${live.map(x => `<tr>
-          <td><span class="dot-live"></span><b>${esc(x.agent)}</b></td>
+          <td><span class="dot-live"></span><b>${esc(agentLabel(x.agent, x.client))}</b></td>
           <td class="dim">${esc(x.task || '—')}</td>
           <td class="dim mono">${esc((x.last_seen || '').slice(11, 16))}</td>
         </tr>`).join('')}</tbody></table>` : ''}
       ${sent.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 6px">
         Risk profiles sent to agents</h4>
         <table><tbody>${sent.slice(0, 6).map(x => `<tr>
-          <td><b>${esc(x.to_agent)}</b></td>
+          <td><b>${esc(agentLabel(x.to_agent))}</b></td>
           <td class="dim">${esc(clamp(x.subject, 64))}</td>
           <td class="dim mono">${x.delivered_at
             ? 'picked up ' + esc(x.delivered_at.slice(11, 16))
@@ -3576,7 +3606,7 @@ function loadAgentLoop() {
         What the agents have asked for</h4>
         <div class="feed">${events.slice(0, 8).map(e => `<div class="feed-row ${esc(e.kind)}">
           <span class="mark">${FEED_ICON[e.kind] || '\u00B7'}</span>
-          <span class="who">${esc(e.agent)}</span>
+          <span class="who">${esc(agentLabel(e.agent))}</span>
           <span class="what">${esc(LOOP_WORDS[e.kind] || clamp(e.detail, 90))}</span>
           <span class="when dim">${esc((e.at || '').slice(11, 16))}</span>
         </div>`).join('')}</div>` : ''}
@@ -3635,6 +3665,7 @@ function loadRoster() {
       seen.get(who).work.push(c);
     });
     live.forEach(x => {
+      rememberTools({ [x.agent]: x.client });
       if (!seen.has(x.agent)) seen.set(x.agent, { name: x.agent, github: '',
         role: 'agent', work: [], sessions: [] });
       seen.get(x.agent).sessions.push(x);
@@ -3650,7 +3681,7 @@ function loadRoster() {
         const items = [...x.work.map(c => c.label),
                        ...x.sessions.map(c => c.task)];
         return `<tr>
-          <td><b>${esc(x.name)}</b>${x.github
+          <td><b>${esc(agentLabel(x.name, (x.sessions[0] || {}).client))}</b>${x.github
             ? `<div class="dim mono">@${esc(x.github)}</div>` : ''}</td>
           <td class="dim">${items.length
             ? items.slice(0, 3).map(esc).join('<br>') : 'nothing in flight'}</td>
@@ -3732,7 +3763,7 @@ function loadUsage() {
       ${d.per_agent.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:18px 0 8px">per agent</h4>
       <table><thead><tr><th>agent</th><th>briefs</th><th>task tokens</th>
         <th>findings received</th></tr></thead><tbody>
-      ${d.per_agent.map(a => `<tr><td>${esc(a.agent)}</td>
+      ${d.per_agent.map(a => `<tr><td>${esc(agentLabel(a.agent, a.client))}</td>
         <td class="num">${a.briefs}</td>
         <td class="num">${(a.task_tokens || 0).toLocaleString()}</td>
         <td class="num">${a.notes_pulled || 0}</td></tr>`).join('')}

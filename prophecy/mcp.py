@@ -45,6 +45,11 @@ def tools():
                               "description": "A name for this agent or developer."},
                     "task": {"type": "string",
                              "description": "What this session is about to work on."},
+                    "tool": {"type": "string", "description": (
+                        "Which coding agent this is — Claude Code, Cursor, "
+                        "Codex, and so on. Optional: taken from the MCP "
+                        "handshake when not given."
+                    )},
                 },
                 "required": ["agent", "task"],
             },
@@ -154,10 +159,55 @@ def tools():
     ]
 
 
+# What a coding agent calls itself in the MCP handshake, and what a person
+# calls it. The handshake name is the honest source — an agent says who it is
+# before it says anything else — but nobody reads "claude-code" as a product.
+CLIENTS = {
+    "claude-code": "Claude Code",
+    "claude-ai": "Claude",
+    "claude-desktop": "Claude Desktop",
+    "cursor": "Cursor",
+    "cursor-vscode": "Cursor",
+    "windsurf": "Windsurf",
+    "cline": "Cline",
+    "continue": "Continue",
+    "codex": "Codex",
+    "codex-cli": "Codex CLI",
+    "chatgpt": "ChatGPT",
+    "openai": "ChatGPT",
+    "copilot": "Copilot",
+    "github-copilot": "Copilot",
+    "zed": "Zed",
+    "aider": "Aider",
+    "gemini-cli": "Gemini CLI",
+}
+
+
+def client_name(raw):
+    """A coding agent's product name, from whatever it called itself.
+
+    Unknown clients keep their own name rather than being forced into this
+    list — a tool Prophecy has never heard of is still the tool somebody is
+    using, and guessing would be worse than repeating what it said.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return ""
+    key = raw.lower().replace(" ", "-").replace("_", "-")
+    if key in CLIENTS:
+        return CLIENTS[key]
+    for known, pretty in CLIENTS.items():
+        if known in key:
+            return pretty
+    return raw
+
+
 class Server:
     def __init__(self, repo_path):
         self.repo_path = os.path.abspath(repo_path)
         self.sessions = {}
+        # filled in by the initialize handshake, before any tool is called
+        self.client = ""
 
     def session_id(self, agent):
         return store.session_id(self.repo_path, agent)
@@ -170,7 +220,10 @@ class Server:
         agent, task = args["agent"], args["task"]
         repo, db = self._open()
         session_id = self.session_id(agent)
-        store.join_session(db, session_id, repo["sha"], agent, task, "mcp")
+        # which coding agent this is, as it introduced itself in the handshake;
+        # an agent may also say so outright, and being told beats inferring
+        store.join_session(db, session_id, repo["sha"], agent, task,
+                           client_name(args.get("tool")) or self.client or "mcp")
 
         forecast = predict(repo, task)
         # Everything else in flight, not just other live sessions: a teammate's
@@ -416,6 +469,8 @@ def serve(repo_path=".", stdin=None, stdout=None):
         method, request_id = request.get("method"), request.get("id")
         try:
             if method == "initialize":
+                info = (request.get("params") or {}).get("clientInfo") or {}
+                server.client = client_name(info.get("name"))
                 result = {
                     "protocolVersion": PROTOCOL,
                     "capabilities": {"tools": {}},

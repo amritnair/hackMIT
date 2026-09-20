@@ -206,11 +206,14 @@ def usage(db):
             sent_actual += row["prefix_tokens"] + row["suffix_tokens"]
         sent_naive += (row["baseline_tokens"] or 0) + row["suffix_tokens"]
 
+    tools = agent_clients(db)
     per_agent = [dict(r) for r in db.execute(
         "SELECT agent, COUNT(*) briefs, SUM(suffix_tokens) task_tokens,"
         " SUM(notes_pulled) notes_pulled FROM briefs GROUP BY agent"
         " ORDER BY briefs DESC"
     )]
+    for row in per_agent:
+        row["client"] = tools.get(row["agent"], "")
     shared = [dict(r) for r in db.execute(
         "SELECT file, COUNT(*) n, COUNT(DISTINCT agent) agents FROM notes"
         " GROUP BY file HAVING agents > 1 ORDER BY agents DESC, n DESC LIMIT 8"
@@ -322,6 +325,7 @@ def join_session(db, session_id, sha, agent, task, client=""):
     db.execute(
         "INSERT INTO sessions (id, sha, agent, task, client) VALUES (?,?,?,?,?)"
         " ON CONFLICT(id) DO UPDATE SET task=excluded.task,"
+        " client=excluded.client,"
         " last_seen=CURRENT_TIMESTAMP, left_at=NULL",
         (session_id, sha, agent, task, client),
     )
@@ -359,6 +363,21 @@ def feed(db, limit=40):
     )]
 
 
+def agent_clients(db):
+    """Which coding agent each name has been working through, most recent first.
+
+    A person can drive a different tool tomorrow than they did today, so this
+    is the latest session that actually named one rather than a fixed label.
+    """
+    # last write wins: a person can switch tools, and the most recent session
+    # is the one still worth putting on their name
+    return {r["agent"]: r["client"] for r in db.execute(
+        "SELECT agent, client FROM sessions"
+        " WHERE client IS NOT NULL AND client <> '' AND client <> 'mcp'"
+        " ORDER BY joined_at"
+    )}
+
+
 def sharing(db, limit=120):
     """The context one agent handed to the next, as a shape rather than a total.
 
@@ -383,6 +402,7 @@ def sharing(db, limit=120):
         " FROM notes WHERE agent <> 'prophecy'"
         " GROUP BY agent ORDER BY wrote DESC"
     )]
+    tools = agent_clients(db)
     briefed = {r["agent"]: dict(r) for r in db.execute(
         "SELECT agent, COUNT(*) briefs, SUM(suffix_tokens) task_tokens,"
         " SUM(notes_pulled) pulled FROM briefs GROUP BY agent"
@@ -393,6 +413,8 @@ def sharing(db, limit=120):
     for left in briefed.values():
         left["wrote"], left["files"] = 0, 0
         agents.append(left)
+    for row in agents:
+        row["client"] = tools.get(row["agent"], "")
 
     rows = [dict(r) for r in db.execute("SELECT * FROM briefs")]
     seen, reused, prefix_tokens = set(), 0, 0
@@ -416,6 +438,7 @@ def sharing(db, limit=120):
             ).fetchone()["n"],
         },
         "live": [s["agent"] for s in live_sessions(db)],
+        "tools": tools,
     }
 
 

@@ -1291,29 +1291,35 @@ def build(path):
 # demo. Both are real sessions written through the normal path — nothing here
 # fakes a number that the rest of the app would not have produced.
 SEED_SESSIONS = [
-    {"agent": "ada", "task": "Make email required during signup",
+    {"agent": "ada", "tool": "Claude Code",
+     "task": "Make email required during signup",
      "note": ("app/models.py",
               "every caller of create_user omits email today, so the default "
               "cannot just be dropped without fixing all of them")},
-    {"agent": "grace", "task": "Redesign the signup form",
+    {"agent": "grace", "tool": "Cursor",
+     "task": "Redesign the signup form",
      "note": ("api/signup.py",
               "signup() builds the user directly rather than going through "
               "the auth path, so changes here bypass login()")},
-    {"agent": "linus", "task": "Tidy up the user table",
+    {"agent": "linus", "tool": "Codex",
+     "task": "Tidy up the user table",
      "note": ("app/models.py",
               "to_dict is what sessions store, so dropping a field here "
               "silently changes what every logged-in request sees")},
-    {"agent": "priya", "task": "Add a judging dashboard",
+    {"agent": "priya", "tool": "ChatGPT",
+     "task": "Add a judging dashboard",
      "note": ("services/rubric.py",
               "weights are normalised on read, not on write, so a stored "
               "rubric that does not sum to one still scores")},
-    {"agent": "sam", "task": "Pay out prizes automatically",
+    {"agent": "sam", "tool": "Copilot",
+     "task": "Pay out prizes automatically",
      "note": ("services/payouts.py",
               "prepare() marks a winner uncontactable rather than raising — "
               "anything downstream has to check the flag")},
     # deliberately the same file grace is working in: one agent's finding
     # reaching another is the thing the context tab exists to show
-    {"agent": "noor", "task": "Let people fix their own details",
+    {"agent": "noor", "tool": "Gemini CLI",
+     "task": "Let people fix their own details",
      "note": ("api/signup.py",
               "validators.check_signup returns every problem at once, so the "
               "form should render a list rather than the first error")},
@@ -1339,7 +1345,7 @@ def seed(root):
     for entry in SEED_SESSIONS:
         agent, task = entry["agent"], entry["task"]
         store_mod.join_session(db, store_mod.session_id(root, agent),
-                               repo["sha"], agent, task, "mcp")
+                               repo["sha"], agent, task, entry.get("tool") or "mcp")
         forecast = predict(repo, task)
         forecasts.append(forecast)
         found = risks(repo, forecasts)
