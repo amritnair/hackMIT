@@ -1024,8 +1024,11 @@ function playCrew(done) {
   const el = buildCrew();
   const caption = document.getElementById('stageCaption');
   if (!el) { done(); return; }
+  el.svg.style.opacity = '0';
   const say = (i) => { caption.innerHTML = `<span>${SCENE2[i]}</span>`; };
-  const PH = [1300, 1700, 1500, 2400, 600];
+  // longer than scene one: this story has more to take in per beat, and the
+  // handoff at the end is the whole point of it
+  const PH = [2000, 2600, 2300, 3400, 700];
   let phase = 0, t0 = performance.now(), shown = -1;
 
   const frame = (now) => {
@@ -1057,13 +1060,14 @@ function playCrew(done) {
       el.people[2].querySelector('rect').setAttribute(
         'stroke', k > .55 ? '#4ED8A0' : '#33333F');
     }
+    if (phase === 0) el.svg.style.opacity = Math.min(1, (now - t0) / 520).toFixed(3);
     if (phase === 4) el.svg.style.opacity = (1 - ease(p)).toFixed(3);
 
     if (p >= 1) {
-      const hold = phase === 3 ? 1200 : phase === 4 ? 0 : 160;
+      const hold = phase === 3 ? 1800 : phase === 4 ? 0 : 420;
       if (now - t0 > PH[phase] + hold) {
         phase += 1; t0 = now;
-        if (phase >= PH.length) { el.svg.style.opacity = ''; done(); return; }
+        if (phase >= PH.length) { setTimeout(done, 260); return; }
       }
     }
     requestAnimationFrame(frame);
@@ -1075,6 +1079,7 @@ function playStage() {
   const el = buildStage();
   const caption = document.getElementById('stageCaption');
   if (!el || !caption) return;
+  el.svg.style.opacity = '0';
   const say = (i) => {
     caption.innerHTML = `<span>${BEATS[i]}</span>`;
     caption.firstChild.animate(
@@ -1112,11 +1117,11 @@ function playStage() {
     if (shown !== phase && phase < BEATS.length) { say(phase); shown = phase; }
 
     if (phase === 4) {
-      const fade = 1 - ease(p);
-      el.svg.style.opacity = fade.toFixed(3);
-      if (p >= 1) el.svg.style.opacity = '';
-    } else {
-      el.svg.style.opacity = '';
+      // stay dark at the end: the next scene fades up from here, so the two
+      // never cut against each other
+      el.svg.style.opacity = (1 - ease(p)).toFixed(3);
+    } else if (phase === 0) {
+      el.svg.style.opacity = Math.min(1, (now - t0) / 520).toFixed(3);
     }
 
     // 0 — the three changes arrive, staggered
@@ -1166,7 +1171,7 @@ function playStage() {
       if (now - t0 > span + hold) {
         if (phase === PHASES.length - 1) {
           // hand over to the other story rather than looping one forever
-          playCrew(() => playStage());
+          setTimeout(() => playCrew(() => playStage()), 260);
           return;
         }
         phase = (phase + 1) % PHASES.length;
