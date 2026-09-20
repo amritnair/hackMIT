@@ -20,12 +20,12 @@ demo. The engine shells out to git against a real checkout, so there is
 always a machine behind it rather than a static host; if the page says the
 demo is asleep, that laptop is closed.
 
-- Dashboard, direct: https://seasons-avenue-vanilla-matrix.trycloudflare.com/
-- MCP endpoint: https://seasons-avenue-vanilla-matrix.trycloudflare.com/mcp
+- Dashboard, direct: https://1bbac51078d023.lhr.life/
+- MCP endpoint: https://1bbac51078d023.lhr.life/mcp
 - Demo app on GitHub: https://github.com/amritnair/prophecy-demo
 
 ```
-claude mcp add --transport http prophecy https://seasons-avenue-vanilla-matrix.trycloudflare.com/mcp
+claude mcp add --transport http prophecy https://1bbac51078d023.lhr.life/mcp
 ```
 
 MCP is a POST endpoint, so it takes the direct address rather than the
