@@ -11,9 +11,9 @@
     --cc-line: #3A3938; --cc-text: #F4F3EE; --cc-dim: #A8A29E; --cc-mute: #78716C;
     --claude: #D97757; --claude-2: #E8A087;
     --ok: #6B9F6B; --warn: #D4A017; --bad: #E07070;
-    --pr-bg: #0E0E14; --pr-card: #17171F; --pr-line: #2A2A36;
-    --pr-text: #F5F3FF; --pr-dim: #A3A3B5; --pr-mute: #6E6E82;
-    --pr-accent: #8B5CF6; --pr-cyan: #67E8F9;
+    --pr-bg: #0A111D; --pr-card: #111A2A; --pr-line: #1F2D45;
+    --pr-text: #EEF4FF; --pr-dim: #A2B1C9; --pr-mute: #6C7C96;
+    --pr-accent: #7DBBFF; --pr-cyan: #67E8F9;
     --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   }
@@ -162,26 +162,26 @@
       <div class="pipe" id="pipe" hidden></div>
       <div class="cards">
         <div class="card">
-          <div class="l">Tokens — the cost of reading</div>
+          <div class="l">Tokens: the cost of reading</div>
           <div class="v" id="tokSaved">$0.00 saved</div>
           <div class="meter" id="tokMeter"><i></i></div>
           <small id="tokBlurb">Nobody has asked Prophecy anything yet. Each agent that reads the repo by itself pays the full price.</small>
         </div>
         <div class="card">
-          <div class="l">Risk — would this break something?</div>
+          <div class="l">Risk: would this break something?</div>
           <div class="v" id="riskV">not scored yet</div>
           <div class="thermo"><i id="riskBar"></i></div>
           <small id="riskBlurb">Prophecy has not looked at Ada’s change yet.</small>
         </div>
         <div class="card">
-          <div class="l">Shared notes — what one agent told the next</div>
+          <div class="l">Shared notes: what one agent told the next</div>
           <div id="notes"><small>Nothing pinned on a file yet.</small></div>
         </div>
       </div>
       <ul class="why" id="why"></ul>
     </aside>
   </div>
-  <div class="foot">A simulation. Prophecy is a local MCP server — Claude Code talks to it over stdio, on this machine. Nothing here is a live model call.</div>
+  <div class="foot">A simulation. Prophecy is a local MCP server, and Claude Code talks to it over stdio, on this machine. Nothing here is a live model call.</div>
 </div>
 
 <script>
@@ -207,24 +207,24 @@ const STEPS = [
   {
     kicker: "The first briefing",
     title: "Claude pays once to learn the repo.",
-    said: "Prophecy sends back two piles of text. The first pile is a <b>map of the project</b> — 1,067 tokens. That map is the same for every agent on this commit, so it gets cached. Think of it as buying a street map. The second pile is Ada’s own job, which is unique, so it is not cached.",
+    said: "Prophecy sends back two piles of text. The first pile is a <b>map of the project</b>, 1,067 tokens. That map is the same for every agent on this commit, so it gets cached. Think of it as buying a street map. The second pile is Ada’s own job, which is unique, so it is not cached.",
     tool: {
-      name: "prophecy — join_repo_session",
+      name: "prophecy · join_repo_session",
       args: "agent: ada · task: Make email required",
-      result: "Map of prophecy-demo (1,067 tokens) — saved to cache.\nYour job sits after the map, so changing it is free for the cache.\nLikely files: app/models.py, api/signup.py\n15 other files import models.py.",
+      result: "Map of prophecy-demo (1,067 tokens), saved to cache.\nYour job sits after the map, so changing it is free for the cache.\nLikely files: app/models.py, api/signup.py\n15 other files import models.py.",
     },
     claude: "Prophecy says models.py is the center of this. Fifteen files import it. I’ll start there.",
     pipe: { dir: "Claude Code → Prophecy", text: "tools/call  join_repo_session\n{ agent: \"ada\", task: \"Make email required\" }" },
     pipe2: { dir: "Prophecy → Claude Code", text: "briefing\nprefix 1,067 tokens  (cache WRITE × 1.25)\ntask 2,136 tokens" },
     tokens: { naive: BASELINE + ADA_TASK, billed: PREFIX * 1.25 + ADA_TASK, blurb: "Ada just paid to write the shared map into cache (a little extra the first time). The next agent will read that map at one tenth the price.", pct: 35 },
-    why: ["A token is a chunk of text the model is charged for.", "The shared map is identical for Ada, Grace, and Linus — so it belongs in the cache.", "Ada’s actual task is different, so it goes after the map, where it cannot spoil the cache."],
+    why: ["A token is a chunk of text the model is charged for.", "The shared map is identical for Ada, Grace, and Linus, so it belongs in the cache.", "Ada’s actual task is different, so it goes after the map, where it cannot spoil the cache."],
   },
   {
     kicker: "A note on a file",
     title: "Claude learns something, and hands it over.",
-    said: "Claude noticed that every caller of create_user skips email today. That took work to see. Instead of leaving it in this chat — where Grace will never find it — Claude tells Prophecy. Prophecy pins the note on <b>app/models.py</b>. The next agent that goes there gets it for free.",
+    said: "Claude noticed that every caller of create_user skips email today. That took work to see. Instead of leaving it in this chat, where Grace will never find it, Claude tells Prophecy. Prophecy pins the note on <b>app/models.py</b>. The next agent that goes there gets it for free.",
     tool: {
-      name: "prophecy — share_finding",
+      name: "prophecy · share_finding",
       args: "file: app/models.py",
       result: "Recorded. The next agent sent to this file is told.",
     },
@@ -239,7 +239,7 @@ const STEPS = [
     said: "Grace is a teammate. Her Cursor is a <b>different program</b>. It does not share memory with Ada’s Claude Code. The only thing they share is Prophecy, sitting on this machine, holding the map and the notes.",
     other: "Grace’s Cursor connected to the same Prophecy (MCP, a second process).",
     pipe: { dir: "Grace’s Cursor → Prophecy", text: "initialize  { clientInfo: { name: \"cursor\" } }\ntools/call  join_repo_session" },
-    pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map — CACHE HIT × 0.1\nnote from Ada already in the briefing" },
+    pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map: CACHE HIT × 0.1\nnote from Ada already in the briefing" },
     tokens: { naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK), billed: (PREFIX * 1.25 + ADA_TASK) + (PREFIX * 0.1 + GRACE_TASK), blurb: "Grace did not buy the map. She photocopied Ada’s, at 1/10th the price. She also got Ada’s note, so she did not spend tokens hunting for it.", pct: 62 },
     why: ["Two coding agents. Two MCP plugs. One Prophecy.", "Cache hit = the bytes of the map matched, so the model was not charged full price again.", "Ada’s finding travelled with the briefing. That is context sharing."],
   },
@@ -248,20 +248,20 @@ const STEPS = [
     title: "Claude asks mid-work, not only at the start.",
     said: "This is why MCP beats a one-time cheat sheet. Grace sat down <b>after</b> Ada started. Ada’s Claude can ask again: “is anyone in my files right now?” Prophecy looks at live sessions, branches, and pull requests.",
     tool: {
-      name: "prophecy — check_overlap",
+      name: "prophecy · check_overlap",
       args: "files: api/signup.py",
       result: "Yes. Grace’s Cursor is redesigning signup.\nBoth of you reach create_user.",
     },
     claude: "Grace is in signup at the same time. I’ll get a proper risk score before I commit.",
     pipe: { dir: "Claude Code → Prophecy", text: "tools/call  check_overlap\n{ agent: \"ada\", files: [\"api/signup.py\"] }" },
-    why: ["A CLI briefing is stale the moment a teammate joins.", "MCP lets Claude ask again, any time.", "Overlap here is not “same filename” only — both changes reach create_user."],
+    why: ["A CLI briefing is stale the moment a teammate joins.", "MCP lets Claude ask again, any time.", "Overlap here is not “same filename” only: both changes reach create_user."],
   },
   {
     kicker: "How risk is scored",
     title: "Prophecy does not look for bugs. It looks for blast radius.",
     said: "Claude is about to commit. It asks <b>analyze_change</b>. Prophecy walks the real dependency graph: which files import this, which functions changed shape, who else is in flight. Then it gives a score with a range, not a yes/no.",
     tool: {
-      name: "prophecy — analyze_change",
+      name: "prophecy · analyze_change",
       args: "head: agent-a/require-email",
       result: "84 / 100  critical   (range 71–93, 78% sure)\nBlast radius: 15 files import models.py.\ncreate_user no longer accepts a missing email.\nHappening at the same time: Grace on signup.",
     },
@@ -271,15 +271,15 @@ const STEPS = [
     why: [
       "Score = how far the change reaches + whether someone else is in that reach.",
       "Range (71–93) is honesty: Prophecy is not 100% sure, and it says so.",
-      "Together with Grace it would read even worse — one changing what is stored, the other changing who writes it.",
+      "Together with Grace it would read even worse: one changing what is stored, the other changing who writes it.",
     ],
   },
   {
     kicker: "The warning, no click",
     title: "The score was high enough. Prophecy warned Claude on its own.",
     said: "Ada did not press a button. Nobody on a dashboard had to click “Send this to Ada’s Claude Code.” Eighty-four is past the line (high and critical). Prophecy dropped the same words into Ada’s inbox. They arrived on this call, at the top, under <b>For you, from your team</b>.",
-    inbox: { title: "For you, from your team", body: "Risk profile for require-email — 84/100 (critical).\n15 files import models.py. Combined with Grace’s Cursor: worse than either alone.\nSent automatically because the score was high enough." },
-    claude: "Got it — that’s the same score, sent as a warning so I can’t miss it. I’ll coordinate with Grace before this lands.",
+    inbox: { title: "For you, from your team", body: "Risk profile for require-email: 84/100 (critical).\n15 files import models.py. Combined with Grace’s Cursor: worse than either alone.\nSent automatically because the score was high enough." },
+    claude: "Got it, that’s the same score, sent as a warning so I can’t miss it. I’ll coordinate with Grace before this lands.",
     pipe: { dir: "Prophecy → Claude Code", text: "## For you, from your team\n(queued automatically at 84/100)\n…then the answer to analyze_change" },
     why: ["An agent cannot be poked. It only reads when it already asked something.", "So the warning rides along on the next MCP call.", "High and critical do not wait for a human to notice the red card."],
   },
@@ -294,7 +294,7 @@ const STEPS = [
       blurb: "Three agents. One paid map. Two cheap rereads. Notes passed along so nobody re-learns create_user. That is the token story.",
       pct: 88,
     },
-    why: ["Naive cost = every agent reads the whole project, every time.", "Actual cost = map once, then tiny cache reads, plus each task.", "The leftover is tokens you did not spend — the number on Prophecy’s Context tab."],
+    why: ["Naive cost = every agent reads the whole project, every time.", "Actual cost = map once, then tiny cache reads, plus each task.", "The leftover is tokens you did not spend: the number on Prophecy’s Context tab."],
   },
   {
     kicker: "What you saw",
@@ -302,10 +302,10 @@ const STEPS = [
     said: "Left side: a programmer’s Claude Code, talking to Prophecy through MCP like any other tool. Right side: what that was really doing. The map is paid once. Notes stick to files. Risk is “who else does this hit,” scored before a commit. When the score is high, the warning shows up in Claude by itself.",
     claude: "I’ll wait for Grace before I commit the email change. Prophecy will keep watching this file.",
     why: [
-      "MCP connection — Claude Code plugged into a local Prophecy process.",
-      "Tokens saved — shared map cached; later agents pay 1/10th; findings are not rediscovered.",
-      "Context shared — a note on a file, handed to the next agent that goes there.",
-      "Risk — blast radius + teammates in that radius, with a range, not a vibe.",
+      "MCP connection: Claude Code plugged into a local Prophecy process.",
+      "Tokens saved: shared map cached; later agents pay 1/10th; findings are not rediscovered.",
+      "Context shared: a note on a file, handed to the next agent that goes there.",
+      "Risk: blast radius + teammates in that radius, with a range, not a vibe.",
     ],
   },
 ];

@@ -9,25 +9,22 @@
 
 <style>
   :root {
-    --bg: #0D0D12; --card: #17171F; --raised: #20202B;
-    --line: #2A2A36; --line-2: #3A3A4A; --rule: #2A2A36;
-    --text: #F5F3FF; --text-2: #A3A3B5; --text-3: #6E6E82;
-    --accent: #8B5CF6; --cyan: #67E8F9; --lavender: #E8E1FF;
+    --bg: #0A111D; --card: #111A2A; --raised: #172338;
+    --line: #1F2D45; --line-2: #2D4062; --rule: #1F2D45;
+    --text: #EEF4FF; --text-2: #A2B1C9; --text-3: #6C7C96;
+    --accent: #7DBBFF; --violet: #8B5CF6; --cyan: #67E8F9; --lavender: #DDEEFF;
     --good: #4ADE80; --warn: #FBBF24; --bad: #F87171; --red: #F87171;
     --ui: "Sora", ui-sans-serif, system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(139,92,246,.18), transparent 55%),
-    radial-gradient(900px 500px at 88% 0%, rgba(103,232,249,.08), transparent 50%),
-    var(--bg);
+  body { margin: 0; background: var(--bg);
     color: var(--text); font: 15px/1.6 var(--ui); -webkit-font-smoothing: antialiased;
     min-height: 100vh; }
-  ::selection { background: rgba(139,92,246,.35); }
+  ::selection { background: rgba(125,187,255,.35); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: #323240; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb { background: #2A3A57; border-radius: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
   h1, h2, h3, h4 { letter-spacing: -.03em; margin: 0; font-weight: 600; }
   .display { font-size: clamp(34px, 5.4vw, 60px); line-height: 1.02; letter-spacing: -.04em; }
@@ -38,7 +35,7 @@
   code { font: .92em var(--mono); color: var(--text); }
 
   header { position: sticky; top: 0; z-index: 40;
-    background: rgba(13,13,18,.78); backdrop-filter: blur(18px);
+    background: rgba(10,17,29,.78); backdrop-filter: blur(18px);
     border-bottom: 1px solid var(--line); padding: 11px 22px;
     display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   .wordmark { font: 600 16px/1 var(--ui); letter-spacing: -.03em;
@@ -50,7 +47,7 @@
     font: 500 13px/1 var(--ui); color: var(--text); background: var(--raised);
     border: 1px solid var(--line-2); padding: 7px 13px; border-radius: 999px;
   }
-  .project-btn:hover { border-color: #43434f; }
+  .project-btn:hover { border-color: #354866; }
   .project-btn svg { color: var(--text-3); }
   .project form.repo { position: absolute; top: calc(100% + 8px); left: 0;
     z-index: 50; width: 330px; }
@@ -68,8 +65,8 @@
   nav button { font: 500 13px/1 var(--ui); background: none; border: 0;
     color: var(--text-3); padding: 8px 13px; cursor: pointer; border-radius: 999px; }
   nav button:hover { color: var(--text); }
-  nav button[aria-selected="true"] { color: var(--text); background: rgba(139,92,246,.22);
-    box-shadow: inset 0 0 0 1px rgba(139,92,246,.45); }
+  nav button[aria-selected="true"] { color: var(--text); background: rgba(125,187,255,.22);
+    box-shadow: inset 0 0 0 1px rgba(125,187,255,.45); }
   main { max-width: 1060px; margin: 0 auto; padding: 0 22px 120px; }
   main.wide { max-width: 1280px; }
   .mcp-frame { display: block; width: 100%; height: min(78vh, 820px);
@@ -89,32 +86,19 @@
     background: linear-gradient(180deg, var(--lavender), var(--accent));
     background-origin: border-box;
     background-clip: border-box;
-    color: #0D0D12; transition: transform .12s ease, opacity .12s ease, box-shadow .12s ease; }
+    color: #0A111D; transition: transform .12s ease, opacity .12s ease, box-shadow .12s ease; }
   .btn:hover:not(:disabled) { transform: translateY(-1px);
-    box-shadow: 0 8px 28px rgba(139,92,246,.28); }
+    box-shadow: 0 8px 28px rgba(125,187,255,.28); }
   .btn:disabled { opacity: .45; cursor: progress; }
   .btn.secondary { background: var(--raised); color: var(--text);
     border-color: var(--line-2); box-shadow: none; }
-  .btn.secondary:hover { background: #272733; box-shadow: none; }
+  .btn.secondary:hover { background: #1E2C46; box-shadow: none; }
   .btn.small { font-size: 13px; padding: 8px 16px; }
 
   .hero { padding: 72px 0 26px; position: relative; }
   .hero-actions {
     display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
     margin-top: 24px;
-  }
-  /* a slow drift behind the hero, so the page is not dead on arrival */
-  .hero::before {
-    content: ""; position: absolute; inset: -80px -120px 0;
-    background:
-      radial-gradient(420px 220px at 18% 30%, rgba(139,92,246,.16), transparent 70%),
-      radial-gradient(360px 200px at 78% 20%, rgba(103,232,249,.10), transparent 70%);
-    filter: blur(6px); pointer-events: none; z-index: -1;
-    animation: drift 18s ease-in-out infinite alternate;
-  }
-  @keyframes drift {
-    from { transform: translate3d(-14px, -6px, 0) scale(1); }
-    to { transform: translate3d(18px, 10px, 0) scale(1.06); }
   }
   .scope-note {
     margin: 0 0 14px; padding: 11px 15px; border-radius: 12px;
@@ -181,9 +165,6 @@
     grid-template-columns: minmax(0, 1.05fr) minmax(260px, .95fr); }
   .branch-viz { background: var(--card); border: 1px solid var(--line);
     border-radius: 20px; padding: 22px 18px 16px; position: relative; overflow: hidden; }
-  .branch-viz::before { content: ""; position: absolute; inset: -40% -20% auto;
-    height: 70%; background: radial-gradient(circle, rgba(103,232,249,.12), transparent 65%);
-    pointer-events: none; }
   .branch-viz svg { display: block; width: 100%; height: auto; }
   .branch-viz .pulse { stroke-dasharray: 6 10; animation: dash 1.6s linear infinite; }
   .branch-viz .glow { animation: glow 2.4s ease-in-out infinite; }
@@ -195,7 +176,7 @@
   .branch-caption i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
   .forecast-card { border: 1px solid var(--line); border-radius: 16px;
-    background: linear-gradient(180deg, rgba(139,92,246,.08), transparent 48%), var(--raised);
+    background: var(--raised);
     padding: 16px 18px; margin: 0 0 14px; }
   .forecast-card .fc-top { display: flex; gap: 10px; flex-wrap: wrap;
     align-items: center; justify-content: space-between; margin-bottom: 10px; }
@@ -212,8 +193,8 @@
   .clash-lane .task { font: 600 13.5px/1.35 var(--ui); }
   .clash-mid { display: grid; place-items: center; gap: 8px; min-width: 88px; }
   .clash-mid .orb { width: 54px; height: 54px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, var(--lavender), var(--accent) 55%, #4C1D95);
-    box-shadow: 0 0 0 1px rgba(139,92,246,.4), 0 0 28px rgba(103,232,249,.22);
+    background: radial-gradient(circle at 35% 30%, var(--lavender), var(--accent) 55%, #1E4E8C);
+    box-shadow: 0 0 0 1px rgba(125,187,255,.4), 0 0 28px rgba(103,232,249,.22);
     animation: glow 2.2s ease-in-out infinite; }
   .clash-mid .hit { font: 500 11px/1.3 var(--mono); color: var(--cyan); text-align: center; }
   .steps { display: grid; gap: 13px; margin: 28px 0 0; }
@@ -263,6 +244,8 @@
   .sub-stats div { background: var(--raised); padding: 22px 24px;
     border: 1px solid var(--line); border-radius: 14px;
     display: flex; flex-direction: column; justify-content: center; }
+  /* three boxes would leave a hole in the corner, so an odd last one spans the row */
+  .sub-stats div:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .sub-stats b { display: block; font: 600 clamp(28px, 3.2vw, 40px)/1.1 var(--ui);
     letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
   .sub-stats span { display: block; margin-top: 8px; font-size: 14px;
@@ -326,7 +309,7 @@
 
   pre { font: 12.5px/1.65 var(--mono); white-space: pre-wrap;
     word-break: break-word; margin: 0; max-height: 320px; overflow-y: auto;
-    background: #08080A; border: 1px solid var(--line); padding: 14px 16px;
+    background: #060B14; border: 1px solid var(--line); padding: 14px 16px;
     border-radius: 12px; color: var(--text-2); }
   details summary { cursor: pointer; font-size: 13.5px; color: var(--accent);
     list-style: none; }
@@ -350,7 +333,7 @@
   #graph text { font: 10.5px/1 var(--mono); fill: var(--text-3);
     pointer-events: none; }
   #graph .node { cursor: pointer; }
-  #graph .edge { stroke: #2E2E3A; stroke-width: 1; }
+  #graph .edge { stroke: #243450; stroke-width: 1; }
   #graph .edge.lit { stroke: var(--cyan); stroke-width: 1.5; }
   #graph .node.faded { opacity: .18; }
   #graph .node.lit text { fill: var(--text); }
@@ -405,8 +388,8 @@
   #shareTree g.knot rect, #shareTree g.knot circle { transition: all .15s; }
   #shareTree .box { fill: var(--raised); stroke: var(--line-2); rx: 9; }
   #shareTree g.knot:hover .box, #shareTree g.knot.on .box {
-    fill: #2A2438; stroke: var(--accent); }
-  #shareTree .root .box { fill: rgba(139,92,246,.16); stroke: var(--accent); }
+    fill: #16274A; stroke: var(--accent); }
+  #shareTree .root .box { fill: rgba(125,187,255,.16); stroke: var(--accent); }
   #shareTree .contested .box { stroke: var(--cyan); }
   #shareTree text { font-family: var(--mono); font-size: 10.5px;
     fill: var(--text-2); pointer-events: none; }
@@ -450,7 +433,7 @@
     color: var(--text-2); background: none; border: 0; cursor: pointer;
     padding: 5px 12px 5px 20px; }
   .ed-file:hover { background: var(--raised); color: var(--text); }
-  .ed-file[aria-current="true"] { background: rgba(139,92,246,.16);
+  .ed-file[aria-current="true"] { background: rgba(125,187,255,.16);
     color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
   .ed-file i { width: 6px; height: 6px; border-radius: 50%; flex: none;
     background: transparent; }
@@ -480,8 +463,8 @@
   .ed-paint { color: var(--text-2); pointer-events: none; }
   .ed-input textarea { background: transparent; color: transparent;
     caret-color: var(--cyan); resize: none; outline: none; }
-  .ed-input textarea::selection { background: rgba(139,92,246,.35); }
-  .tok-key { color: #C4B5FD; }
+  .ed-input textarea::selection { background: rgba(125,187,255,.35); }
+  .tok-key { color: #B9DAFF; }
   .tok-str { color: #86EFAC; }
   .tok-com { color: var(--text-3); font-style: italic; }
   .tok-num { color: #FDBA74; }
@@ -522,6 +505,35 @@
   .mcp-band p { margin: 0; font-size: 13.5px; line-height: 1.6;
     color: var(--text-2); }
   .mcp-band > div:last-child i { color: var(--cyan); }
+  /* the loop on the landing page: the steps stacked on the left, the eye that
+     acts them out pinned on the right while they scroll past */
+  .watch { display: grid; gap: 48px; margin: 36px 0 0; align-items: start;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); }
+  .watch-steps { list-style: none; margin: 0; padding: 0; }
+  .watch-step { min-height: 54vh; display: flex; flex-direction: column;
+    justify-content: center; padding: 10px 0 10px 24px;
+    border-left: 2px solid var(--line); opacity: .38;
+    transition: opacity .35s ease, border-color .35s ease; }
+  .watch-step.on { opacity: 1; border-color: var(--accent); }
+  .watch-step .n { font: 500 11px/1 var(--mono); letter-spacing: .12em;
+    color: var(--accent); }
+  .watch-step:nth-child(3) .n { color: var(--cyan); }
+  .watch-step b { display: block; margin: 12px 0 10px; letter-spacing: -.02em;
+    font: 600 clamp(20px, 2.3vw, 26px)/1.2 var(--ui); }
+  .watch-step p { margin: 0; max-width: 42ch; font-size: 15px; line-height: 1.7;
+    color: var(--text-2); }
+  .watch-tag { display: flex; align-items: center; gap: 8px; margin-top: 18px;
+    font: 500 12.5px/1 var(--ui); color: var(--text-3); }
+  .watch-tag i { width: 8px; height: 8px; border-radius: 50%; flex: none;
+    background: var(--c); box-shadow: 0 0 10px var(--c); }
+  .watch-stage { position: sticky; top: 84px; width: 100%; max-width: 580px;
+    aspect-ratio: 1; justify-self: end; }
+  .watch-stage canvas { display: block; width: 100%; height: 100%; }
+  .watch-key { position: absolute; left: 0; right: 0; bottom: -4px; display: flex;
+    justify-content: center; flex-wrap: wrap; gap: 6px 16px;
+    font-size: 12px; color: var(--text-3); }
+  .watch-key span { display: inline-flex; align-items: center; gap: 6px; }
+  .watch-key i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 13px 20px;
     border-top: 1px solid var(--line); font-size: 12.5px; color: var(--text-3);
     align-items: center; }
@@ -571,6 +583,11 @@
     .step .state { grid-column: 2; }
     nav { width: 100%; overflow-x: auto; margin-left: 0; }
     #graph { height: 340px; }
+    /* the eye stays pinned above the steps instead of beside them */
+    .watch { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .watch-stage { order: -1; top: 60px; z-index: 2; height: 42vh; width: 100%;
+      aspect-ratio: auto; justify-self: stretch; background: var(--bg); }
+    .watch-step { min-height: 46vh; padding-left: 18px; }
   }
 </style>
 
@@ -612,7 +629,7 @@
         <h2 class="display">Don't find out<br>in production.</h2>
         <p class="lede">You and your agents are changing the same codebase at
           the same time. Prophecy checks the work against your collaborators
-          before any of it ships — so you find the collision now, not after a
+          before any of it ships, so you find the collision now, not after a
           day of building on top of it. Plug your coding agent in on the
           <button class="chip" data-tab-jump="mcp">MCP</button> tab.</p>
         <div class="hero-actions">
@@ -631,11 +648,46 @@
       </div>
     </div>
 
+    <!-- the loop, stated once, in the order it actually happens; the eye on
+         the right acts it out as the steps scroll past -->
+    <div class="watch" id="watch">
+      <ol class="watch-steps">
+        <li class="watch-step on"><span class="n">01</span>
+          <b>The agent asks first</b>
+          <p>Before it commits, a coding agent calls Prophecy over MCP: what does
+            this change reach, and who else is in here right now?</p>
+          <span class="watch-tag" style="--c:var(--cyan)"><i></i>Reading the dependency graph</span></li>
+        <li class="watch-step"><span class="n">02</span>
+          <b>It gets consequences, not a lint</b>
+          <p>A score with its range and confidence, the callers that would break,
+            and the other work in flight it is about to run into. It is read off
+            this project's real dependency graph.</p>
+          <span class="watch-tag" style="--c:var(--bad)"><i></i>Flagging what collides</span></li>
+        <li class="watch-step"><span class="n">03</span>
+          <b>You answer its agent</b>
+          <p>Send the risk profile of somebody's change straight to the agent
+            writing it. It arrives on that agent's next call, in the same words
+            Prophecy would have given it.</p>
+          <span class="watch-tag" style="--c:var(--good)"><i></i>Answers sent, flags cleared</span></li>
+      </ol>
+      <div class="watch-stage" role="img"
+           aria-label="An eye watching a network of files, flagging the ones that collide and clearing them once the agent is told">
+        <canvas id="eyeCanvas"></canvas>
+        <div class="watch-key" aria-hidden="true">
+          <span style="--c:var(--cyan)"><i></i>read</span>
+          <span style="--c:var(--warn)"><i></i>shared file</span>
+          <span style="--c:var(--bad)"><i></i>collision</span>
+          <span style="--c:var(--violet)"><i></i>changed signature</span>
+          <span style="--c:var(--good)"><i></i>answered</span>
+        </div>
+      </div>
+    </div>
+
     <div class="pulse-strip" id="pulseStrip" hidden>
       <div><b id="pFiles">0</b><span>files understood</span></div>
       <div><b id="pLinks">0</b><span>dependencies traced</span></div>
       <div><b id="pFlight">0</b><span>changes in flight</span></div>
-      <div><b id="pRisk">—</b><span>riskiest right now</span></div>
+      <div><b id="pRisk">none</b><span>riskiest right now</span></div>
     </div>
 
     <div class="steps">
@@ -708,9 +760,9 @@
     --cc-line: #3A3938; --cc-text: #F4F3EE; --cc-dim: #A8A29E; --cc-mute: #78716C;
     --claude: #D97757; --claude-2: #E8A087;
     --ok: #6B9F6B; --warn: #D4A017; --bad: #E07070;
-    --pr-bg: #0E0E14; --pr-card: #17171F; --pr-line: #2A2A36;
-    --pr-text: #F5F3FF; --pr-dim: #A3A3B5; --pr-mute: #6E6E82;
-    --pr-accent: #8B5CF6; --pr-cyan: #67E8F9;
+    --pr-bg: #0A111D; --pr-card: #111A2A; --pr-line: #1F2D45;
+    --pr-text: #EEF4FF; --pr-dim: #A2B1C9; --pr-mute: #6C7C96;
+    --pr-accent: #7DBBFF; --pr-cyan: #67E8F9;
     --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   }
@@ -859,26 +911,26 @@
       <div class="pipe" id="pipe" hidden></div>
       <div class="cards">
         <div class="card">
-          <div class="l">Tokens — the cost of reading</div>
+          <div class="l">Tokens: the cost of reading</div>
           <div class="v" id="tokSaved">$0.00 saved</div>
           <div class="meter" id="tokMeter"><i></i></div>
           <small id="tokBlurb">Nobody has asked Prophecy anything yet. Each agent that reads the repo by itself pays the full price.</small>
         </div>
         <div class="card">
-          <div class="l">Risk — would this break something?</div>
+          <div class="l">Risk: would this break something?</div>
           <div class="v" id="riskV">not scored yet</div>
           <div class="thermo"><i id="riskBar"></i></div>
           <small id="riskBlurb">Prophecy has not looked at Ada’s change yet.</small>
         </div>
         <div class="card">
-          <div class="l">Shared notes — what one agent told the next</div>
+          <div class="l">Shared notes: what one agent told the next</div>
           <div id="notes"><small>Nothing pinned on a file yet.</small></div>
         </div>
       </div>
       <ul class="why" id="why"></ul>
     </aside>
   </div>
-  <div class="foot">A simulation. Prophecy is a local MCP server — Claude Code talks to it over stdio, on this machine. Nothing here is a live model call.</div>
+  <div class="foot">A simulation. Prophecy is a local MCP server, and Claude Code talks to it over stdio, on this machine. Nothing here is a live model call.</div>
 </div>
 
 <script>
@@ -904,24 +956,24 @@ const STEPS = [
   {
     kicker: "The first briefing",
     title: "Claude pays once to learn the repo.",
-    said: "Prophecy sends back two piles of text. The first pile is a <b>map of the project</b> — 1,067 tokens. That map is the same for every agent on this commit, so it gets cached. Think of it as buying a street map. The second pile is Ada’s own job, which is unique, so it is not cached.",
+    said: "Prophecy sends back two piles of text. The first pile is a <b>map of the project</b>, 1,067 tokens. That map is the same for every agent on this commit, so it gets cached. Think of it as buying a street map. The second pile is Ada’s own job, which is unique, so it is not cached.",
     tool: {
-      name: "prophecy — join_repo_session",
+      name: "prophecy · join_repo_session",
       args: "agent: ada · task: Make email required",
-      result: "Map of prophecy-demo (1,067 tokens) — saved to cache.\nYour job sits after the map, so changing it is free for the cache.\nLikely files: app/models.py, api/signup.py\n15 other files import models.py.",
+      result: "Map of prophecy-demo (1,067 tokens), saved to cache.\nYour job sits after the map, so changing it is free for the cache.\nLikely files: app/models.py, api/signup.py\n15 other files import models.py.",
     },
     claude: "Prophecy says models.py is the center of this. Fifteen files import it. I’ll start there.",
     pipe: { dir: "Claude Code → Prophecy", text: "tools/call  join_repo_session\n{ agent: \"ada\", task: \"Make email required\" }" },
     pipe2: { dir: "Prophecy → Claude Code", text: "briefing\nprefix 1,067 tokens  (cache WRITE × 1.25)\ntask 2,136 tokens" },
     tokens: { naive: BASELINE + ADA_TASK, billed: PREFIX * 1.25 + ADA_TASK, blurb: "Ada just paid to write the shared map into cache (a little extra the first time). The next agent will read that map at one tenth the price.", pct: 35 },
-    why: ["A token is a chunk of text the model is charged for.", "The shared map is identical for Ada, Grace, and Linus — so it belongs in the cache.", "Ada’s actual task is different, so it goes after the map, where it cannot spoil the cache."],
+    why: ["A token is a chunk of text the model is charged for.", "The shared map is identical for Ada, Grace, and Linus, so it belongs in the cache.", "Ada’s actual task is different, so it goes after the map, where it cannot spoil the cache."],
   },
   {
     kicker: "A note on a file",
     title: "Claude learns something, and hands it over.",
-    said: "Claude noticed that every caller of create_user skips email today. That took work to see. Instead of leaving it in this chat — where Grace will never find it — Claude tells Prophecy. Prophecy pins the note on <b>app/models.py</b>. The next agent that goes there gets it for free.",
+    said: "Claude noticed that every caller of create_user skips email today. That took work to see. Instead of leaving it in this chat, where Grace will never find it, Claude tells Prophecy. Prophecy pins the note on <b>app/models.py</b>. The next agent that goes there gets it for free.",
     tool: {
-      name: "prophecy — share_finding",
+      name: "prophecy · share_finding",
       args: "file: app/models.py",
       result: "Recorded. The next agent sent to this file is told.",
     },
@@ -936,7 +988,7 @@ const STEPS = [
     said: "Grace is a teammate. Her Cursor is a <b>different program</b>. It does not share memory with Ada’s Claude Code. The only thing they share is Prophecy, sitting on this machine, holding the map and the notes.",
     other: "Grace’s Cursor connected to the same Prophecy (MCP, a second process).",
     pipe: { dir: "Grace’s Cursor → Prophecy", text: "initialize  { clientInfo: { name: \"cursor\" } }\ntools/call  join_repo_session" },
-    pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map — CACHE HIT × 0.1\nnote from Ada already in the briefing" },
+    pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map: CACHE HIT × 0.1\nnote from Ada already in the briefing" },
     tokens: { naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK), billed: (PREFIX * 1.25 + ADA_TASK) + (PREFIX * 0.1 + GRACE_TASK), blurb: "Grace did not buy the map. She photocopied Ada’s, at 1/10th the price. She also got Ada’s note, so she did not spend tokens hunting for it.", pct: 62 },
     why: ["Two coding agents. Two MCP plugs. One Prophecy.", "Cache hit = the bytes of the map matched, so the model was not charged full price again.", "Ada’s finding travelled with the briefing. That is context sharing."],
   },
@@ -945,20 +997,20 @@ const STEPS = [
     title: "Claude asks mid-work, not only at the start.",
     said: "This is why MCP beats a one-time cheat sheet. Grace sat down <b>after</b> Ada started. Ada’s Claude can ask again: “is anyone in my files right now?” Prophecy looks at live sessions, branches, and pull requests.",
     tool: {
-      name: "prophecy — check_overlap",
+      name: "prophecy · check_overlap",
       args: "files: api/signup.py",
       result: "Yes. Grace’s Cursor is redesigning signup.\nBoth of you reach create_user.",
     },
     claude: "Grace is in signup at the same time. I’ll get a proper risk score before I commit.",
     pipe: { dir: "Claude Code → Prophecy", text: "tools/call  check_overlap\n{ agent: \"ada\", files: [\"api/signup.py\"] }" },
-    why: ["A CLI briefing is stale the moment a teammate joins.", "MCP lets Claude ask again, any time.", "Overlap here is not “same filename” only — both changes reach create_user."],
+    why: ["A CLI briefing is stale the moment a teammate joins.", "MCP lets Claude ask again, any time.", "Overlap here is not “same filename” only: both changes reach create_user."],
   },
   {
     kicker: "How risk is scored",
     title: "Prophecy does not look for bugs. It looks for blast radius.",
     said: "Claude is about to commit. It asks <b>analyze_change</b>. Prophecy walks the real dependency graph: which files import this, which functions changed shape, who else is in flight. Then it gives a score with a range, not a yes/no.",
     tool: {
-      name: "prophecy — analyze_change",
+      name: "prophecy · analyze_change",
       args: "head: agent-a/require-email",
       result: "84 / 100  critical   (range 71–93, 78% sure)\nBlast radius: 15 files import models.py.\ncreate_user no longer accepts a missing email.\nHappening at the same time: Grace on signup.",
     },
@@ -968,15 +1020,15 @@ const STEPS = [
     why: [
       "Score = how far the change reaches + whether someone else is in that reach.",
       "Range (71–93) is honesty: Prophecy is not 100% sure, and it says so.",
-      "Together with Grace it would read even worse — one changing what is stored, the other changing who writes it.",
+      "Together with Grace it would read even worse: one changing what is stored, the other changing who writes it.",
     ],
   },
   {
     kicker: "The warning, no click",
     title: "The score was high enough. Prophecy warned Claude on its own.",
     said: "Ada did not press a button. Nobody on a dashboard had to click “Send this to Ada’s Claude Code.” Eighty-four is past the line (high and critical). Prophecy dropped the same words into Ada’s inbox. They arrived on this call, at the top, under <b>For you, from your team</b>.",
-    inbox: { title: "For you, from your team", body: "Risk profile for require-email — 84/100 (critical).\n15 files import models.py. Combined with Grace’s Cursor: worse than either alone.\nSent automatically because the score was high enough." },
-    claude: "Got it — that’s the same score, sent as a warning so I can’t miss it. I’ll coordinate with Grace before this lands.",
+    inbox: { title: "For you, from your team", body: "Risk profile for require-email: 84/100 (critical).\n15 files import models.py. Combined with Grace’s Cursor: worse than either alone.\nSent automatically because the score was high enough." },
+    claude: "Got it, that’s the same score, sent as a warning so I can’t miss it. I’ll coordinate with Grace before this lands.",
     pipe: { dir: "Prophecy → Claude Code", text: "## For you, from your team\n(queued automatically at 84/100)\n…then the answer to analyze_change" },
     why: ["An agent cannot be poked. It only reads when it already asked something.", "So the warning rides along on the next MCP call.", "High and critical do not wait for a human to notice the red card."],
   },
@@ -991,7 +1043,7 @@ const STEPS = [
       blurb: "Three agents. One paid map. Two cheap rereads. Notes passed along so nobody re-learns create_user. That is the token story.",
       pct: 88,
     },
-    why: ["Naive cost = every agent reads the whole project, every time.", "Actual cost = map once, then tiny cache reads, plus each task.", "The leftover is tokens you did not spend — the number on Prophecy’s Context tab."],
+    why: ["Naive cost = every agent reads the whole project, every time.", "Actual cost = map once, then tiny cache reads, plus each task.", "The leftover is tokens you did not spend: the number on Prophecy’s Context tab."],
   },
   {
     kicker: "What you saw",
@@ -999,10 +1051,10 @@ const STEPS = [
     said: "Left side: a programmer’s Claude Code, talking to Prophecy through MCP like any other tool. Right side: what that was really doing. The map is paid once. Notes stick to files. Risk is “who else does this hit,” scored before a commit. When the score is high, the warning shows up in Claude by itself.",
     claude: "I’ll wait for Grace before I commit the email change. Prophecy will keep watching this file.",
     why: [
-      "MCP connection — Claude Code plugged into a local Prophecy process.",
-      "Tokens saved — shared map cached; later agents pay 1/10th; findings are not rediscovered.",
-      "Context shared — a note on a file, handed to the next agent that goes there.",
-      "Risk — blast radius + teammates in that radius, with a range, not a vibe.",
+      "MCP connection: Claude Code plugged into a local Prophecy process.",
+      "Tokens saved: shared map cached; later agents pay 1/10th; findings are not rediscovered.",
+      "Context shared: a note on a file, handed to the next agent that goes there.",
+      "Risk: blast radius + teammates in that radius, with a range, not a vibe.",
     ],
   },
 ];
@@ -1155,8 +1207,8 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
           this change reach, and who else is in here right now?</p></div>
       <div><i>02</i><b>It gets consequences, not a lint</b>
         <p>A score with its range and confidence, the callers that would break,
-          and the other work in flight it is about to run into — read off this
-          project's real dependency graph.</p></div>
+          and the other work in flight it is about to run into. It is read off
+          this project's real dependency graph.</p></div>
       <div><i>03</i><b>You answer its agent</b>
         <p>Send the risk profile of somebody's change straight to the agent
           writing it. It arrives on that agent's next call, in the same words
@@ -1170,22 +1222,22 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <p>Paste one block of settings into your coding agent. After that,
           every agent that opens this project checks in on its own.</p>
         <p class="story">An agent writing code here does not have to guess who
-          else is in the codebase — it asks, over MCP, and gets an answer built
+          else is in the codebase. It asks, over MCP, and gets an answer built
           from this project's real dependency graph. And it works both ways:
           when you send an agent the risk profile of what it is doing, that
           reading is waiting for it the next time it asks anything.</p>
         <div class="mcp-loop">
           <div><b>The agent asks</b>
             <ul>
-              <li><code>join_repo_session</code> — who else is here, and what
+              <li><code>join_repo_session</code>: who else is here, and what
                 they have already worked out</li>
-              <li><code>analyze_change</code> — what this change would break,
+              <li><code>analyze_change</code>: what this change would break,
                 before committing it</li>
-              <li><code>check_overlap</code> — whether these files are
+              <li><code>check_overlap</code>: whether these files are
                 somebody else's files too</li>
-              <li><code>get_change_interactions</code> — what this change
+              <li><code>get_change_interactions</code>: what this change
                 looks like next to everything else in flight</li>
-              <li><code>share_finding</code> — hands something back for the
+              <li><code>share_finding</code>: hands something back for the
                 next agent that goes there</li>
             </ul></div>
           <div><b>Prophecy answers</b>
@@ -1203,7 +1255,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
           <span class="hint" id="agentSeen" style="margin-left:12px"></span></p>
         <details style="margin-top:14px">
           <summary>Show what gets pasted</summary>
-          <pre id="mcpConfig" class="empty">—</pre>
+          <pre id="mcpConfig" class="empty">Pick a project first.</pre>
           <p class="hint">Eight tools in total, including
             <code>get_repository_risk</code>,
             <code>get_dependency_context</code> and
@@ -1257,7 +1309,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         task and nothing else.</p>
     </div>
 
-    <p class="scope-note">Scoped to <b id="scopeName">this project</b> —
+    <p class="scope-note">Scoped to <b id="scopeName">this project</b>:
       its own history, findings and settings. Nothing here is shared with your
       other projects unless you point Prophecy at them.</p>
 
@@ -1285,7 +1337,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <div class="share-detail" id="shareDetail">
           <p class="hint" style="margin:0">Hover a line to follow it. Click an
             agent to see what it contributed, or a file to see what was said
-            about it — and to open it.</p>
+            about it, and to open it.</p>
         </div>
       </div>
     </div>
@@ -1313,7 +1365,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <p class="hint" style="margin:0 0 12px">Identical for every agent on
           this commit, so it is paid for roughly once. Each agent's own task
           goes after it, where changing it costs nothing.</p>
-        <pre id="briefPrefix" class="empty">—</pre>
+        <pre id="briefPrefix" class="empty">Nothing sent yet.</pre>
       </div>
     </div>
   </section>
@@ -1323,12 +1375,12 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
       <h2 class="title">What could this break?</h2>
       <p class="lede">Every branch and pull request in flight, scored against
         the rest of the codebase and against each other. Not "is there a bug in
-        this diff" — "given everything else happening here, what are the
+        this diff", but "given everything else happening here, what are the
         consequences of this one".</p>
     </div>
 
     <div class="headline-stat" id="repoRiskCard" hidden>
-      <div class="money" id="repoRisk">—
+      <div class="money" id="repoRisk">n/a
         <small id="repoRiskLabel">across everything in flight</small></div>
       <div class="sub-stats">
         <div><b id="riskChanges">0</b><span>changes in flight</span></div>
@@ -1388,7 +1440,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
 
     <div class="card">
       <h3>Worth knowing about single branches</h3>
-      <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">—</p></div>
+      <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">None right now.</p></div>
     </div>
 
     <div class="card">
@@ -1408,7 +1460,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
       <div class="body">
         <p class="hint" style="margin:0 0 12px">Nothing here has been sent to
           GitHub. Posting is yours to do.</p>
-        <pre id="prComment">—</pre>
+        <pre id="prComment">No comment yet.</pre>
         <p class="hint"><code id="prCommand"></code></p>
       </div>
     </div>
@@ -1504,7 +1556,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
      editor inside it is that the consequences stay on screen while you type. -->
 <div id="editor" hidden aria-hidden="true">
   <header class="ed-bar">
-    <span class="ed-path" id="edPath">—</span>
+    <span class="ed-path" id="edPath">no file open</span>
     <span class="ed-dirty" id="edDirty" hidden>unsaved</span>
     <span class="ed-branch mono dim" id="edBranch"></span>
     <span style="flex:1"></span>
@@ -1838,7 +1890,7 @@ const BEATS = [
   'Three people change the same project in the same week.',
   'Reviewed one at a time, every change looks safe.',
   'No two of them touch the same file, yet all three reach users.email.',
-  'Together they score as critical \u2014 the kind of thing you normally find '
+  'Together they score as critical, the kind of thing you normally find '
     + 'in production.',
 ];
 
@@ -1863,7 +1915,7 @@ function buildStage() {
   svg.innerHTML = `
     <defs>
       <linearGradient id="hot" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#F87171"/>
+        <stop offset="0" stop-color="#7DBBFF"/><stop offset="1" stop-color="#F87171"/>
       </linearGradient>
       <linearGradient id="cool" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stop-color="#67E8F9" stop-opacity=".45"/>
@@ -1879,12 +1931,12 @@ function buildStage() {
       <g class="row" data-i="${i}" opacity="0"
          transform="translate(-14 0)">
         <rect class="plate" x="4" y="${c.y - 19}" width="150" height="38" rx="11"
-          fill="#1A1A24" stroke="#33333F"/>
-        <text x="16" y="${c.y - 3}" fill="#F5F3FF" font-size="10.5"
+          fill="#131E31" stroke="#2A3B58"/>
+        <text x="16" y="${c.y - 3}" fill="#EEF4FF" font-size="10.5"
           font-weight="600">${c.who}</text>
-        <text x="16" y="${c.y + 12}" fill="#9B9BAF" font-size="9.5">${c.what}</text>
+        <text x="16" y="${c.y + 12}" fill="#93A4BF" font-size="9.5">${c.what}</text>
         <text class="num" x="144" y="${c.y + 3}" text-anchor="end" font-size="11"
-          font-family="var(--mono)" fill="#9B9BAF">${c.score}</text>
+          font-family="var(--mono)" fill="#93A4BF">${c.score}</text>
       </g>`).join('')}
     ${CAST.map((c, i) => `
       <path class="wire" data-i="${i}" fill="none" stroke-linecap="round"
@@ -1893,8 +1945,8 @@ function buildStage() {
         stroke-dasharray="6 168" stroke-dashoffset="174" opacity="0"/>`).join('')}
     <g id="target" opacity="0">
       <rect id="targetPlate" x="236" y="101" width="116" height="38" rx="11"
-        fill="#1A1A24" stroke="#67E8F9"/>
-      <text x="294" y="124" text-anchor="middle" fill="#F5F3FF" font-size="11"
+        fill="#131E31" stroke="#67E8F9"/>
+      <text x="294" y="124" text-anchor="middle" fill="#EEF4FF" font-size="11"
         font-family="var(--mono)">users.email</text>
     </g>
     <g id="verdict" opacity="0">
@@ -1929,11 +1981,11 @@ function buildCrew() {
       </linearGradient>
     </defs>
     <g id="hub" opacity="0">
-      <rect x="150" y="100" width="116" height="40" rx="12" fill="#1A1A24"
-        stroke="#8B5CF6"/>
-      <text x="208" y="118" text-anchor="middle" fill="#F5F3FF" font-size="10"
+      <rect x="150" y="100" width="116" height="40" rx="12" fill="#131E31"
+        stroke="#7DBBFF"/>
+      <text x="208" y="118" text-anchor="middle" fill="#EEF4FF" font-size="10"
         font-family="var(--mono)">shared background</text>
-      <text x="208" y="131" text-anchor="middle" fill="#9B9BAF" font-size="8.5"
+      <text x="208" y="131" text-anchor="middle" fill="#93A4BF" font-size="8.5"
         font-family="var(--mono)">sent once, cached</text>
     </g>
     <g id="waste" opacity="0">
@@ -1949,8 +2001,8 @@ function buildCrew() {
     ${AGENTS.map((a, i) => `
       <g class="who" data-i="${i}" opacity="0">
         <rect x="${a.x - 44}" y="${a.y - 15}" width="88" height="30" rx="9"
-          fill="#1A1A24" stroke="#33333F"/>
-        <text x="${a.x}" y="${a.y + 4}" text-anchor="middle" fill="#F5F3FF"
+          fill="#131E31" stroke="#2A3B58"/>
+        <text x="${a.x}" y="${a.y + 4}" text-anchor="middle" fill="#EEF4FF"
           font-size="10.5" font-weight="600">${a.who}</text>
       </g>
       <path class="feed" data-i="${i}" fill="none" stroke="#67E8F9"
@@ -1996,11 +2048,11 @@ function playCrew(done) {
     if (phase === 1) {
       el.waste.setAttribute('opacity', ease(Math.min(1, p * 1.6)).toFixed(3));
       el.people.forEach(g => g.querySelector('rect')
-        .setAttribute('stroke', p > .4 ? '#7A3B3B' : '#33333F'));
+        .setAttribute('stroke', p > .4 ? '#7A3B3B' : '#2A3B58'));
     } else if (phase > 1) {
       el.waste.setAttribute('opacity', 0);
       el.people.forEach(g => g.querySelector('rect')
-        .setAttribute('stroke', '#33333F'));
+        .setAttribute('stroke', '#2A3B58'));
     }
     if (phase >= 2) {
       const k = phase > 2 ? 1 : ease(p);
@@ -2019,7 +2071,7 @@ function playCrew(done) {
       el.handoff.setAttribute('opacity', .95);
       el.handoff.setAttribute('stroke-dashoffset', (-290 * k).toFixed(1));
       el.people[2].querySelector('rect').setAttribute(
-        'stroke', k > .55 ? '#4ED8A0' : '#33333F');
+        'stroke', k > .55 ? '#4ED8A0' : '#2A3B58');
     }
     if (phase === 0) el.svg.style.opacity = Math.min(1, (now - t0) / 520).toFixed(3);
     if (phase === 4) el.svg.style.opacity = (1 - ease(p)).toFixed(3);
@@ -2112,16 +2164,16 @@ function buildImpact() {
       return `<g class="fig" data-i="${i}" opacity="0"
                  transform="translate(0 8)">
         <rect x="${x0}" y="${y0}" width="176" height="102" rx="13"
-          fill="#1A1A24" stroke="#33333F"/>
+          fill="#131E31" stroke="#2A3B58"/>
         <text class="figBig" data-i="${i}" x="${x0 + 16}" y="${y0 + 42}"
-          fill="#F5F3FF" font-size="27" font-weight="700"
+          fill="#EEF4FF" font-size="27" font-weight="700"
           letter-spacing="-1">${x.big}</text>
         ${wrap(x.label, 30).map((line, n) =>
-          `<text x="${x0 + 16}" y="${y0 + 58 + n * 12}" fill="#C9C9DA"
+          `<text x="${x0 + 16}" y="${y0 + 58 + n * 12}" fill="#C4D0E4"
             font-size="9">${line}</text>`).join('')}
         ${wrap(x.note, 34).map((line, n) =>
           `<text x="${x0 + 16}" y="${y0 + 58 + wrap(x.label, 30).length * 12
-            + n * 11}" fill="#7A7A8C" font-size="8">${line}</text>`).join('')}
+            + n * 11}" fill="#71819B" font-size="8">${line}</text>`).join('')}
       </g>`;
     }).join('')}`;
   return { svg, figs: [...svg.querySelectorAll('.fig')] };
@@ -2235,9 +2287,9 @@ function playStage() {
       el.nums.forEach((n, i) => {
         const lit = phase > 1 || p > 0.3 + i * 0.2;
         n.setAttribute('fill', lit && CAST[i].hot ? '#F87171'
-          : lit ? '#C9C9DA' : '#9B9BAF');
+          : lit ? '#C4D0E4' : '#93A4BF');
       });
-      if (phase > 1 || p > 0.5) el.plates[0].setAttribute('stroke', '#5B4A7A');
+      if (phase > 1 || p > 0.5) el.plates[0].setAttribute('stroke', '#3F5F8F');
     }
 
     // 2 — the wires travel, and the field they all reach lights up
@@ -2283,8 +2335,8 @@ function playStage() {
           el.plate.setAttribute('stroke', '#67E8F9');
           el.verdict.setAttribute('opacity', 0);
           el.halo.setAttribute('opacity', 0);
-          el.nums.forEach(n => n.setAttribute('fill', '#9B9BAF'));
-          el.plates.forEach(x => x.setAttribute('stroke', '#33333F'));
+          el.nums.forEach(n => n.setAttribute('fill', '#93A4BF'));
+          el.plates.forEach(x => x.setAttribute('stroke', '#2A3B58'));
         }
       }
     }
@@ -2293,6 +2345,389 @@ function playStage() {
   requestAnimationFrame(frame);
 }
 playStage();
+
+/* ── the eye ──────────────────────────────────────────────────
+   The three steps beside it are the story and this is the same story drawn.
+   Scroll position, not time, decides how far it has got: q runs from 0 (the
+   first step centred) to 2 (the last), so scrolling back plays it in reverse.
+   Time only drives what should always be moving: the rings turning, the
+   sweep, the blink. Everything is drawn on one canvas, and the loop runs only
+   while the section is on screen. */
+(function eye() {
+  const root = document.getElementById('watch');
+  const cv = document.getElementById('eyeCanvas');
+  if (!root || !cv || !cv.getContext) return;
+  const ctx = cv.getContext('2d');
+  const steps = [...root.querySelectorAll('.watch-step')];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const cs = getComputedStyle(document.documentElement);
+  const tok = n => {
+    let h = cs.getPropertyValue(n).trim().replace('#', '');
+    if (h.length === 3) h = h.replace(/./g, c => c + c);
+    const v = parseInt(h, 16);
+    return [v >> 16 & 255, v >> 8 & 255, v & 255];
+  };
+  const C = { read: tok('--cyan'), warn: tok('--warn'), bad: tok('--bad'),
+              sig: tok('--violet'), ok: tok('--good'), ink: tok('--bg'),
+              white: [238, 244, 255], dim: [104, 120, 150] };
+  const FLAG = { warn: C.warn, bad: C.bad, sig: C.sig };
+  const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  const lerpC = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const clamp = (x, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, x));
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const TAU = Math.PI * 2;
+
+  // a fixed seed, so the network is the same picture every visit
+  let seed = 11;
+  const rnd = () => {
+    seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+
+  // rings of nodes turning about the eye, alternating direction
+  const RINGS = [
+    { r: .30, n: 6,  w:  .070 }, { r: .40, n: 9,  w: -.050 },
+    { r: .50, n: 12, w:  .038 }, { r: .60, n: 15, w: -.028 },
+    { r: .70, n: 18, w:  .022 },
+  ];
+  const nodes = [];
+  RINGS.forEach((ring, ri) => {
+    for (let j = 0; j < ring.n; j++) {
+      const hub = rnd() < .16;
+      nodes.push({
+        ri, a0: (j + (rnd() - .5) * .5) / ring.n * TAU + ri,
+        size: hub ? 4 + rnd() * 2 : 1.8 + rnd() * 1.6,
+        seenAt: rnd() * .9, phase: rnd(), arc: rnd() > .28,
+        flag: null, x: 0, y: 0, ang: 0,
+        s: { seen: 0, f: 0, r: 0, c: C.dim, a: .3, size: 2 },
+      });
+    }
+  });
+  const byRing = RINGS.map((_, ri) => nodes.filter(n => n.ri === ri));
+
+  // what gets caught. The outer ring carries the named ones, evenly spaced and
+  // turning as one, so their labels never run into each other.
+  const NAMED = [
+    ['users.email', 'bad'], ['api/middleware.py', 'warn'], ['schema.sql', 'sig'],
+    ['auth/session.py', 'bad'], ['billing/plans.ts', 'warn'], ['requirements.txt', 'sig'],
+  ];
+  const flagged = [];
+  NAMED.forEach(([label, type], k) => {
+    const n = byRing[4][1 + k * 3];
+    n.flag = { type, label };
+    flagged.push(n);
+  });
+  nodes.filter(n => n.ri > 0 && n.ri < 4 && !n.flag)
+    .sort(() => rnd() - .5).slice(0, 9)
+    .forEach((n, k) => { n.flag = { type: ['warn', 'bad', 'sig'][k % 3] }; flagged.push(n); });
+  // shuffled, so the eye looks all around instead of down one side
+  flagged.sort(() => rnd() - .5).forEach((n, k) => {
+    n.flag.at = .92 + k * .034;          // when it is caught
+    n.flag.rat = 1.5 + rnd() * .38;      // when its answer lands
+    n.seenAt = Math.min(n.seenAt, n.flag.at - .25);
+  });
+
+  let R = 200, W = 0, H = 0;
+  function fit() {
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return false;
+    const d = Math.min(devicePixelRatio || 1, 2);
+    if (cv.width !== Math.round(w * d) || cv.height !== Math.round(h * d)) {
+      cv.width = Math.round(w * d); cv.height = Math.round(h * d);
+    }
+    W = w; H = h; R = Math.min(w, h) / 2;
+    ctx.setTransform(d, 0, 0, d, w * d / 2, h * d / 2);
+    return true;
+  }
+
+  // 0 with the first step centred, 2 with the last one centred
+  function target() {
+    const mid = innerHeight * (matchMedia('(max-width: 760px)').matches ? .72 : .5);
+    const c = steps.map(s => { const r = s.getBoundingClientRect(); return r.top + r.height / 2; });
+    const p = (mid - c[0]) / (c[c.length - 1] - c[0]);
+    let on = 0, best = Infinity;
+    c.forEach((y, i) => { const d = Math.abs(y - mid); if (d < best) { best = d; on = i; } });
+    steps.forEach((s, i) => s.classList.toggle('on', i === on));
+    return clamp(p) * 2;
+  }
+
+  function place(t) {
+    nodes.forEach(n => {
+      const ring = RINGS[n.ri];
+      n.ang = n.a0 + ring.w * t;
+      n.x = Math.cos(n.ang) * ring.r * R;
+      n.y = Math.sin(n.ang) * ring.r * R;
+    });
+  }
+
+  // what each node looks like at this point in the story
+  function settle(q) {
+    nodes.forEach(n => {
+      const s = n.s;
+      s.seen = smooth(n.seenAt, n.seenAt + .1, q);
+      let c = lerpC(C.dim, C.read, s.seen);
+      let a = .32 + .6 * s.seen, size = n.size;
+      s.f = s.r = 0;
+      if (n.flag) {
+        s.f = smooth(n.flag.at, n.flag.at + .05, q);
+        s.r = smooth(n.flag.rat, n.flag.rat + .1, q);
+        c = lerpC(c, FLAG[n.flag.type], s.f);
+        c = lerpC(c, C.ok, s.r);
+        a = Math.max(a, .95 * s.f);
+        size *= 1 + .55 * s.f * (1 - s.r);
+      }
+      s.c = c; s.a = a; s.size = size;
+    });
+  }
+
+  function sweep(phi, alpha) {
+    if (alpha < .01) return;
+    const rr = .74 * R;
+    if (ctx.createConicGradient) {
+      const g = ctx.createConicGradient(phi - 1, 0, 0);
+      g.addColorStop(0, rgba(C.read, 0));
+      g.addColorStop(.159, rgba(C.read, .24 * alpha));
+      g.addColorStop(.1592, rgba(C.read, 0));
+      g.addColorStop(1, rgba(C.read, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, TAU); ctx.fill();
+    }
+    ctx.strokeStyle = rgba(C.read, .45 * alpha); ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(phi) * .2 * R, Math.sin(phi) * .2 * R);
+    ctx.lineTo(Math.cos(phi) * rr, Math.sin(phi) * rr);
+    ctx.stroke();
+  }
+
+  function rings() {
+    ctx.lineWidth = 1;
+    byRing.forEach(list => {
+      list.forEach((a, j) => {
+        if (!a.arc) return;
+        const last = j === list.length - 1;
+        const b = list[last ? 0 : j + 1];
+        const a1 = a.ang + .05, a2 = b.ang + (last ? TAU : 0) - .05;
+        if (a2 <= a1) return;
+        const lit = Math.min(a.s.seen, b.s.seen);
+        ctx.strokeStyle = rgba(lerpC(C.dim, C.read, lit), .16 + .2 * lit);
+        ctx.beginPath();
+        ctx.arc(0, 0, RINGS[a.ri].r * R, a1, a2);
+        ctx.stroke();
+      });
+    });
+  }
+
+  function links() {
+    const D = .21 * R, D2 = D * D;
+    ctx.lineWidth = .8;
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+        if (d2 > D2) continue;
+        const w = 1 - Math.sqrt(d2) / D;
+        const both = Math.min(a.s.seen, b.s.seen);
+        let c = lerpC(C.dim, C.read, both);
+        let al = w * (.10 + .30 * both);
+        // a link leaving a flagged, unanswered node carries that flag's colour
+        const fa = a.s.f * (1 - a.s.r), fb = b.s.f * (1 - b.s.r);
+        const fm = Math.max(fa, fb);
+        if (fm > 0) {
+          c = lerpC(c, FLAG[(fa >= fb ? a : b).flag.type], fm);
+          al += .34 * fm * w;
+        }
+        ctx.strokeStyle = rgba(c, al);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+    }
+  }
+
+  function dots(t) {
+    nodes.forEach(n => {
+      const s = n.s;
+      if (n.size > 4 && s.seen > 0) {            // hubs glow once read
+        ctx.fillStyle = rgba(s.c, .14 * s.seen);
+        ctx.beginPath(); ctx.arc(n.x, n.y, s.size + 5, 0, TAU); ctx.fill();
+      }
+      if (n.flag && s.f > 0 && s.r < 1) {        // the alarm going out from it
+        const ph = (t * .8 + n.phase) % 1;
+        ctx.strokeStyle = rgba(s.c, .55 * (1 - ph) * s.f * (1 - s.r));
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(n.x, n.y, s.size + 2 + ph * 17, 0, TAU); ctx.stroke();
+      }
+      if (n.flag && s.r > .3) {                  // answered
+        ctx.strokeStyle = rgba(C.ok, .55 * s.r);
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(n.x, n.y, s.size + 3.5, 0, TAU); ctx.stroke();
+      }
+      ctx.fillStyle = rgba(s.c, s.a);
+      ctx.beginPath(); ctx.arc(n.x, n.y, s.size, 0, TAU); ctx.fill();
+    });
+  }
+
+  function labels() {
+    ctx.font = '500 11px "IBM Plex Mono", ui-monospace, monospace';
+    ctx.textBaseline = 'middle';
+    flagged.forEach(n => {
+      if (!n.flag.label || n.s.f < .02) return;
+      const s = n.s;
+      const w = ctx.measureText(n.flag.label).width + 24, h = 22;
+      const ux = n.x / (Math.hypot(n.x, n.y) || 1), uy = n.y / (Math.hypot(n.x, n.y) || 1);
+      let x = n.x + ux * 16 - (ux < 0 ? w : 0), y = n.y + uy * 16 - h / 2;
+      x = clamp(x, -W / 2 + 3, W / 2 - 3 - w); y = clamp(y, -H / 2 + 3, H / 2 - 3 - h);
+      const al = clamp(s.f * 1.4) * (1 - .35 * s.r);
+      ctx.globalAlpha = al;
+      ctx.strokeStyle = rgba(s.c, .5); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(n.x, n.y);
+      ctx.lineTo(clamp(n.x, x, x + w), clamp(n.y, y, y + h)); ctx.stroke();
+      ctx.fillStyle = rgba(C.ink, .92);
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 11); else ctx.rect(x, y, w, h);
+      ctx.fill();
+      ctx.strokeStyle = rgba(s.c, .8); ctx.stroke();
+      ctx.fillStyle = rgba(s.c, 1);
+      ctx.beginPath(); ctx.arc(x + 11, y + h / 2, 3, 0, TAU); ctx.fill();
+      ctx.fillStyle = rgba(C.white, .92);
+      ctx.textAlign = 'left'; ctx.fillText(n.flag.label, x + 19, y + h / 2 + .5);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  // the answers leaving the eye for the things it flagged
+  function answers(q) {
+    flagged.forEach(n => {
+      const p = smooth(n.flag.rat - .17, n.flag.rat, q);
+      if (p <= 0 || p >= 1) return;
+      const x = n.x * p, y = n.y * p;
+      ctx.strokeStyle = rgba(C.ok, .35 * (1 - p) + .1);
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(n.x * .22 * (1 - p), n.y * .22 * (1 - p)); ctx.lineTo(x, y); ctx.stroke();
+      ctx.fillStyle = rgba(C.ok, 1);
+      ctx.beginPath(); ctx.arc(x, y, 2.6, 0, TAU); ctx.fill();
+    });
+  }
+
+  function almond(a, h, open) {
+    const hh = h * open / .75;
+    ctx.beginPath();
+    ctx.moveTo(-a, 0);
+    ctx.bezierCurveTo(-a * .5, -hh, a * .5, -hh, a, 0);
+    ctx.bezierCurveTo(a * .5, hh, -a * .5, hh, -a, 0);
+    ctx.closePath();
+  }
+
+  // the logo, redrawn so it can look around and change colour
+  function drawEye(open, gx, gy, col, alert, t) {
+    const a = .225 * R, h = .13 * R;
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, .34 * R);
+    halo.addColorStop(0, rgba(col, .10 + .16 * alert));
+    halo.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, .34 * R, 0, TAU); ctx.fill();
+
+    almond(a, h, open);
+    ctx.fillStyle = rgba(C.ink, .96); ctx.fill();
+    ctx.strokeStyle = rgba(C.white, .9); ctx.lineWidth = 1.6; ctx.stroke();
+    almond(a * .87, h * .84, open);
+    ctx.strokeStyle = rgba(C.white, .45); ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.save();
+    almond(a * .87, h * .84, open); ctx.clip();
+    const ix = gx * .03 * R, iy = gy * .022 * R, ir = .095 * R;
+    ctx.strokeStyle = rgba(C.white, .85); ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.arc(ix, iy, ir, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = rgba(C.white, .5); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(ix, iy, ir * .74, 0, TAU); ctx.stroke();
+    if (alert > .02) {                        // it rings when it has found something
+      const ph = (t * .9) % 1;
+      ctx.strokeStyle = rgba(col, .5 * (1 - ph) * alert); ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(ix, iy, ir + ph * .07 * R, 0, TAU); ctx.stroke();
+    }
+    const k = ir * .58;                       // the warning triangle
+    ctx.strokeStyle = rgba(col, 1); ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(ix, iy - k); ctx.lineTo(ix + k * .95, iy + k * .62);
+    ctx.lineTo(ix - k * .95, iy + k * .62); ctx.closePath(); ctx.stroke();
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(ix, iy - k * .34); ctx.lineTo(ix, iy + k * .08); ctx.stroke();
+    ctx.fillStyle = rgba(col, 1);
+    ctx.beginPath(); ctx.arc(ix, iy + k * .3, 1.1, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+
+  const st = { q: 0, gx: 0, gy: 0, t0: performance.now(), last: 0 };
+  let raf = 0, visible = false;
+
+  function frame(now) {
+    raf = 0;
+    if (!visible) return;
+    if (!fit()) { if (!reduced) raf = requestAnimationFrame(frame); return; }
+    const dt = Math.min(.05, (now - st.last) / 1000) || .016;
+    st.last = now;
+    const t = reduced ? 0 : (now - st.t0) / 1000;
+    const goal = target();
+    st.q = reduced ? goal : st.q + (goal - st.q) * (1 - Math.exp(-dt * 7));
+    const q = st.q;
+
+    place(t);
+    settle(q);
+
+    let top = null, topV = 0, open = 0;
+    flagged.forEach(n => {
+      const v = n.s.f * (1 - n.s.r);
+      open += v;
+      if (v > topV) { topV = v; top = n; }
+    });
+    const alert = clamp(open / 3);
+    const done = smooth(1.82, 1.98, q);
+    let col = top ? lerpC(C.white, FLAG[top.flag.type], clamp(topV * 1.6)) : C.white;
+    col = lerpC(col, C.ok, done);
+
+    // where it is looking: along the sweep while it reads, at the thing it
+    // caught once it has caught something
+    const phi = t * 1.1 + .6;
+    let tx = Math.cos(phi), ty = Math.sin(phi);
+    if (top && topV > .15) { const d = Math.hypot(top.x, top.y) || 1; tx = top.x / d; ty = top.y / d; }
+    const k = 1 - Math.exp(-dt * 5);
+    st.gx += (tx - st.gx) * k; st.gy += (ty - st.gy) * k;
+
+    const bp = t % 5.6;
+    const blink = !reduced && bp > 5.4 ? 1 - .92 * Math.sin((bp - 5.4) / .2 * Math.PI) : 1;
+
+    ctx.clearRect(-W / 2, -H / 2, W, H);
+    sweep(phi, 1 - smooth(.8, 1.3, q));
+    rings();
+    links();
+    if (top && topV > .15) {                  // the line from the eye to what it sees
+      ctx.setLineDash([3, 5]); ctx.lineDashOffset = -t * 14;
+      ctx.strokeStyle = rgba(FLAG[top.flag.type], .55 * clamp(topV));
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(st.gx * .03 * R, st.gy * .022 * R); ctx.lineTo(top.x, top.y); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    dots(t);
+    answers(q);
+    labels();
+    drawEye(blink, st.gx, st.gy, col, alert * (1 - done), t);
+
+    if (!reduced) raf = requestAnimationFrame(frame);
+  }
+
+  const wake = () => { if (visible && !raf) raf = requestAnimationFrame(frame); };
+  new IntersectionObserver(es => {
+    visible = es[0].isIntersecting;
+    wake();
+  }, { rootMargin: '120px' }).observe(root);
+  // under reduced motion nothing loops, so a scroll or a resize redraws it
+  if (reduced) {
+    addEventListener('scroll', wake, { passive: true });
+    addEventListener('resize', wake);
+  }
+})();
 
 /* ── setup, which comes before anything else ─────────────────
    GitHub first because it is the one that needs something outside this app.
@@ -2352,7 +2787,7 @@ function loadPulse() {
       cell.nextElementSibling.textContent =
         `${worst.risk_band} · ${worst.label.replace('branch ', '')}`;
     } else {
-      cell.textContent = '—';
+      cell.textContent = 'none';
       cell.nextElementSibling.textContent = 'nothing in flight';
     }
   });
@@ -2371,11 +2806,11 @@ function loadSetup() {
       gh.innerHTML = `<p>Repository linked to
         <a href="https://github.com/${esc(d.github)}" target="_blank" rel="noopener"
            style="color:var(--cyan)">${esc(d.github)}</a>.
-        Prophecy only reads — it never posts without you running the command.</p>
+        Prophecy only reads. It never posts without you running the command.</p>
         ${d.github_auth ? '' : `<p class="hint" style="margin-top:10px">
           Pull request reads need a fresh GitHub CLI login:
-          <code>gh auth login</code>
-          ${d.github_problem ? ` — ${esc(d.github_problem)}` : ''}</p>`}`;
+          <code>gh auth login</code>.
+          ${d.github_problem ? esc(d.github_problem) : ''}</p>`}`;
     } else {
       $('#step1').classList.remove('done');
       $('#state1').textContent = 'not connected';
@@ -2513,7 +2948,7 @@ const RISK_STORY = {
     + 'have to run in an order, so this is a sequencing problem.',
   regenerated_file_overlap: f =>
     `${f} is generated rather than written, and two changes are editing it at `
-    + 'once — a conflict here is resolved by regenerating, not by merging.',
+    + 'once, so a conflict here is resolved by regenerating, not by merging.',
   dependency_collision: f =>
     `Both pieces of work edit ${f}, where two edits at the same time conflict `
     + 'almost by default.',
@@ -2542,7 +2977,7 @@ function riskStory(r) {
     out.push(`It puts ${tasks.slice(0, -1).join(', ')} and `
       + `${tasks[tasks.length - 1]} on the same ground.`);
   } else if (tasks.length === 1) {
-    out.push(`This is ${tasks[0]} on its own — nothing else has to be in `
+    out.push(`This is ${tasks[0]} on its own. Nothing else has to be in `
       + 'flight for it to bite.');
   }
   if ((r.owners || []).length) {
@@ -2573,7 +3008,7 @@ function riskHTML(r) {
     <div class="detail">
       <div class="forecast-card" style="margin-bottom:12px">
         <div class="fc-top">
-          <span class="tag predicted">confidence ${r.confidence ?? '—'}</span>
+          <span class="tag predicted">confidence ${r.confidence ?? 'n/a'}</span>
           <span class="tag ${r.risk_level === 'high' ? 'model' : 'observed'}">${esc(r.risk_level)}</span>
         </div>
         <p class="story" style="margin:0;border:0;padding:0">${riskStory(r)}</p>
@@ -2608,9 +3043,9 @@ function forecastHTML(f) {
     ${f.grounding ? `<p class="hint"><span class="tag model">${esc(f.model || 'model')}</span>
       ${esc(f.grounding)}</p>` : ''}
     ${(f.model_invented || []).length ? `<p class="banner">The model named
-      ${f.model_invented.map(esc).join(', ')} — not in this repo, dropped.</p>` : ''}
+      ${f.model_invented.map(esc).join(', ')}, but it is not in this repo, so it was dropped.</p>` : ''}
     ${f.unsupported_terms.length ? `<p class="hint">No repo evidence for
-      <b>${f.unsupported_terms.map(esc).join(', ')}</b> — either new ground,
+      <b>${f.unsupported_terms.map(esc).join(', ')}</b>: either new ground,
       or the forecast missed something.</p>` : ''}
   </div>`;
 }
@@ -2748,7 +3183,7 @@ function draw() {
           stroke="${stroke}" stroke-width="1"/>
         <text x="${right ? n.x + n.r + 6 : n.x - n.r - 6}" y="${n.y + 3.5}"
           text-anchor="${right ? 'start' : 'end'}">${esc(label)}</text>
-        <title>${esc(n.id)} — imported by ${n.depended_on_by}</title>
+        <title>${esc(n.id)} (imported by ${n.depended_on_by})</title>
       </g>`;
     }).join('');
   applyFocus();
@@ -2870,7 +3305,7 @@ function fileStory(id, d, importers, importsOut) {
   if (symbols && importers.length) {
     out.push(`Those files call in through its ${symbols} `
       + `${symbols === 1 ? 'symbol' : 'symbols'}, so it is a changed signature `
-      + '— not a changed line — that travels.');
+      + 'that travels, not a changed line.');
   }
 
   out.push(importsOut.length
@@ -2892,7 +3327,7 @@ function fileStory(id, d, importers, importsOut) {
       + 'it.');
   }
   if (CONTESTED.has(id)) {
-    out.push('More than one change in flight is already inside this file — '
+    out.push('More than one change in flight is already inside this file: '
       + 'agree who owns it before either of them goes further.');
   }
   return out.join(' ');
@@ -3080,7 +3515,7 @@ function shareTree(d) {
 
   const crossings = files.filter(f => f.agents > 1);
   $('#shareStory').innerHTML =
-    `Every agent here starts from the same reading of this codebase — `
+    `Every agent here starts from the same reading of this codebase: `
     + `<b>${(bg.paid_once_tokens || 0).toLocaleString()} tokens</b> that were `
     + `paid for once and handed out ${bg.briefs || 0} time(s)`
     + (bg.observations ? `, along with ${bg.observations} facts Prophecy read
@@ -3089,7 +3524,7 @@ function shareTree(d) {
     + `down, and the findings it was given. `
     + (crossings.length
       ? `${crossings.length === 1 ? 'One file has' : `${crossings.length} files have`}
-         findings from more than one agent — dashed lines — which is exactly
+         findings from more than one agent (the dashed lines), which is exactly
          where one agent's work saved another the trouble of working it out
          again.`
       : `Nothing has been worked out twice yet: no two agents have left
@@ -3126,8 +3561,8 @@ function shareDetail(id) {
       <p class="hint" style="margin:0 0 4px">Briefed ${row.briefs || 0} time(s),
         wrote ${row.wrote || 0} finding(s) across ${row.files || 0} file(s), and
         was handed ${row.pulled || 0} from other agents.</p>
-      ${mine.slice(0, 5).map(n => `<p class="quote"><b>${esc(base(n.file))}</b>
-        — ${esc(n.note)}</p>`).join('')
+      ${mine.slice(0, 5).map(n => `<p class="quote"><b>${esc(base(n.file))}</b>:
+        ${esc(n.note)}</p>`).join('')
         || '<p class="hint" style="margin:0">It has not written anything down yet.</p>'}`;
     return;
   }
@@ -3146,7 +3581,7 @@ function shareDetail(id) {
       ${read.length ? `${read.length} more were read straight out of the
         repository by Prophecy.` : ''}</p>
     ${[...worked, ...read].slice(0, 5).map(n => `<p class="quote">
-      <b>${esc(agentLabel(n.agent))}</b> — ${esc(n.note)}</p>`).join('')}
+      <b>${esc(agentLabel(n.agent))}</b>: ${esc(n.note)}</p>`).join('')}
     <p style="margin:10px 0 0"><button class="btn small secondary"
       data-edopen="${esc(file)}">Open ${esc(base(file))}</button></p>`;
 }
@@ -3434,7 +3869,7 @@ $('#edCommit').onclick = () => {
     edChanged();
     edTree();
     edShowView('code');
-    $('#edCommitNote').innerHTML = `Committed <code>${esc(d.committed)}</code> —
+    $('#edCommitNote').innerHTML = `Committed <code>${esc(d.committed)}</code>:
       ${d.files.length} file(s). This is a real commit on
       ${esc(d.worktree.branch)}; nothing has been pushed.`;
   }).catch(err => {
@@ -3586,7 +4021,7 @@ function writeBranches(branches, baseName) {
       <td class="num">${b.changed_files.length}</td>
       <td class="dim">${b.signature_changes.length
         ? b.signature_changes.map(c => esc(`${c.before} → ${c.after}`)).join('<br>')
-        : '—'}</td>
+        : 'none'}</td>
       <td class="dim">${esc(b.author)}<br>${esc(b.last_commit)}</td>
       <td><button class="ghost" data-verify="${esc(b.name)}">merge it</button></td>
     </tr>`).join('')}</tbody></table>
@@ -3610,7 +4045,7 @@ document.addEventListener('click', e => {
         `conflicts in ${o.conflicted_files.length}`,
     }));
     if (!o.merged_clean) {
-      showBanner(`${name}: conflicts in ${o.conflicted_files.join(', ')} — `
+      showBanner(`${name}: conflicts in ${o.conflicted_files.join(', ')}: `
         + `${c.predicted_and_conflicted.length} of them were flagged in advance.`);
     }
   }).catch(() => { b.disabled = false; b.textContent = 'merge it'; });
@@ -3633,7 +4068,7 @@ $('#taskInput').onkeydown = e => { if (e.key === 'Enter') runTask(); };
 /* ── simulate ─────────────────────────────────────────────── */
 function runSim() {
   const tasks = ['#simA', '#simB', '#simC'].map(s => $(s).value.trim()).filter(Boolean);
-  if (tasks.length < 2) { showBanner('Two pieces of work minimum — one thing cannot collide with itself.'); return; }
+  if (tasks.length < 2) { showBanner('Two pieces of work minimum: one thing cannot collide with itself.'); return; }
   hideBanner();
   $('#runSim').disabled = true;
   $('#simOut').innerHTML = '<p class="loading" style="padding:18px">comparing</p>';
@@ -3661,7 +4096,7 @@ function runSim() {
          </div>`;
     $('#stratOut').innerHTML = d.strategies.map(s => `<div class="risk" style="border:0">
       <p style="margin:0 0 4px"><b>${esc(s.strategy)}</b>
-        <span class="meta dim"> — ${s.open_risks} risk(s) left open</span></p>
+        <span class="meta dim"> · ${s.open_risks} risk(s) left open</span></p>
       <ul style="margin:6px 0">${s.coordination_steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       <p class="hint" style="margin:0">${esc(s.note)}</p></div>`).join('');
   }).catch(() => {
@@ -3709,7 +4144,7 @@ function planHTML(d) {
     <table><tbody>${d.observations.map(o => `<tr>
       <td style="width:34%"><button class="chip" data-file="${esc(o.file)}">${esc(o.file)}</button></td>
       <td class="dim">${esc(o.note)}</td></tr>`).join('')}
-    </tbody></table>` : `<p class="hint">Nothing new to pass on — everything
+    </tbody></table>` : `<p class="hint">Nothing new to pass on. Everything
       readable from the repository has already been shared.</p>`}
 
     <p style="margin-top:14px">${applied
@@ -3804,7 +4239,7 @@ function renderPrs(d) {
   $('#prRisks').innerHTML = risks.length
     ? risks.map(riskHTML).join('')
     : `<p class="empty" style="padding:18px">None of these pull requests touch
-       the same code. That is about files and symbols, not behaviour — a clean
+       the same code. That is about files and symbols, not behaviour, so a clean
        report is not a promise that nothing breaks.</p>`;
 
   if (prs.length) {
@@ -3839,7 +4274,7 @@ function loadLive() {
       <thead><tr><th>agent</th><th>working on</th><th>joined</th></tr></thead>
       <tbody>${live.map(x => `<tr>
         <td><span class="dot-live"></span>${esc(agentLabel(x.agent, x.client))}</td>
-        <td>${esc(x.task || '\u2014')}</td>
+        <td>${esc(x.task || 'no task')}</td>
         <td class="dim">${esc((x.joined_at || '').slice(5))}</td></tr>`).join('')}
       </tbody></table>`
       : `<p class="empty">Nobody is connected yet. Paste the settings on the
@@ -3886,7 +4321,7 @@ function changeStory(a, meets = []) {
     + `${a.changed_files.length} file${a.changed_files.length === 1 ? '' : 's'}, `
     + `which reach ${direct} more directly`
     + `${indirect ? ` and ${indirect} further out` : ''}.`,
-    `Prophecy puts it at ${a.risk_score} out of 100 — ${esc(a.risk_band)} — `
+    `Prophecy puts it at ${a.risk_score} out of 100 (${esc(a.risk_band)}), `
     + `somewhere between ${a.risk_range.min} and ${a.risk_range.max}, at `
     + `${Math.round(a.confidence * 100)}% confidence.`,
   ];
@@ -3987,7 +4422,7 @@ function renderRisk(d) {
           ? '<span class="tag" style="color:var(--bad)">worse than apart</span>'
           : ''}</div>
       <div class="between" style="margin:3px 0 6px">
-        ${i.between.map(esc).join('  ·  ')} — on their own
+        ${i.between.map(esc).join('  ·  ')}: on their own
         ${i.individual.join(' and ')}</div>
       <ul>${i.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
     </div></div>`).join('');
@@ -4020,7 +4455,7 @@ document.addEventListener('click', e => {
     const note = btn.parentElement.querySelector('[data-notify-note]');
     if (note) {
       note.textContent = d.live
-        ? `${agentLabel(agent)} is connected — it gets this on its next call, `
+        ? `${agentLabel(agent)} is connected, so it gets this on its next call, `
           + `alongside whatever it was asking for.`
         : `${agentLabel(agent)} is not connected right now. This waits, and is handed `
           + `over the moment they join.`;
@@ -4065,7 +4500,7 @@ function loadAgentLoop() {
         <th>agent</th><th>working on</th><th>last heard from</th></tr></thead>
         <tbody>${live.map(x => `<tr>
           <td><span class="dot-live"></span><b>${esc(agentLabel(x.agent, x.client))}</b></td>
-          <td class="dim">${esc(x.task || '—')}</td>
+          <td class="dim">${esc(x.task || 'no task')}</td>
           <td class="dim mono">${esc((x.last_seen || '').slice(11, 16))}</td>
         </tr>`).join('')}</tbody></table>` : ''}
       ${sent.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 6px">
@@ -4078,7 +4513,7 @@ function loadAgentLoop() {
             : '<span style="color:var(--warn)">waiting</span>'}</td>
         </tr>`).join('')}</tbody></table>
         ${waiting.length ? `<p class="hint">${waiting.length}
-          still waiting to be picked up. Nothing is pushed at an agent — it
+          still waiting to be picked up. Nothing is pushed at an agent. It
           arrives the next time the agent asks Prophecy anything.</p>` : ''}` : ''}
       ${events.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 6px">
         What the agents have asked for</h4>
@@ -4104,7 +4539,7 @@ document.addEventListener('click', e => {
     const text = key === 'mcp' ? window.__mcp
       : key === 'prefix' ? ($('#briefPrefix') && $('#briefPrefix').textContent)
       : '';
-    if (text && text !== '—') {
+    if (text && !['Nothing sent yet.', 'Pick a project first.'].includes(text)) {
       navigator.clipboard.writeText(text).then(() => {
         const was = copy.textContent;
         copy.textContent = 'Copied';
@@ -4185,7 +4620,7 @@ function loadRoster() {
             worst.risk_band === 'critical' || worst.risk_band === 'high'
               ? 'var(--bad)' : worst.risk_band === 'medium'
               ? 'var(--warn)' : 'var(--text-3)'}">${worst.risk_score} ${
-            esc(worst.risk_band)}</span>` : '<span class="dim">—</span>'}</td>
+            esc(worst.risk_band)}</span>` : '<span class="dim">none</span>'}</td>
           <td class="dim">${x.sessions.length
             ? '<span class="dot-live"></span>working now'
             : x.role ? esc(x.role) : 'idle'}</td></tr>`;
@@ -4316,7 +4751,7 @@ function loadRecord() {
         <td><button class="btn small secondary" data-restore="${esc(c.sha)}"
           >Revert</button></td></tr>`).join('')}</tbody></table>
       <p class="hint" style="padding:6px 24px 20px">Reverting writes those files
-        back into your working tree and stops there — no commit, no history
+        back into your working tree and stops there: no commit, no history
         rewrite, no push, so you read the diff before deciding.
         <code>git checkout -- .</code> undoes it.</p>`
       : `<p class="empty" style="padding:18px">No history here yet.</p>`;
@@ -4338,7 +4773,7 @@ document.addEventListener('click', e => {
     const dirty = (p.uncommitted || []).length;
     const ok = confirm(
       `Revert to ${sha.slice(0, 10)}?\n\n${stat}\n\n` +
-      (dirty ? `${dirty} file(s) have uncommitted changes — commit or stash `
+      (dirty ? `${dirty} file(s) have uncommitted changes. Commit or stash `
              + 'them first.\n\n' : '') +
       'This writes those files back into your working tree and stops. Nothing '
       + 'is committed or pushed, and git checkout -- . undoes it.');
@@ -4347,7 +4782,7 @@ document.addEventListener('click', e => {
       if (r.error) { showBanner(r.error); return; }
       hideBanner();
       showBanner(`Reverted to ${sha.slice(0, 10)}. ${r.changed.length} `
-        + 'file(s) now differ in your working tree — read the diff before '
+        + 'file(s) now differ in your working tree. Read the diff before '
         + 'committing.');
       loadRecord();
     });
@@ -4388,8 +4823,8 @@ $('#runBackfill').onclick = () => {
       <tr><td>files touched</td><td class="num">${s.files_in_play}</td></tr>
       <tr><td>files flagged</td><td class="num">${s.files_flagged}</td></tr>
       <tr><td>really conflicted</td><td class="num">${s.conflicted_files}
-        <span class="dim">— ${s.files_caught} flagged, ${s.files_missed} missed</span></td></tr>
-      <tr><td>median warning lead time</td><td class="num">${s.median_lead_hours ?? '—'} h</td></tr>
+        <span class="dim">(${s.files_caught} flagged, ${s.files_missed} missed)</span></td></tr>
+      <tr><td>median warning lead time</td><td class="num">${s.median_lead_hours != null ? s.median_lead_hours + ' h' : 'n/a'}</td></tr>
       </tbody></table>
       ${levels.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:20px 0 8px">
         conflict rate by risk level</h4>
