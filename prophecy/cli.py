@@ -586,7 +586,7 @@ def cmd_fleet(repo, args, db):
     if high_shared:
         summary.append(
             f"{count(len(high_shared), 'of those overlaps looks', 'of those overlaps look')}"
-            " worth settling before the work lands rather than at merge time "
+            " worth settling before the work lands rather than at merge time. "
             "They are in the same functions, not just the same files."
         )
     if solo_high:

@@ -17,6 +17,7 @@ from .branches import as_forecast, diff
 from .merge import trial_merge
 from .risk import risks
 from .scan import CODE_SUFFIXES, git, scan
+from .text import plural
 
 
 def merge_commits(repo, limit, ref="HEAD"):
@@ -156,7 +157,7 @@ def report(runs, minimum=10):
     )
     if out["sample_too_small"]:
         out["verdict"] = (
-            f"Only {len(conflicting)} conflicting merge(s) replayed. "
+            f"Only {plural(len(conflicting), 'conflicting merge')} replayed. "
             f"Below {minimum} the rates below are anecdote, not evidence."
         )
     else:
@@ -179,8 +180,8 @@ def report(runs, minimum=10):
         else:
             direction = "Only one risk level appeared among source files."
         out["verdict"] = (
-            f"Across {len(conflicting)} conflicting merge(s): "
-            f"{out['files_flagged']} file(s) flagged out of "
+            f"Across {plural(len(conflicting), 'conflicting merge')}: "
+            f"{plural(out['files_flagged'], 'file')} flagged out of "
             f"{out['files_in_play']} touched. {direction}"
         )
     return out

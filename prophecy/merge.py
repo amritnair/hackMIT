@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 from .scan import git
+from .text import plural
 
 
 def _run(cwd, *args, timeout=120):
@@ -89,7 +90,7 @@ def compare(predicted, outcome, forecasts):
     if outcome.get("tests") and not outcome["tests"]["passed"]:
         notes.append("Merge was clean but tests failed: a semantic conflict got through.")
     if missed:
-        notes.append(f"{len(missed)} file(s) conflicted that nothing predicted.")
+        notes.append(f"{plural(len(missed), 'file')} conflicted that nothing predicted.")
     return {
         "predicted_files": predicted_files,
         "conflicted_files": sorted(actual),

@@ -354,7 +354,7 @@ def check_llm(repo):
     merged = llm.merge_forecasts(lexical, out)
     assert merged["files"][0]["source"] == "repo", merged["files"]
     assert merged["files"][-1]["source"] == "model"
-    assert "1 invented path(s) dropped" in merged["grounding"], merged["grounding"]
+    assert "1 invented path dropped" in merged["grounding"], merged["grounding"]
 
     # a model that answers with nothing usable is not an error
     empty = llm.semantic_predict(repo, "anything", StubProvider("no idea, sorry"))

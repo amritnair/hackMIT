@@ -477,10 +477,11 @@ def _notify_agent(path, repo, agent, target, base):
 
     subject = (f"Risk profile for {target}: {analysis['risk_score']}/100 "
                f"({analysis['risk_band']})")
-    store.queue_message(db, repo["sha"], agent, subject, body)
-    store.log(db, repo["sha"], "notified", agent,
-              f"sent the risk profile for {target} "
-              f"({analysis['risk_score']}/100)")
+    _, created = store.enqueue_message(db, repo["sha"], agent, subject, body)
+    if created:
+        store.log(db, repo["sha"], "notified", agent,
+                  f"sent the risk profile for {target} "
+                  f"({analysis['risk_score']}/100)")
     live = any(s["agent"] == agent for s in store.live_sessions(db))
     return {
         "queued": True,

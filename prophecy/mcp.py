@@ -20,6 +20,7 @@ import sys
 
 from . import store
 from .agent import brief, stable_prefix, volatile_suffix
+from .text import plural
 from .predict import predict
 from .risk_engine import (analyze_change, interactions,
                           repository_risk)
@@ -385,7 +386,7 @@ class Server:
         found = interactions(analyses)
         overall = repository_risk(analyses, found)
         lines = [f"Repository risk {overall['score']}/100 "
-                 f"({overall['band']}), from {overall['changes']} change(s)."]
+                 f"({overall['band']}), from {plural(overall['changes'], 'change')}."]
         lines += [f"- {d}" for d in overall["drivers"]]
         # the riskiest few, not the whole board: this comes back on every
         # later turn of the agent's conversation
@@ -396,7 +397,7 @@ class Server:
             for f in a["potential_failures"][:2]:
                 lines.append(f"  [{f['severity']}] {f['title']}")
         if len(ranked) > 6:
-            lines.append(f"\n...and {len(ranked) - 6} quieter change(s).")
+            lines.append(f"\n...and {plural(len(ranked) - 6, 'quieter change')}.")
         return "\n".join(lines)
 
     def change_interactions(self, args):
@@ -420,7 +421,7 @@ class Server:
             )
             lines += [f"  - {e}" for e in i["evidence"][:2]]
         if len(found) > 6:
-            lines.append(f"...and {len(found) - 6} more pair(s).")
+            lines.append(f"...and {plural(len(found) - 6, 'more pair')}.")
         return "\n".join(lines)
 
     def dependency_context(self, args):
@@ -435,8 +436,8 @@ class Server:
         callers = repo["callers"].get(path, [])
         public = [x for x in info["symbols"] if not x["name"].startswith("_")]
         lines = [
-            f"{path}: {len(info['symbols'])} symbol(s), "
-            f"{len(callers)} direct importer(s), criticality {crit}/100",
+            f"{path}: {plural(len(info['symbols']), 'symbol')}, "
+            f"{plural(len(callers), 'direct importer')}, criticality {crit}/100",
         ]
         if public:
             # the point of this tool: enough of the file to work in it
@@ -612,11 +613,15 @@ def queue_risk_warning(db, repo, analysis, meets=None, sent_by="auto", force=Fal
                 body += f"\n    {line}"
     subject = (f"Risk profile for {target}: {analysis['risk_score']}/100 "
                f"({analysis['risk_band']})")
-    store.queue_message(db, repo["sha"], agent, subject, body, sent_by=sent_by)
-    store.log(db, repo["sha"], "notified", agent,
-              ("warned automatically" if sent_by == "auto"
-               else "sent the risk profile")
-              + f" for {target} ({analysis['risk_score']}/100)")
+    _, created = store.enqueue_message(db, repo["sha"], agent, subject, body,
+                                       sent_by=sent_by)
+    # this runs on every risk read, so only a warning that is actually new
+    # belongs in the activity feed
+    if created:
+        store.log(db, repo["sha"], "notified", agent,
+                  ("warned automatically" if sent_by == "auto"
+                   else "sent the risk profile")
+                  + f" for {target} ({analysis['risk_score']}/100)")
     return agent
 
 

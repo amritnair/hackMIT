@@ -17,6 +17,8 @@ import json
 import os
 import re
 
+from .text import plural
+
 SYSTEM = (
     "You map a described piece of engineering work onto files that already "
     "exist in a repository.\n\n"
@@ -216,7 +218,7 @@ def merge_forecasts(lexical, semantic):
         f"evidence, {sum(1 for f in merged if f['source'] == 'repo+model')} "
         f"confirmed by both, {sum(1 for f in merged if f['source'] == 'model')} "
         f"from the model alone"
-        + (f", {len(semantic['invented'])} invented path(s) dropped"
+        + (f", {plural(len(semantic['invented']), 'invented path')} dropped"
            if semantic["invented"] else "")
     )
     return out

@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .branches import diff
 from .scan import CODE_SUFFIXES, git, is_regenerated
+from .text import pick, plural
 
 BANDS = ((80, "critical"), (60, "high"), (35, "medium"), (0, "low"))
 
@@ -83,10 +84,10 @@ def criticality(repo, path, layers):
 
     if direct:
         score += min(len(direct) * 4, 24)
-        signals.append(f"{len(direct)} file(s) import it directly")
+        signals.append(f"{plural(len(direct), 'file')} {pick(len(direct), 'imports', 'import')} it directly")
     if reach > len(direct):
         score += min((reach - len(direct)) * 2, 16)
-        signals.append(f"{reach} file(s) reach it once indirect imports are followed")
+        signals.append(f"{plural(reach, 'file')} {pick(reach, 'reaches', 'reach')} it once indirect imports are followed")
 
     # spread across top-level packages: something used by one package is a
     # local concern, something used by four is an architectural one
@@ -153,7 +154,7 @@ def potential_failures(repo, change, layers):
                     "severity": "high",
                     "title": f"{symbol} moved out of {path}",
                     "detail": (
-                        f"{len(callers)} file(s) import {path} and will need to "
+                        f"{plural(len(callers), 'file')} {pick(len(callers), 'imports', 'import')} {path} and will need to "
                         f"import from {sig['moved_to']} instead."
                     ),
                     "affected": callers[:8],
@@ -163,7 +164,7 @@ def potential_failures(repo, change, layers):
                 "severity": "critical" if callers else "low",
                 "title": f"{symbol} no longer exists in {path}",
                 "detail": (
-                    f"{len(callers)} file(s) import this module."
+                    f"{plural(len(callers), 'file')} {pick(len(callers), 'imports', 'import')} this module."
                     if callers else
                     "Nothing in this repository imports it, so the reach looks small."
                 ),
@@ -177,7 +178,7 @@ def potential_failures(repo, change, layers):
                 "detail": (
                     f"{', '.join(now_required)} used to have a default. Every "
                     f"call that relied on it has to pass one now, and "
-                    f"{len(callers)} file(s) import {path}."
+                    f"{plural(len(callers), 'file')} {pick(len(callers), 'imports', 'import')} {path}."
                     if callers else
                     f"{', '.join(now_required)} used to have a default."
                 ),
@@ -188,8 +189,8 @@ def potential_failures(repo, change, layers):
                 "severity": "critical" if len(callers) > 4 else "high",
                 "title": f"{symbol} now requires {', '.join(added)}",
                 "detail": (
-                    f"Every existing call has to pass it. {len(callers)} file(s) "
-                    f"import {path}."
+                    f"Every existing call has to pass it. {plural(len(callers), 'file')} "
+                    f"{pick(len(callers), 'imports', 'import')} {path}."
                 ),
                 "affected": callers[:8],
             })
@@ -241,7 +242,7 @@ def potential_failures(repo, change, layers):
             "severity": "medium",
             "title": "Tests cover this code and were not touched",
             "detail": (
-                f"{len(touched_tests)} test file(s) import what is changing. "
+                f"{plural(len(touched_tests), 'test file')} {pick(len(touched_tests), 'imports', 'import')} what is changing. "
                 "Either they still pass and the behaviour really is unchanged, "
                 "or they encode the old behaviour."
             ),
@@ -321,7 +322,7 @@ def score_change(repo, change, failures, crit, concurrent_overlap):
             if Path(f).suffix in {".ts", ".tsx", ".js", ".jsx"}]
     if weak:
         unknowns.append(
-            f"{len(weak)} changed file(s) are TypeScript or JavaScript, read "
+            f"{plural(len(weak), 'changed file')} {pick(len(weak), 'is', 'are')} TypeScript or JavaScript, read "
             "with pattern matching rather than a parser, so references may be "
             "missed"
         )
@@ -426,7 +427,7 @@ def recommend(failures, overlap, contradictions):
     out = []
     for failure in failures[:3]:
         if "now requires" in failure["title"] and failure["affected"]:
-            out.append(f"Update the {len(failure['affected'])} call site(s) in the "
+            out.append(f"Update the {plural(len(failure['affected']), 'call site')} in the "
                        "same change, or give the new parameter a default.")
         elif "no longer exists" in failure["title"]:
             out.append("Leave the old name in place as an alias until the "
@@ -528,24 +529,26 @@ def interactions(analyses):
             worst = max(a["risk_score"], b["risk_score"])
             combined = worst
             evidence = []
+            # names go in backticks so a reader (or the dashboard) can tell a
+            # file or field from the sentence around it
+            ticks = lambda names: ", ".join(f"`{n}`" for n in names[:3])
             if shared_syms:
                 combined += 16
-                evidence.append(
-                    f"both change {', '.join(shared_syms[:3])}")
+                evidence.append(f"both change {ticks(shared_syms)}")
             if shared_files:
                 combined += 10
-                evidence.append(f"both edit {', '.join(shared_files[:3])}")
+                evidence.append(f"both edit {ticks(shared_files)}")
             if shared_reach and not shared_files:
                 combined += 12
                 evidence.append(
                     "different files, but both reach "
-                    + ", ".join(shared_reach[:3])
+                    + ticks(shared_reach)
                 )
             if shared_contract:
                 combined += 14
                 evidence.append(
                     "both work on "
-                    + ", ".join(shared_contract[:3])
+                    + ticks(shared_contract)
                     + "; one of them changes how it is stored"
                 )
             a_kinds = {f["title"].split()[0] for f in a["potential_failures"]}

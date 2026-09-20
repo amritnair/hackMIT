@@ -8,6 +8,8 @@ import hashlib
 from itertools import combinations
 from pathlib import Path
 
+from .text import pick, plural
+
 STALE_BEHIND = 20  # commits behind base before divergence is worth mentioning
 
 LEVELS = ((0.66, "high"), (0.33, "medium"), (0.0, "low"))
@@ -52,11 +54,11 @@ def _solo_risks(repo, forecast):
             out.append(_risk(
                 "symbols_relocated", 0.5 + min(0.35, 0.05 * len(callers)),
                 [
-                    f"{len(moved)} symbol(s) moved out of {path} into "
+                    f"{plural(len(moved), 'symbol')} moved out of {path} into "
                     f"{', '.join(targets[:3])}",
                     "moved, not deleted: " + ", ".join(
                         c["symbol"] for c in moved[:6]),
-                    f"{len(callers)} file(s) import {path}: "
+                    f"{plural(len(callers), 'file')} {pick(len(callers), 'imports', 'import')} {path}: "
                     f"{', '.join(callers[:4])}" if callers
                     else f"no tracked file imports {path}",
                 ],
@@ -77,12 +79,12 @@ def _solo_risks(repo, forecast):
                 f"{change['before']} to {change['after']}",
             ]
             evidence.append(
-                f"{len(callers)} file(s) import {path}: {', '.join(callers[:4])}"
+                f"{plural(len(callers), 'file')} {pick(len(callers), 'imports', 'import')} {path}: {', '.join(callers[:4])}"
                 if callers else f"no tracked file imports {path}"
             )
             out.append(_risk(
                 "api_signature_change", score, evidence,
-                f"Check the {len(callers)} caller(s) of {change['symbol']} "
+                f"Check the {plural(len(callers), 'caller')} of {change['symbol']} "
                 "before merging." if callers else
                 f"Signature of {change['symbol']} changed; no callers found "
                 "in this repo.",
@@ -94,7 +96,7 @@ def _solo_risks(repo, forecast):
     if behind >= STALE_BEHIND:
         out.append(_risk(
             "branch_divergence", min(0.3 + behind / 200, 0.7),
-            [f"{forecast['task']} is {behind} commit(s) behind its base "
+            [f"{forecast['task']} is {plural(behind, 'commit')} behind its base "
              f"and {forecast.get('ahead', 0)} ahead"],
             "Rebase before this drifts further; the merge gets harder from here.",
             (forecast["task"],), repo,
@@ -135,7 +137,7 @@ def _pair_risks(repo, a, b):
         if callers:
             score += min(0.2, 0.04 * len(callers))
             evidence.append(
-                f"{len(callers)} file(s) import {rel}: {', '.join(callers[:4])}"
+                f"{plural(len(callers), 'file')} {pick(len(callers), 'imports', 'import')} {rel}: {', '.join(callers[:4])}"
             )
             if shared_symbols:
                 kind = "shared_api_contract"
@@ -235,7 +237,7 @@ def strategies(repo, forecasts, found):
             "strategy": "all in parallel",
             "open_risks": len(found),
             "coordination_steps": [],
-            "note": f"{len(high)} high risk(s) resolved at merge time instead of now.",
+            "note": f"{plural(len(high), 'high risk')} resolved at merge time instead of now.",
         },
         {
             "strategy": "sequence by overlap",
@@ -271,7 +273,7 @@ def capsule(repo, forecast, found):
         for sym in f["symbols"][:3]:
             lines.append(f"  - `{sym['signature']}` (line {sym['line']})")
         if f["callers"]:
-            lines.append(f"  - imported by {len(f['callers'])} file(s)")
+            lines.append(f"  - imported by {plural(len(f['callers']), 'file')}")
 
     if forecast["tests"]:
         lines += ["", "## Tests in scope"] + [f"- `{t}`" for t in forecast["tests"]]

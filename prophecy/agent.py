@@ -20,6 +20,8 @@ front, task text at the back.
 """
 
 import hashlib
+
+from .text import pick, plural
 from pathlib import Path
 
 # Anthropic list price, input, dollars per million tokens. Used only to turn
@@ -86,7 +88,7 @@ def stable_prefix(repo, depth=12):
         info = repo["files"][rel]
         public = [s["signature"] for s in info["symbols"]
                   if not s["name"].startswith("_")][:6]
-        lines.append(f"- `{rel}` (imported by {len(callers)} file(s))")
+        lines.append(f"- `{rel}` (imported by {plural(len(callers), 'file')})")
         for sig in public:
             lines.append(f"    {sig}")
 
@@ -136,7 +138,7 @@ def volatile_suffix(repo, forecast, risks, notes=()):
             lines.append(f"    {sym['signature']}  (line {sym['line']})")
         if f["callers"]:
             lines.append(
-                f"    changing this reaches {len(f['callers'])} file(s): "
+                f"    changing this reaches {plural(len(f['callers']), 'file')}: "
                 + ", ".join(f["callers"][:4])
             )
 
@@ -248,7 +250,7 @@ def brief(repo, forecasts, risks, exact=False, db=None, agent=None, store=None,
             if dropped:
                 body += (
                     "\n\n## Trimmed to fit a token budget\n"
-                    f"{len(dropped)} lower-ranked file(s) were left out: "
+                    f"{plural(len(dropped), 'lower-ranked file')} {pick(len(dropped), 'was', 'were')} left out: "
                     + ", ".join(f"`{d}`" for d in dropped)
                     + ". Ask for them by name if the work goes that way."
                 )
@@ -302,7 +304,7 @@ def brief(repo, forecasts, risks, exact=False, db=None, agent=None, store=None,
     if prefix_tokens < MIN_CACHEABLE_TOKENS:
         warnings.append(
             f"The prefix is {prefix_tokens} tokens even after widening it to "
-            f"{depth} file(s), which is everything this repo has. That is under the "
+            f"{plural(depth, 'file')}, which is everything this repo has. That is under the "
             f"~{MIN_CACHEABLE_TOKENS} minimum most models need before anything "
             "is cached, and a request under the floor succeeds at full price "
             "without saying so. The savings figures below do not apply here. "

@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 
 from .scan import git
+from .text import pick, plural
 
 
 def commits(repo_path, limit=40, path=None):
@@ -95,7 +96,7 @@ def restore(repo_path, sha, paths=None, force=False):
     if outstanding and not force:
         return {
             "error": (
-                f"{len(outstanding)} file(s) have uncommitted changes. Commit "
+                f"{plural(len(outstanding), 'file')} {pick(len(outstanding), 'has', 'have')} uncommitted changes. Commit "
                 "or stash them first, or restore anyway if you are sure."
             ),
             "uncommitted": outstanding,

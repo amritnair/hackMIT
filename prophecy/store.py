@@ -7,6 +7,8 @@ Deliberately dumb: rows in, rows out, JSON blobs for anything structured.
 import hashlib
 import json
 import sqlite3
+
+from .text import plural
 from pathlib import Path
 
 SCHEMA = """
@@ -453,20 +455,44 @@ def queue_message(db, sha, to_agent, subject, body, sent_by="dashboard"):
     finding is. Pressing the button again while the agent has not called in yet
     should not make it read the same profile twice.
     """
-    already = db.execute(
-        "SELECT id FROM messages WHERE to_agent = ? AND subject = ?"
-        " AND body = ? AND delivered_at IS NULL LIMIT 1",
-        (to_agent, subject, body),
-    ).fetchone()
+    return enqueue_message(db, sha, to_agent, subject, body, sent_by)[0]
+
+
+def enqueue_message(db, sha, to_agent, subject, body, sent_by="dashboard"):
+    """queue_message, but also says whether anything new was queued.
+
+    Returns (id, created). What a message is about is the part of its subject
+    before the colon ("Risk profile for feat/x"); the score after it is only the
+    latest reading. So an unread message on the same topic for the same agent
+    is the same message, and it is updated in place with the newest reading
+    instead of leaving a stale one beside it. The body is refreshed rather than
+    compared: the text is built from sets, so two runs of the same analysis can
+    order the evidence differently, and comparing bodies queued the same
+    profile again after every restart.
+
+    `created` is True when there is something new to say: a new message, or a
+    reading that changed (the score moved). A repeat of what is already waiting
+    is not.
+    """
+    topic = subject.split(":", 1)[0]
+    already = next((r for r in db.execute(
+        "SELECT id, subject, body FROM messages WHERE to_agent = ?"
+        " AND delivered_at IS NULL ORDER BY id", (to_agent,))
+        if r["subject"].split(":", 1)[0] == topic), None)
     if already:
-        return already["id"]
+        changed = already["subject"] != subject
+        if changed or already["body"] != body:
+            db.execute("UPDATE messages SET subject = ?, body = ? WHERE id = ?",
+                       (subject, body, already["id"]))
+            db.commit()
+        return already["id"], changed
     cur = db.execute(
         "INSERT INTO messages (sha, to_agent, subject, body, sent_by)"
         " VALUES (?,?,?,?,?)",
         (sha, to_agent, subject, body, sent_by),
     )
     db.commit()
-    return cur.lastrowid
+    return cur.lastrowid, True
 
 
 def pending_messages(db, agent, mark=True):
@@ -535,7 +561,7 @@ def insights(db):
     # figures come from replaying history, not from the handful of merges
     # somebody happened to run by hand.
     out["accuracy"] = (
-        f"{replayed} merge(s) replayed by backfill. Run `prophecy backfill` "
+        f"{plural(replayed, 'merge')} replayed by backfill. Run `prophecy backfill` "
         "for the scored breakdown."
         if replayed else
         "no history replayed yet. `prophecy backfill` grades the forecast "
