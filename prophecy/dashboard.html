@@ -105,6 +105,30 @@
     from { transform: translate3d(-14px, -6px, 0) scale(1); }
     to { transform: translate3d(18px, 10px, 0) scale(1.06); }
   }
+  .scope-note {
+    margin: 0 0 14px; padding: 11px 15px; border-radius: 12px;
+    background: var(--raised); border: 1px solid var(--line);
+    color: var(--text-2); font-size: 13.5px;
+  }
+  .scope-note b { color: var(--text); }
+  .ledger-row { display: grid; gap: 10px; }
+  .ledger-row .line {
+    display: grid; grid-template-columns: 1fr auto; gap: 14px;
+    align-items: baseline; padding: 11px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .ledger-row .line:last-child { border-bottom: 0; }
+  .ledger-row .line.total b { color: var(--good); }
+  .ledger-row .what { font-size: 14px; }
+  .ledger-row .what span { display: block; color: var(--text-3);
+    font-size: 12.5px; margin-top: 2px; }
+  .ledger-row .amount { font: 600 17px/1 var(--mono);
+    font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; border-radius: 999px; background: var(--line);
+    overflow: hidden; margin-top: 8px; }
+  .bar i { display: block; height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--cyan)); }
+
   .pulse-strip {
     display: grid; gap: 10px; margin: 4px 0 26px;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -385,11 +409,12 @@
     </form>
   </div>
   <nav id="tabs" hidden>
-    <button data-tab="team" aria-selected="true">Team</button>
-    <button data-tab="changes">Changes</button>
-    <button data-tab="overview">Code map</button>
-    <button data-tab="history">Track record</button>
-    <button data-tab="setup">Home</button>
+    <button data-tab="setup" aria-selected="true">Home</button>
+    <button data-tab="changes">Risk</button>
+    <button data-tab="team">Crew</button>
+    <button data-tab="context">Context</button>
+    <button data-tab="overview">Map</button>
+    <button data-tab="history">Ledger</button>
   </nav>
 </header>
 
@@ -496,10 +521,50 @@
 
   <section id="team" hidden>
     <div class="hero" style="padding:42px 0 4px">
-      <h2 class="title" id="teamLine">Shared context, sent once</h2>
-      <p class="lede" id="teamSub">Every agent here needs the same background.
-        Send it once and each one only pays for its own task.</p>
+      <h2 class="title" id="teamLine">Who is in the codebase</h2>
+      <p class="lede" id="teamSub">People, branches and live agent sessions,
+        and what each of them has found that the next one should know.</p>
     </div>
+
+    
+
+    <div class="card">
+      <h3>The team
+        <button class="btn small secondary" id="managePeople">Add someone</button></h3>
+      <div class="body" id="teamRoster"><p class="loading">reading</p></div>
+    </div>
+
+    <div class="card">
+      <h3>Who is working here
+        <button class="btn small secondary" id="refreshLive">Refresh</button></h3>
+      <div class="body" id="liveOut"><p class="loading">looking</p></div>
+    </div>
+
+    <div class="card">
+      <h3>What I found
+        <button class="btn small secondary" id="recheck">Re-check</button></h3>
+      <div class="body" id="planOut"><p class="loading">reading the project</p></div>
+    </div>
+
+    <div class="card" id="collisionPanel" hidden>
+      <h3>Headed for the same code</h3>
+      <div class="body flush" id="fleetRisks"></div>
+    </div>
+
+    
+  </section>
+
+  <section id="context" hidden>
+    <div class="hero" style="padding:42px 0 4px">
+      <h2 class="title">What your agents are being sent</h2>
+      <p class="lede">Everyone working here needs the same background about
+        this codebase. Send it once, cache it, and each agent pays for its own
+        task and nothing else.</p>
+    </div>
+
+    <p class="scope-note">Scoped to <b id="scopeName">this project</b> —
+      its own history, findings and settings. Nothing here is shared with your
+      other projects unless you point Prophecy at them.</p>
 
     <div class="headline-stat">
       <div class="money" id="moneySaved">$0.00
@@ -513,32 +578,30 @@
     </div>
 
     <div class="card">
-      <h3>The team <span class="tag observed" id="peopleCount"></span>
-        <button class="btn small secondary" id="managePeople">Add someone</button></h3>
-      <div class="body" id="teamRoster"><p class="loading">reading</p></div>
+      <h3>How that number is reached</h3>
+      <div class="body">
+        <div class="ledger-row" id="howRows">
+          <p class="empty">Nothing sent yet.</p>
+        </div>
+      </div>
     </div>
 
     <div class="card">
-      <h3>Who is working here <span class="tag observed">live</span>
-        <button class="btn small secondary" id="refreshLive">Refresh</button></h3>
-      <div class="body" id="liveOut"><p class="loading">looking</p></div>
+      <h3>Where that comes from
+        <button class="btn small secondary" id="refreshUsage">Refresh</button></h3>
+      <div class="body" id="usageOut"><p class="empty">Nothing sent yet. Brief
+        the crew and the arithmetic shows up here.</p></div>
     </div>
 
     <div class="card">
-      <h3>What I found <span class="tag predicted" id="planState">nothing saved yet</span>
-        <button class="btn small secondary" id="recheck">Re-check</button></h3>
-      <div class="body" id="planOut"><p class="loading">reading the project</p></div>
-    </div>
-
-    <div class="card" id="collisionPanel" hidden>
-      <h3>Headed for the same code <span class="tag predicted">a guess, not a failure</span></h3>
-      <div class="body flush" id="fleetRisks"></div>
-    </div>
-
-    <div class="card">
-      <h3>The shared background <span class="tag observed">sent once</span>
+      <h3>The shared half
         <button class="btn small secondary" data-copy="prefix">Copy</button></h3>
-      <div class="body"><pre id="briefPrefix" class="empty">—</pre></div>
+      <div class="body">
+        <p class="hint" style="margin:0 0 12px">Identical for every agent on
+          this commit, so it is paid for roughly once. Each agent's own task
+          goes after it, where changing it costs nothing.</p>
+        <pre id="briefPrefix" class="empty">—</pre>
+      </div>
     </div>
   </section>
 
@@ -569,7 +632,7 @@
     </div>
 
     <div class="card" id="meetPanel" hidden>
-      <h3>Where they meet <span class="tag predicted">combined risk</span></h3>
+      <h3>Where they meet</h3>
       <div class="body flush" id="meetList"></div>
     </div>
 
@@ -586,7 +649,7 @@
     </div>
 
     <div class="card">
-      <h3>Work that has not started yet <span class="tag predicted">a guess</span></h3>
+      <h3>Work that has not started yet</h3>
       <div class="body">
         <input class="field" id="taskInput" autocomplete="off"
                placeholder="Add rate limiting to the API">
@@ -597,6 +660,16 @@
           something nobody has written yet and it will be matched against what
           is really here.</p></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h3>Branches being worked on</h3>
+      <div class="body" id="branches"><p class="loading">reading</p></div>
+    </div>
+
+    <div class="card">
+      <h3>Worth knowing about single branches</h3>
+      <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">—</p></div>
     </div>
 
     <div class="card">
@@ -612,7 +685,7 @@
       <div class="body flush" id="prRisks"></div>
     </div>
     <div class="card" id="prCommentPanel" hidden>
-      <h3>The comment I would leave <span class="tag predicted">not posted</span></h3>
+      <h3>The comment I would leave</h3>
       <div class="body">
         <p class="hint" style="margin:0 0 12px">Nothing here has been sent to
           GitHub. Posting is yours to do.</p>
@@ -644,14 +717,8 @@
         <span class="dim">click to focus · click again to reset · drag to move</span>
       </div>
     </div>
-    <div class="card">
-      <h3>Branches being worked on</h3>
-      <div class="body" id="branches"><p class="loading">reading</p></div>
-    </div>
-    <div class="card">
-      <h3>Worth knowing about single branches</h3>
-      <div class="body flush" id="branchRisks"><p class="empty" style="padding:18px">—</p></div>
-    </div>
+    
+    
   </section>
 
   <section id="history" hidden>
@@ -662,7 +729,7 @@
         answer.</p>
     </div>
     <div class="card">
-      <h3>What Prophecy said <span class="tag predicted">on the record</span>
+      <h3>What Prophecy said
         <button class="btn small secondary" id="loadRecord">Refresh</button></h3>
       <div class="body flush" id="verdictList"><p class="empty"
         style="padding:18px">Nothing analyzed yet. Run an analysis on the
@@ -680,7 +747,7 @@
       <div class="body" id="insOut"><p class="loading">reading</p></div>
     </div>
     <div class="card">
-      <h3>Check the guesses against history <span class="tag observed">real merges</span></h3>
+      <h3>Check the guesses against history</h3>
       <div class="body">
         <button class="btn small" id="runBackfill">Replay 25 merges</button>
         <p class="hint">About a minute per fifty. Each one runs in a temporary
@@ -741,9 +808,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
   if (b.dataset.tab === 'history') { loadInsights(); loadRecord(); }
-  if (b.dataset.tab === 'team') {
-    loadUsage(); loadLive(); loadPlan(false); loadRoster();
-  }
+  if (b.dataset.tab === 'team') { loadLive(); loadPlan(false); loadRoster(); }
+  if (b.dataset.tab === 'context') loadUsage();
   if (b.dataset.tab === 'setup') loadSetup();
   if (b.dataset.tab === 'changes') { loadRisk(); checkGitHub(); }
 });
@@ -1018,10 +1084,11 @@ function showApp(open) {
   $('#setup').hidden = open;
   if (open) {
     document.querySelectorAll('nav button').forEach(x =>
-      x.setAttribute('aria-selected', String(x.dataset.tab === 'team')));
+      x.setAttribute('aria-selected', String(x.dataset.tab === 'changes')));
     document.querySelectorAll('main section').forEach(s =>
-      s.hidden = s.id !== 'team');
-    loadUsage(); loadLive(); loadPlan(false); loadRoster();
+      s.hidden = s.id !== 'changes');
+    loadRisk(); checkGitHub();
+    loadLive(); loadPlan(false); loadRoster();
   }
 }
 
@@ -1669,23 +1736,23 @@ function loadPlan(confirm) {
       return;
     }
     $('#planOut').innerHTML = planHTML(d);
-    $('#planState').textContent = d.recorded ? 'applied' : 'nothing applied yet';
-    $('#planState').className = d.recorded ? 'tag observed' : 'tag predicted';
+    // the applied/not state lives in the panel body, where the button is
 
     const risks = d.risks || [];
     $('#collisionPanel').hidden = !risks.length;
     $('#fleetRisks').innerHTML = risks.map(riskHTML).join('');
 
     const e = d.economics;
+    // the economics live on Context now; this screen is about people
     const n = d.assignments.length;
+    const people = new Set(d.assignments.map(a => a.agent)).size;
     $('#teamLine').textContent = n === 1
-      ? 'One thing in flight right now'
-      : `${n} things in flight right now`;
-    $('#teamSub').textContent = 'Once the shared background is cached, each '
-      + 'agent costs about ' + e.brief_per_later_call.toLocaleString()
-      + ' tokens a turn — against the '
-      + e.repo_if_each_agent_reads_every_file.toLocaleString()
-      + ' it takes to read this project from scratch.';
+      ? 'One person in the codebase'
+      : `${people} ${people === 1 ? 'person' : 'people'} in the codebase`;
+    $('#teamSub').textContent = n
+      ? `${n} piece${n === 1 ? '' : 's'} of work in flight, and what each of `
+        + 'them has found that the next person should know.'
+      : 'Nothing in flight right now.';
     $('#briefPrefix').textContent = '';
     if (d.recorded) { loadUsage(); loadLive(); }
   }).catch(() => {
@@ -1904,8 +1971,7 @@ function loadRoster() {
     api('sessions').catch(() => ({ live: [] })),
   ]).then(([p, r, s]) => {
     const people = p.people || [], changes = r.changes || [], live = s.live || [];
-    $('#peopleCount').textContent = people.length
-      ? `${people.length} on the project` : 'nobody added yet';
+
 
     // everyone the project knows about, whether they were added by hand or
     // just showed up in the git history
@@ -1958,7 +2024,31 @@ $('#managePeople').onclick = () => {
 };
 
 function loadUsage() {
+  const scope = $('#scopeName');
+  if (scope) scope.textContent = base(REPO) || 'this project';
   api('usage').then(d => {
+    // spell out the arithmetic rather than asserting a saving
+    const rows = $('#howRows');
+    if (rows) {
+      const naive = d.tokens_if_each_agent_read_the_repo || 0;
+      const sent = d.tokens_sent || 0;
+      const pct = naive ? Math.round((1 - sent / naive) * 100) : 0;
+      rows.innerHTML = d.briefs ? `
+        <div class="line"><div class="what">If every agent read the codebase
+          itself<span>${d.briefs} briefing(s) × the whole project, every
+          time</span></div>
+          <div class="amount">${naive.toLocaleString()}</div></div>
+        <div class="line"><div class="what">What was actually sent
+          <span>the shared half once (${d.prefix_first_time}), read from cache
+          after that (${d.prefix_reused}), plus each agent's own task</span></div>
+          <div class="amount">${sent.toLocaleString()}</div></div>
+        <div class="line total"><div class="what">Never sent
+          <span>${pct}% of the tokens, about
+          $${(d.dollars_avoided || 0).toFixed(2)} at current input prices</span>
+          <div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div></div>
+          <div class="amount"><b>${(d.tokens_avoided || 0).toLocaleString()}</b></div></div>`
+        : '<p class="empty">Nothing sent yet.</p>';
+    }
     if (!d.briefs) {
       $('#usageOut').innerHTML = '<p class="empty">No briefs issued yet.</p>';
       return;
@@ -2009,6 +2099,7 @@ function loadUsage() {
 }
 
 $('#refreshLive').onclick = loadLive;
+if ($('#refreshUsage')) $('#refreshUsage').onclick = loadUsage;
 
 api('mcp_config').then(d => {
   window.__mcp = JSON.stringify(d.config, null, 2);
