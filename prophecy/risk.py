@@ -64,6 +64,7 @@ def _solo_risks(repo, forecast):
                 "editing this module will conflict with the move. Land it "
                 "first or hold it.",
                 (forecast["task"],), repo, files=[path],
+                subject=f"{len(moved)} symbols out of {Path(path).name}",
             ))
             edited += [c for c in moved if False]  # moves are reported above
         else:
@@ -86,6 +87,7 @@ def _solo_risks(repo, forecast):
                 f"Signature of {change['symbol']} changed; no callers found "
                 "in this repo.",
                 (forecast["task"],), repo, files=[path],
+                subject=f"{change['symbol']} in {Path(path).name}",
             ))
 
     behind = forecast.get("behind", 0)
@@ -96,6 +98,7 @@ def _solo_risks(repo, forecast):
              f"and {forecast.get('ahead', 0)} ahead"],
             "Rebase before this drifts further; the merge gets harder from here.",
             (forecast["task"],), repo,
+            subject=f"{behind} commits behind",
         ))
     return out
 
@@ -157,7 +160,9 @@ def _pair_risks(repo, a, b):
             recommendation = "Land one migration first; concurrent migrations collide."
 
         out.append(_risk(kind, score, evidence, recommendation, pair, repo,
-                         files=[rel]))
+                         files=[rel],
+                         subject=(", ".join(sorted(shared_symbols)[:2])
+                                  if shared_symbols else Path(rel).name)))
 
     out += _manifest_risk(repo, a, b, pair)
     out += _test_risk(a, b, pair, repo)
@@ -175,6 +180,7 @@ def _manifest_risk(repo, a, b, pair):
         [f"both tasks are forecast to edit {rel}" for rel in sorted(shared)],
         "Add dependencies in one branch and rebase the other onto it.",
         pair, repo, files=shared,
+        subject=", ".join(Path(f).name for f in sorted(shared)[:2]),
     )]
 
 
@@ -187,10 +193,17 @@ def _test_risk(a, b, pair, repo):
         [f"both tasks depend on {rel}" for rel in sorted(shared)],
         "Expect churn in shared tests; whoever lands second reruns them.",
         pair, repo, files=shared,
+        subject=", ".join(Path(f).name for f in sorted(shared)[:2]),
     )]
 
 
-def _risk(kind, score, evidence, recommendation, pair, repo, files=()):
+def _risk(kind, score, evidence, recommendation, pair, repo, files=(),
+          subject=""):
+    """subject is what this risk is *about*: the symbol or file at issue.
+
+    Two signature changes in one module are two different risks with the same
+    type and the same file, so without it a reader sees the same row twice.
+    """
     score = round(min(score, 0.95), 2)
     # id is a hash of what the risk is about, so the same risk keeps the same
     # id between runs and `prophecy explain <id>` stays valid.
@@ -198,6 +211,7 @@ def _risk(kind, score, evidence, recommendation, pair, repo, files=()):
     return {
         "id": "R" + hashlib.blake2s(seed.encode(), digest_size=3).hexdigest(),
         "risk_type": kind,
+        "subject": subject,
         "files": sorted(files),
         "risk_score": score,
         "risk_level": _level(score),

@@ -243,6 +243,11 @@
     align-items: center; }
   .headline-stat .money { font: 700 clamp(42px, 6.8vw, 70px)/1 var(--ui);
     letter-spacing: -.045em; }
+  .money.verdict { font-size: clamp(26px, 3.4vw, 40px); line-height: 1.1;
+    letter-spacing: -.03em; }
+  .money.verdict.band-critical, .money.verdict.band-high { color: var(--bad); }
+  .money.verdict.band-medium { color: var(--warn); }
+  .money .scale { color: var(--text-3); font-size: 12.5px; }
   .headline-stat .money small { display: block; margin-top: 10px;
     font: 500 14px/1.45 var(--ui); color: var(--text-2); letter-spacing: 0; }
   .sub-stats {
@@ -1317,7 +1322,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
     </div>
 
     <div class="card" id="collisionPanel" hidden>
-      <h3>Headed for the same code</h3>
+      <h3>Worth watching in this code</h3>
       <div class="body flush" id="fleetRisks"></div>
     </div>
 
@@ -1405,7 +1410,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
     </div>
 
     <div class="headline-stat" id="repoRiskCard" hidden>
-      <div class="money" id="repoRisk">n/a
+      <div class="money verdict" id="repoRisk">n/a
         <small id="repoRiskLabel">across everything in flight</small></div>
       <div class="sub-stats">
         <div><b id="riskChanges">0</b><span>changes in flight</span></div>
@@ -3058,22 +3063,34 @@ function riskStory(r) {
   return out.join(' ');
 }
 
+function plural(n, one, many) {
+  return `${n} ${n === 1 ? one : (many || one + 's')}`;
+}
+
+function plainTask(t) {
+  return String(t)
+    .replace(/^branch:/, 'branch ')
+    .replace(/^PR #(\d+):?/, 'pull request #$1');
+}
+
 function riskHTML(r) {
   const files = r.files || [];
   return `<details class="risk ${r.risk_level}">
     <summary>
       <i class="bar"></i>
       <span class="headline"><b>${esc(RISK_NAME[r.risk_type] || r.risk_type.replace(/_/g, ' '))}</b>
-        ${files.length ? '· ' + esc(base(files[0])) +
-          (files.length > 1 ? ` +${files.length - 1}` : '') : ''}</span>
-      <span class="meta">${r.risk_score} · ${r.id}</span>
-      <span class="between">${r.tasks.map(esc).join('  ↔  ')}</span>
+        ${r.subject ? '· ' + esc(r.subject)
+          : files.length ? '· ' + esc(base(files[0])) +
+            (files.length > 1 ? ` +${files.length - 1}` : '') : ''}</span>
+      <span class="meta">${esc(r.risk_level)}</span>
+      <span class="between">${r.tasks.map(t => esc(plainTask(t))).join('  and  ')}</span>
     </summary>
     <div class="detail">
       <div class="forecast-card" style="margin-bottom:12px">
         <div class="fc-top">
           <span class="tag predicted">confidence ${r.confidence ?? 'n/a'}</span>
-          <span class="tag ${r.risk_level === 'high' ? 'model' : 'observed'}">${esc(r.risk_level)}</span>
+          <span class="tag ${r.risk_level === 'high' ? 'model' : 'observed'}">${
+            esc(r.risk_level)}, ${Math.round((r.risk_score || 0) * 100)} of 100</span>
         </div>
         <p class="story" style="margin:0;border:0;padding:0">${riskStory(r)}</p>
       </div>
@@ -3418,7 +3435,7 @@ function showNodeDetail(id) {
       <h4>${esc(id)}</h4>
       <p class="hint" style="margin:0">
         ${d.lines} lines · ${(d.symbols || []).length} symbol(s) ·
-        ${importers.length} file(s) import it · it imports ${importsOut.length}
+        ${plural(importers.length, 'file')} import it · it imports ${importsOut.length}
         ${contested ? '· <b style="color:var(--bad)">more than one change is in here right now</b>' : ''}</p>
       <p class="story">${fileStory(id, d, importers, importsOut)}</p>
       ${importers.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:16px 0 0">
@@ -3623,7 +3640,7 @@ function shareDetail(id) {
     const row = (d.agents || []).find(a => a.agent === agent) || {};
     $('#shareDetail').innerHTML = `<h4>${esc(agentLabel(agent, row.client))}</h4>
       <p class="hint" style="margin:0 0 4px">Briefed ${row.briefs || 0} time(s),
-        wrote ${row.wrote || 0} finding(s) across ${row.files || 0} file(s), and
+        wrote ${plural(row.wrote || 0, 'finding')} across ${plural(row.files || 0, 'file')}, and
         was handed ${row.pulled || 0} from other agents.</p>
       ${mine.slice(0, 5).map(n => `<p class="quote"><b>${esc(base(n.file))}</b>:
         ${esc(n.note)}</p>`).join('')
@@ -3934,7 +3951,7 @@ $('#edCommit').onclick = () => {
     edTree();
     edShowView('code');
     $('#edCommitNote').innerHTML = `Committed <code>${esc(d.committed)}</code>:
-      ${d.files.length} file(s). This is a real commit on
+      ${plural(d.files.length, 'file')}. This is a real commit on
       ${esc(d.worktree.branch)}; nothing has been pushed.`;
   }).catch(err => {
     $('#edCommitNote').textContent = String(err.message || 'the commit failed');
@@ -4160,7 +4177,7 @@ function runSim() {
          </div>`;
     $('#stratOut').innerHTML = d.strategies.map(s => `<div class="risk" style="border:0">
       <p style="margin:0 0 4px"><b>${esc(s.strategy)}</b>
-        <span class="meta dim"> · ${s.open_risks} risk(s) left open</span></p>
+        <span class="meta dim"> · ${plural(s.open_risks, 'risk')} left open</span></p>
       <ul style="margin:6px 0">${s.coordination_steps.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
       <p class="hint" style="margin:0">${esc(s.note)}</p></div>`).join('');
   }).catch(() => {
@@ -4185,7 +4202,7 @@ let PLAN = null;
 function planHTML(d) {
   const applied = d.recorded;
   return `${d.summary.map(line => `<p style="margin:0 0 8px">${esc(line)}</p>`).join('')}
-    ${d.assignments.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:14px 0 6px">who is working here</h4>
+    ${d.assignments.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 8px">Who is working here</h4>
     <table><thead><tr><th>agent</th><th>on</th><th>files</th>
       <th>found by</th></tr></thead><tbody>
     ${d.assignments.map(a => `<tr>
@@ -4197,25 +4214,31 @@ function planHTML(d) {
       </tr>`).join('')}
     </tbody></table>` : ''}
 
-    ${d.overlap.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:14px 0 6px">shared ground</h4>
+    ${d.overlap.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 8px">Files more than one of them is in</h4>
     <table><tbody>${d.overlap.map(o => `<tr>
       <td><button class="chip" data-file="${esc(o.file)}">${esc(o.file)}</button></td>
       <td class="dim">${o.work.map(esc).join(' · ')}</td></tr>`).join('')}
     </tbody></table>` : ''}
 
-    ${d.observations.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:14px 0 6px">
-      ${applied ? 'told to whoever works here next' : 'would be told to whoever works here next'}</h4>
+    ${d.observations.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 8px">
+      ${applied ? 'Passed on to whoever works here next' : 'Ready to pass on to whoever works here next'}</h4>
     <table><tbody>${d.observations.map(o => `<tr>
       <td style="width:34%"><button class="chip" data-file="${esc(o.file)}">${esc(o.file)}</button></td>
       <td class="dim">${esc(o.note)}</td></tr>`).join('')}
-    </tbody></table>` : `<p class="hint">Nothing new to pass on. Everything
-      readable from the repository has already been shared.</p>`}
+    </tbody></table>` : ''}
 
     <p style="margin-top:14px">${applied
-      ? '<span class="status good">Applied. Briefs recorded and findings shared.</span>'
-      : `<button class="act" id="confirmPlan">apply this</button>
-         <span class="hint" style="margin-left:10px">Writes the briefs and
-         shares the findings. Nothing has been written yet.</span>`}</p>`;
+      ? '<span class="status good">Done. The briefs are written and the '
+        + 'findings are shared.</span>'
+      : d.observations.length
+        ? `<button class="act" id="confirmPlan">Share ${
+             plural(d.observations.length, 'finding')}</button>
+           <span class="hint" style="margin-left:10px">Writes a brief for each
+           agent and pins these to their files. Nothing has been written
+           yet.</span>`
+        : `<span class="hint">Nothing to write: every agent here already has
+           its brief, and everything readable from the repository has been
+           shared.</span>`}</p>`;
 }
 
 function loadPlan(confirm) {
@@ -4357,6 +4380,13 @@ function loadLive() {
 }
 
 const RISK_CLASS = { critical: 'high', high: 'high', medium: 'medium', low: '' };
+// plain words for the bands, so nobody has to learn a colour or a cutoff
+const BAND_WORD = {
+  critical: 'Needs a conversation',
+  high: 'Worth stopping for',
+  medium: 'Worth a look',
+  low: 'Nothing pressing',
+};
 
 function severityTag(sev) {
   return `<span class="tag${sev === 'critical' || sev === 'high'
@@ -4419,12 +4449,13 @@ function analysisHTML(a, meets = []) {
   return `<details class="risk ${RISK_CLASS[a.risk_band] || ''}">
     <summary>
       <i class="bar"></i>
-      <span class="headline"><b>${a.risk_score}</b> ${esc(a.risk_band)}
-        · ${esc(a.label)}</span>
-      <span class="meta">${a.risk_range.min}–${a.risk_range.max} ·
+      <span class="headline"><b>${esc(a.risk_band)}</b>
+        · ${esc(plainTask(a.label))}</span>
+      <span class="meta">severity ${a.risk_score}, likely
+        ${a.risk_range.min} to ${a.risk_range.max} ·
         ${Math.round(a.confidence * 100)}% sure</span>
       <span class="between">${esc(agentLabel(a.agent) || 'unattributed')} ·
-        ${a.changed_files.length} file(s) ·
+        ${plural(a.changed_files.length, 'file')} ·
         blast radius ${esc(a.blast_radius.size)}</span>
     </summary>
     <div class="detail">
@@ -4465,8 +4496,15 @@ function analysisHTML(a, meets = []) {
 function renderRisk(d) {
   const o = d.repository, changes = d.changes || [], meets = d.interactions || [];
   $('#repoRiskCard').hidden = false;
-  $('#repoRisk').childNodes[0].nodeValue = o.score + ' ';
-  $('#repoRiskLabel').textContent = o.band + ' across everything in flight';
+  // the word first, the number as supporting detail, and the direction of
+  // the scale said out loud: a bare 97 reads like a grade
+  $('#repoRisk').childNodes[0].nodeValue = BAND_WORD[o.band] || o.band;
+  $('#repoRisk').className = 'money verdict band-' + o.band;
+  const n = o.changes || changes.length;
+  $('#repoRiskLabel').innerHTML =
+    `across ${n === 1 ? 'the one change' : `all ${n} changes`} in flight`
+    + `<br><span class="scale">severity ${o.score} of 100, where higher is `
+    + `worse</span>`;
   $('#riskChanges').textContent = o.changes || changes.length;
   $('#riskMeets').textContent = meets.length;
   $('#riskEscalate').textContent = o.escalating || 0;
@@ -4743,7 +4781,7 @@ function loadUsage() {
     $('#statNotes').textContent = d.notes_pulled;
     $('#usageOut').innerHTML = `<table><tbody>
       <tr><td>briefs issued</td><td class="num">${d.briefs}
-        <span class="dim">to ${d.agents} agent(s)</span></td></tr>
+        <span class="dim">to ${plural(d.agents, 'agent')}</span></td></tr>
       <tr><td>repository half sent in full</td>
         <td class="num">${d.prefix_first_time}</td></tr>
       <tr><td>repository half already seen</td><td class="num">${d.prefix_reused}
@@ -4767,7 +4805,7 @@ function loadUsage() {
         files more than one agent has been into</h4>
       <table><tbody>${d.shared_files.map(f => `<tr>
         <td><button class="chip" data-file="${esc(f.file)}">${esc(f.file)}</button></td>
-        <td class="num dim">${f.agents} agent(s), ${f.n} note(s)</td></tr>`).join('')}
+        <td class="num dim">${plural(f.agents, 'agent')}, ${plural(f.n, 'note')}</td></tr>`).join('')}
       </tbody></table>` : ''}
       <p class="hint">${esc(d.note)}</p>`;
   }).catch(() => {});
@@ -4799,7 +4837,7 @@ function loadRecord() {
             · ${esc(v.label)}</div>
           <div class="between" style="margin:2px 0 6px">
             ${esc(v.agent || 'unattributed')} · ${esc(v.at.slice(0, 16))}
-            · ${(v.files || []).length} file(s)
+            · ${plural((v.files || []).length, 'file')}
             · ${Math.round((v.confidence || 0) * 100)}% sure</div>
           ${(v.failures || []).length ? `<ul>${v.failures.slice(0, 2).map(f =>
             `<li>[${esc(f.severity)}] ${esc(f.title)}</li>`).join('')}</ul>` : ''}
@@ -4842,7 +4880,7 @@ document.addEventListener('click', e => {
     const dirty = (p.uncommitted || []).length;
     const ok = confirm(
       `Revert to ${sha.slice(0, 10)}?\n\n${stat}\n\n` +
-      (dirty ? `${dirty} file(s) have uncommitted changes. Commit or stash `
+      (dirty ? `${plural(dirty, 'file has', 'files have')} uncommitted changes. Commit or stash `
              + 'them first.\n\n' : '') +
       'This writes those files back into your working tree and stops. Nothing '
       + 'is committed or pushed, and git checkout -- . undoes it.');
@@ -4851,7 +4889,7 @@ document.addEventListener('click', e => {
       if (r.error) { showBanner(r.error); return; }
       hideBanner();
       showBanner(`Reverted to ${sha.slice(0, 10)}. ${r.changed.length} `
-        + 'file(s) now differ in your working tree. Read the diff before '
+        + 'files now differ in your working tree. Read the diff before '
         + 'committing.');
       loadRecord();
     });

@@ -559,10 +559,14 @@ def cmd_fleet(repo, args, db):
         sources.append(count(len(pulls), "open pull request"))
     listed = (", ".join(sources[:-1]) + " and " + sources[-1]
               if len(sources) > 1 else sources[0])
+    # "there is 5 branches" and "5 people (four names)" both read as bugs
+    single = len(work) == 1
+    named = ", ".join(people) if len(people) <= 6 else (
+        ", ".join(people[:5]) + f" and {len(people) - 5} more")
     opening = (
-        f"Right now there is {listed}"
+        f"Right now there {'is' if single else 'are'} {listed}"
         f" in flight here, across {count(len(people), 'person', 'people')}"
-        f" ({', '.join(people[:4])})."
+        f" ({named})."
     )
     summary = [opening]
 
@@ -601,10 +605,12 @@ def cmd_fleet(repo, args, db):
         )
     summary.append(
         f"Everyone working here needs the same {data['prefix_tokens']:,} tokens "
-        "of background. Send that once and cache it, and each agent costs about "
-        f"{e['brief_per_later_call']:,} tokens a turn afterwards, against the "
-        f"{e['repo_if_each_agent_reads_every_file']:,} it takes to read this "
-        "repository from scratch."
+        "of background about this codebase. Briefed rather than left to read "
+        f"the repository, each agent costs about {e['brief_per_later_call']:,} "
+        f"tokens a turn against the {e['repo_if_each_agent_reads_every_file']:,} "
+        "it takes to find its own way in. On the brief path that background is "
+        "a cached prefix as well; over MCP it is the slice that saves the "
+        "reading."
     )
     if not data["cacheable"]:
         summary.append(
