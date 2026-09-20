@@ -171,6 +171,20 @@ def check_mcp(root):
     overlap = call("check_overlap", agent="grace")
     assert "ada" in overlap or "Overlapping" in overlap, overlap
 
+    # a risk profile addressed to an agent rides back on its next call, whatever
+    # that call happens to be, and is only handed over once
+    db = store.connect(root)
+    sent = store.queue_message(db, "sha", "grace", "Risk profile for signup",
+                               "97/100 critical combined with ada's change")
+    again = store.queue_message(db, "sha", "grace", "Risk profile for signup",
+                                "97/100 critical combined with ada's change")
+    assert again == sent, "the same unread profile was queued twice"
+    delivered = call("check_overlap", agent="grace")
+    assert "For you, from your team" in delivered, delivered[:200]
+    assert "97/100 critical" in delivered
+    assert "For you" not in call("check_overlap", agent="grace")  # not twice
+    assert "For you" not in call("check_overlap", agent="ada")  # not to anyone else
+
     # reconnecting is the same session, not a second one
     db = store.connect(root)
     call("join_repo_session", agent="ada", task="Add rate limiting to the API")

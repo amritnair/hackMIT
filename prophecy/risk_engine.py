@@ -464,7 +464,9 @@ def contract_terms(repo, change_files, repo_path, base, head):
     columns |= set(re.findall(r"\b(\w+)\s+(?:IS\s+NOT\s+NULL|SET\s+NOT\s+NULL|"
                               r"IS\s+NULL)", schema_text, re.I))
     if not columns:
-        return set()
+        # a repository with no schema to read still has to answer in the shape
+        # everyone reads: two named sets, both empty
+        return {"mentioned": set(), "stored": set()}
     def terms_in(paths):
         if not paths:
             return set()

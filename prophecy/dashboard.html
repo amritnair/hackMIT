@@ -356,6 +356,45 @@
   #mapDetail { border-top: 1px solid var(--line); }
   #mapDetail h4 { font: 600 15px/1.4 var(--mono); margin: 0 0 4px; }
   #mapDetail .chain { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+  /* the paragraph is the answer; the counts above it are the working */
+  .story { font-size: 14.5px; line-height: 1.65; color: var(--text-2);
+    max-width: 68ch; margin: 12px 0 0;
+    border-left: 2px solid var(--accent); padding-left: 14px; }
+  .story code { font-size: .9em; color: var(--text); }
+  .agent-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin: 14px 0 4px; padding: 12px 14px; border-radius: 12px;
+    background: rgba(103,232,249,.06);
+    border: 1px solid rgba(103,232,249,.22); }
+  .agent-action .hint { margin: 0; flex: 1 1 260px; }
+
+  /* the two halves of the MCP conversation, side by side, because the point is
+     that it is a conversation and not a report */
+  .mcp-loop { display: grid; gap: 14px; margin: 16px 0 4px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .mcp-loop > div { padding: 14px 16px; border-radius: 12px;
+    background: var(--raised); border: 1px solid var(--line); }
+  .mcp-loop b { display: block; font-size: 12px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-3); margin-bottom: 9px; }
+  .mcp-loop ul { margin: 0; padding-left: 17px; }
+  .mcp-loop li { font-size: 13.5px; line-height: 1.55; color: var(--text-2);
+    margin-bottom: 6px; }
+  .mcp-loop code { font-size: .9em; color: var(--cyan); }
+
+  /* the same loop on the landing page, where it is the pitch rather than the
+     reference */
+  .mcp-band { display: grid; gap: 1px; margin: 26px 0 0;
+    background: var(--line); border: 1px solid var(--line);
+    border-radius: 16px; overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .mcp-band > div { background: var(--card); padding: 20px 22px 22px;
+    position: relative; }
+  .mcp-band i { font-family: var(--mono); font-size: 11px; font-style: normal;
+    letter-spacing: .1em; color: var(--accent); }
+  .mcp-band b { display: block; margin: 8px 0 7px; font-size: 15px;
+    font-weight: 600; color: var(--text); letter-spacing: -.01em; }
+  .mcp-band p { margin: 0; font-size: 13.5px; line-height: 1.6;
+    color: var(--text-2); }
+  .mcp-band > div:last-child i { color: var(--cyan); }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 13px 20px;
     border-top: 1px solid var(--line); font-size: 12.5px; color: var(--text-3);
     align-items: center; }
@@ -446,7 +485,8 @@
         <p class="lede">You and your agents are changing the same codebase at
           the same time. Prophecy checks the work against your collaborators
           before any of it ships — so you find the collision now, not after a
-          day of building on top of it.</p>
+          day of building on top of it. Your coding agents connect over MCP and
+          ask before they commit.</p>
         <div class="hero-actions">
           <button class="btn" id="enterApp">Open the workspace</button>
           <button class="btn" id="pickProject" hidden>Choose a project</button>
@@ -461,6 +501,21 @@
           <span>Three people change the same project in the same week.</span>
         </div>
       </div>
+    </div>
+
+    <!-- the loop, stated once, in the order it actually happens -->
+    <div class="mcp-band">
+      <div><i>01</i><b>The agent asks first</b>
+        <p>Before it commits, a coding agent calls Prophecy over MCP: what does
+          this change reach, and who else is in here right now?</p></div>
+      <div><i>02</i><b>It gets consequences, not a lint</b>
+        <p>A score with its range and confidence, the callers that would break,
+          and the other work in flight it is about to run into — read off this
+          project's real dependency graph.</p></div>
+      <div><i>03</i><b>You answer its agent</b>
+        <p>Send the risk profile of somebody's change straight to the agent
+          writing it. It arrives on that agent's next call, in the same words
+          Prophecy would have given it.</p></div>
     </div>
 
     <div class="pulse-strip" id="pulseStrip" hidden>
@@ -485,15 +540,47 @@
         <div class="body">
           <p>Paste one block of settings into your coding agent. After that,
             every agent that opens this project checks in on its own.</p>
+          <p class="story">This is the part that matters. An agent writing code
+            here does not have to guess who else is in the codebase — it asks,
+            over MCP, and gets an answer built from this project's real
+            dependency graph. And it works both ways: when you send an agent the
+            risk profile of what it is doing, that reading is waiting for it the
+            next time it asks anything.</p>
+          <div class="mcp-loop">
+            <div><b>The agent asks</b>
+              <ul>
+                <li><code>join_repo_session</code> — who else is here, and what
+                  they have already worked out</li>
+                <li><code>analyze_change</code> — what this change would break,
+                  before committing it</li>
+                <li><code>check_overlap</code> — whether these files are
+                  somebody else's files too</li>
+                <li><code>get_change_interactions</code> — what this change
+                  looks like next to everything else in flight</li>
+                <li><code>share_finding</code> — hands something back for the
+                  next agent that goes there</li>
+              </ul></div>
+            <div><b>Prophecy answers</b>
+              <ul>
+                <li>a risk score with its range and confidence, not a verdict</li>
+                <li>the files and callers that would actually be hit</li>
+                <li>the other work it is about to collide with, by name</li>
+                <li>anything you sent from
+                  <button class="chip" data-tab-jump="changes">Changes</button>,
+                  delivered on the agent's next call</li>
+              </ul></div>
+          </div>
           <p style="margin-top:14px">
             <button class="btn small" data-copy="mcp">Copy the settings</button>
             <span class="hint" id="agentSeen" style="margin-left:12px"></span></p>
           <details style="margin-top:14px">
             <summary>Show what gets pasted</summary>
             <pre id="mcpConfig" class="empty">—</pre>
-            <p class="hint">Agents can ask for four things: join this project,
-              share something they worked out, check who else is in the same
-              files, and say when they are done.</p>
+            <p class="hint">Eight tools in total, including
+              <code>get_repository_risk</code>,
+              <code>get_dependency_context</code> and
+              <code>leave_repo_session</code>. Nothing leaves this machine:
+              the agent talks to a local process reading a local repository.</p>
           </details>
         </div>
       </div>
@@ -646,6 +733,12 @@
         <button class="btn small secondary" id="loadRisk">Analyze</button></h3>
       <div class="body flush" id="changeList"><p class="empty"
         style="padding:18px">Nothing analyzed yet.</p></div>
+    </div>
+
+    <div class="card">
+      <h3>The agents working here
+        <button class="btn small secondary" id="refreshLoop">Refresh</button></h3>
+      <div class="body" id="agentLoop"><p class="loading">reading</p></div>
     </div>
 
     <div class="card" id="meetPanel" hidden>
@@ -858,7 +951,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'team') { loadLive(); loadPlan(false); loadRoster(); }
   if (b.dataset.tab === 'context') loadUsage();
   if (b.dataset.tab === 'setup') loadSetup();
-  if (b.dataset.tab === 'changes') { loadRisk(); checkGitHub(); }
+  if (b.dataset.tab === 'changes') { loadRisk(); checkGitHub(); loadAgentLoop(); }
 });
 
 /* ── repo picker ──────────────────────────────────────────────
@@ -1490,7 +1583,7 @@ function showApp(open) {
       x.setAttribute('aria-selected', String(x.dataset.tab === 'changes')));
     document.querySelectorAll('main section').forEach(s =>
       s.hidden = s.id !== 'changes');
-    loadRisk(); checkGitHub();
+    loadRisk(); checkGitHub(); loadAgentLoop();
     loadLive(); loadPlan(false); loadRoster();
   }
 }
@@ -1672,9 +1765,78 @@ const RISK_NAME = {
   branch_divergence: 'this branch has fallen behind',
 };
 
+/* What each kind of risk actually means, said once, in the terms the person
+   reading it would use. The machine name and the evidence stay below; this is
+   the sentence you could read out in standup. */
+const RISK_STORY = {
+  api_signature_change: f =>
+    `A function in ${f} is changing shape, so every place that calls it has to `
+    + 'change with it or break.',
+  symbols_relocated: f =>
+    `Code is moving out of ${f} into another file, so imports still pointing at `
+    + 'its old home will not find it.',
+  shared_api_contract: f =>
+    `Both pieces of work change the same widely-used function in ${f}, so `
+    + 'whoever lands second is editing something that has already moved.',
+  shared_symbol: f =>
+    `Both pieces of work change the same function in ${f}, which is a conflict `
+    + 'git cannot resolve for you.',
+  shared_file: f =>
+    `Both pieces of work are heading for ${f}, so the second one to land will `
+    + 'be merging into something it has not seen.',
+  schema_overlap: f =>
+    `Two database changes are in flight at once, both touching ${f}. Migrations `
+    + 'have to run in an order, so this is a sequencing problem.',
+  regenerated_file_overlap: f =>
+    `${f} is generated rather than written, and two changes are editing it at `
+    + 'once — a conflict here is resolved by regenerating, not by merging.',
+  dependency_collision: f =>
+    `Both pieces of work edit ${f}, where two edits at the same time conflict `
+    + 'almost by default.',
+  test_impact: f =>
+    `Both pieces of work land on the same tests, starting with ${f}, so `
+    + 'whoever lands second should expect them to go red first.',
+  branch_divergence: () =>
+    'This branch has fallen behind what it branched from, so it is being '
+    + 'measured against a base that has already moved on.',
+};
+
+function riskStory(r) {
+  const files = r.files || [];
+  const name = files.length
+    ? `<code>${esc(base(files[0]))}</code>`
+      + (files.length > 1 ? ` and ${files.length - 1} other`
+        + `${files.length === 2 ? '' : 's'}` : '')
+    : 'this project';
+  const shape = RISK_STORY[r.risk_type];
+  const out = [shape ? shape(name)
+    : `${esc(RISK_NAME[r.risk_type] || r.risk_type.replace(/_/g, ' '))} in `
+      + `${name}.`];
+
+  const tasks = (r.tasks || []).map(t => `<code>${esc(t)}</code>`);
+  if (tasks.length > 1) {
+    out.push(`It puts ${tasks.slice(0, -1).join(', ')} and `
+      + `${tasks[tasks.length - 1]} on the same ground.`);
+  } else if (tasks.length === 1) {
+    out.push(`This is ${tasks[0]} on its own — nothing else has to be in `
+      + 'flight for it to bite.');
+  }
+  if ((r.owners || []).length) {
+    out.push(`That is ${r.owners.map(esc).join(' and ')}\u2019s work.`);
+  }
+
+  const evidence = (r.evidence || []).length;
+  out.push(`Prophecy reads this as ${esc(r.risk_level)} at ${r.risk_score}, and `
+    + `is ${Math.round((r.confidence ?? 0) * 100)}% confident, on `
+    + `${evidence} piece${evidence === 1 ? '' : 's'} of evidence from the `
+    + 'repository itself.');
+
+  if (r.recommendation) out.push(esc(r.recommendation));
+  return out.join(' ');
+}
+
 function riskHTML(r) {
   const files = r.files || [];
-  const why = (r.evidence && r.evidence[0]) || r.recommendation || '';
   return `<details class="risk ${r.risk_level}">
     <summary>
       <i class="bar"></i>
@@ -1690,8 +1852,7 @@ function riskHTML(r) {
           <span class="tag predicted">confidence ${r.confidence ?? '—'}</span>
           <span class="tag ${r.risk_level === 'high' ? 'model' : 'observed'}">${esc(r.risk_level)}</span>
         </div>
-        <p class="fc-why">${esc(why)}</p>
-        <p class="hint" style="margin:0">${esc(r.recommendation || '')}</p>
+        <p class="story" style="margin:0;border:0;padding:0">${riskStory(r)}</p>
       </div>
       <ul>${r.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
       ${files.length ? `<p class="hint">${files.map(f =>
@@ -1910,6 +2071,76 @@ function mapSummary() {
     + ' · bigger means more files import it';
 }
 
+/* The same facts as the numbers above, in prose, in the order somebody would
+   actually ask for them: how much of the project leans on this file, what it
+   leans on, and anything about its kind that changes how you edit it. Every
+   sentence is built from a counted fact — nothing here is asserted because it
+   sounds good. */
+const ORDINAL = ['', '', 'second', 'third', 'fourth', 'fifth'];
+
+function fileStory(id, d, importers, importsOut) {
+  const nodes = (window.__graph && window.__graph.nodes) || [];
+  const kind = new Map(nodes.map(n => [n.id, n]));
+  const files = n => `${n} ${n === 1 ? 'file' : 'files'}`;
+  const name = `<code>${esc(base(id))}</code>`;
+  const out = [];
+
+  if (!importers.length) {
+    out.push(`Nothing else in this project imports ${name}, so a change to it `
+      + 'stays where you put it.');
+  } else {
+    const ranked = nodes.filter(n => n.depended_on_by > 0)
+      .sort((a, b) => b.depended_on_by - a.depended_on_by);
+    const rank = ranked.findIndex(n => n.id === id) + 1;
+    const standing = rank === 1
+      ? ', more than any other file here'
+      : rank > 1 && rank < ORDINAL.length
+        ? `, which makes it the ${ORDINAL[rank]} most depended-on file here`
+        : '';
+    out.push(`${files(importers.length)} import ${name}${standing}. `
+      + 'Editing it is how a small change turns into a wide one.');
+
+    const tests = importers.filter(f => (kind.get(f) || {}).is_test).length;
+    if (tests) {
+      out.push(tests === 1
+        ? 'One of them is a test, so a mistake here should show up there first.'
+        : `${tests} of them are tests, so a mistake here should show up there `
+          + 'first.');
+    }
+  }
+
+  const symbols = (d.symbols || []).length;
+  if (symbols && importers.length) {
+    out.push(`Those files call in through its ${symbols} `
+      + `${symbols === 1 ? 'symbol' : 'symbols'}, so it is a changed signature `
+      + '— not a changed line — that travels.');
+  }
+
+  out.push(importsOut.length
+    ? `It depends on ${files(importsOut.length)} of its own, so work underneath `
+      + 'it can reach this file too.'
+    : 'It imports nothing from this project, so nothing here can break it from '
+      + 'underneath.');
+
+  if (d.is_schema) {
+    out.push('It is a schema or migration file: two people editing it at once '
+      + 'is a sequencing problem rather than a merge problem.');
+  }
+  if (d.is_regenerated) {
+    out.push('It looks generated, so the fix for a conflict here is to '
+      + 'regenerate it rather than merge it by hand.');
+  }
+  if (d.is_test && importers.length === 0) {
+    out.push('It is a test file, so it follows the code rather than leading '
+      + 'it.');
+  }
+  if (CONTESTED.has(id)) {
+    out.push('More than one change in flight is already inside this file — '
+      + 'agree who owns it before either of them goes further.');
+  }
+  return out.join(' ');
+}
+
 // what one file is, in the terms the graph is drawn in
 function showNodeDetail(id) {
   const panel = document.getElementById('mapDetail');
@@ -1930,6 +2161,7 @@ function showNodeDetail(id) {
         ${d.lines} lines · ${(d.symbols || []).length} symbol(s) ·
         ${importers.length} file(s) import it · it imports ${importsOut.length}
         ${contested ? '· <b style="color:var(--bad)">more than one change is in here right now</b>' : ''}</p>
+      <p class="story">${fileStory(id, d, importers, importsOut)}</p>
       ${importers.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:16px 0 0">
         Editing this reaches</h4>
         <div class="chain">${importers.slice(0, 10).map(f =>
@@ -2320,7 +2552,8 @@ function renderPrs(d) {
 }
 $('#loadPrs').onclick = checkGitHub;
 
-const FEED_ICON = { joined: '\u2192', shared: '\u270E', overlap: '!', left: '\u2190' };
+const FEED_ICON = { joined: '\u2192', shared: '\u270E', overlap: '!',
+  left: '\u2190', analyzed: '\u25C9', notified: '\u2709' };
 // clamp on a word, never mid-word: a feed that ends in "scan(repo, lang" reads
 // like the page broke
 function clamp(text, max) {
@@ -2363,7 +2596,57 @@ function severityTag(sev) {
     : sev === 'medium' ? 'var(--warn)' : 'var(--text-3)'}">${esc(sev)}</span>`;
 }
 
-function analysisHTML(a) {
+/* The change, said in one breath. The tables under it are the working; this is
+   what you would tell the person whose change it is.
+
+   `meets` matters: two changes can edit entirely different files and still
+   collide, because what they reach overlaps. Saying "nothing else touches this"
+   off the back of shared filenames alone would contradict the panel below,
+   which scores exactly that case. */
+function changeStory(a, meets = []) {
+  const who = a.agent ? `<code>${esc(a.agent)}</code>` : 'nobody the project '
+    + 'could attribute it to';
+  const failures = a.potential_failures || [];
+  const worst = failures.find(f => f.severity === 'critical')
+    || failures.find(f => f.severity === 'high') || failures[0];
+  const direct = (a.blast_radius.direct || []).length;
+  const indirect = (a.blast_radius.indirect || []).length;
+  const out = [
+    `${esc(a.label)} belongs to ${who} and touches `
+    + `${a.changed_files.length} file${a.changed_files.length === 1 ? '' : 's'}, `
+    + `which reach ${direct} more directly`
+    + `${indirect ? ` and ${indirect} further out` : ''}.`,
+    `Prophecy puts it at ${a.risk_score} out of 100 — ${esc(a.risk_band)} — `
+    + `somewhere between ${a.risk_range.min} and ${a.risk_range.max}, at `
+    + `${Math.round(a.confidence * 100)}% confidence.`,
+  ];
+  if (worst) {
+    out.push(`The clearest problem is ${esc(worst.title.toLowerCase())}.`);
+  }
+  if ((a.concurrent_overlap || []).length) {
+    const names = [...new Set(a.concurrent_overlap.map(o => o.agent))];
+    out.push(`It edits the same files as ${names.map(n => `<code>${esc(n)}</code>`)
+      .join(' and ')}, which is why this is a conversation and not just a `
+      + 'review.');
+  } else if (meets.length) {
+    const worst = meets.reduce((m, i) =>
+      !m || i.combined_score > m.combined_score ? i : m, null);
+    const others = meets.flatMap(i => i.between.filter(b => b !== a.label));
+    out.push(`It edits different files from everyone else, but what it reaches `
+      + `overlaps with ${others.map(o => `<code>${esc(o)}</code>`).join(' and ')}`
+      + `: together they read ${esc(worst.combined_band)} at `
+      + `${worst.combined_score}, against ${a.risk_score} on its own.`);
+  } else {
+    out.push('Nothing else in flight reaches the same code, so it can land on '
+      + 'its own schedule.');
+  }
+  return out.join(' ');
+}
+
+function analysisHTML(a, meets = []) {
+  const mine = meets.filter(i => (i.between || []).includes(a.label));
+  const agent = a.agent || '';
+  const target = (a.label || '').split(' ').pop();
   return `<details class="risk ${RISK_CLASS[a.risk_band] || ''}">
     <summary>
       <i class="bar"></i>
@@ -2376,6 +2659,13 @@ function analysisHTML(a) {
         blast radius ${esc(a.blast_radius.size)}</span>
     </summary>
     <div class="detail">
+      <p class="story">${changeStory(a, mine)}</p>
+      ${agent && target ? `<p class="agent-action">
+        <button class="btn small secondary" data-notify="${esc(agent)}"
+          data-target="${esc(target)}">Send this to ${esc(agent)}\u2019s agent</button>
+        <span class="hint" data-notify-note>Waits in ${esc(agent)}\u2019s inbox
+          and rides back on their agent\u2019s next <code>check_overlap</code>
+          or <code>analyze_change</code> call.</span></p>` : ''}
       ${a.intent_contradictions.length ? `<p class="rec" style="border-color:var(--bad)">
         ${a.intent_contradictions.map(esc).join(' ')}</p>` : ''}
       ${a.potential_failures.length ? `<h4 class="hint"
@@ -2413,7 +2703,7 @@ function renderRisk(d) {
   $('#riskEscalate').textContent = o.escalating || 0;
 
   $('#changeList').innerHTML = changes.length
-    ? changes.map(analysisHTML).join('')
+    ? changes.map(a => analysisHTML(a, meets)).join('')
     : `<p class="empty" style="padding:18px">No branches in flight. Every
        branch here matches the base.</p>`;
 
@@ -2441,6 +2731,111 @@ function loadRisk() {
   }).finally(() => { $('#loadRisk').disabled = false; });
 }
 $('#loadRisk').onclick = loadRisk;
+
+/* ── telling an agent what it is walking into ────────────────
+   An agent cannot be interrupted: it is a process that speaks when it is
+   spoken to. So a risk profile addressed to one waits in that agent's inbox
+   and is handed back on its next MCP call, which is the same moment it was
+   already going to ask what else is happening in the repository. */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-notify]');
+  if (!btn) return;
+  const agent = btn.dataset.notify, target = btn.dataset.target;
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'sending…';
+  api('notify', { agent, target }).then(d => {
+    btn.textContent = d.live ? 'sent' : 'queued';
+    // the standing explanation has served its purpose; say what happened
+    const note = btn.parentElement.querySelector('[data-notify-note]');
+    if (note) {
+      note.textContent = d.live
+        ? `${agent}'s agent is connected — it gets this on its next call, `
+          + `alongside whatever it was asking for.`
+        : `${agent} has no agent connected right now. This waits, and is handed `
+          + `over the moment one joins.`;
+    }
+    loadAgentLoop();
+  }).catch(() => {
+    btn.disabled = false;
+    btn.textContent = label;
+  });
+});
+
+// what the agents have actually asked for, and what has been handed back
+const LOOP_WORDS = {
+  joined: 'joined the project and was briefed',
+  analyzed: 'asked what its own change would break',
+  overlap: 'was told it is heading for the same code as someone else',
+  shared: 'passed on something it worked out',
+  notified: 'was sent a risk profile from this dashboard',
+  left: 'finished up',
+};
+
+function loadAgentLoop() {
+  const out = $('#agentLoop');
+  if (!out) return;
+  Promise.all([
+    api('sessions').catch(() => ({ live: [], events: [] })),
+    api('messages').catch(() => ({ messages: [] })),
+  ]).then(([s, m]) => {
+    const live = s.live || [], events = s.events || [], sent = m.messages || [];
+    const waiting = sent.filter(x => !x.delivered_at);
+    out.innerHTML = `
+      <p class="story">Every agent working here talks to Prophecy over MCP
+        rather than reading the repository from scratch. It asks what it is
+        about to break before it commits, and it is told when somebody else is
+        already in the same files. ${live.length
+          ? `${live.length} agent${live.length === 1 ? ' is' : 's are'}
+             connected right now.`
+          : 'No agent is connected right now, so anything sent from here waits '
+            + 'until one joins.'}</p>
+      ${live.length ? `<table style="margin-top:14px"><thead><tr>
+        <th>agent</th><th>working on</th><th>last heard from</th></tr></thead>
+        <tbody>${live.map(x => `<tr>
+          <td><span class="dot-live"></span><b>${esc(x.agent)}</b></td>
+          <td class="dim">${esc(x.task || '—')}</td>
+          <td class="dim mono">${esc((x.last_seen || '').slice(11, 16))}</td>
+        </tr>`).join('')}</tbody></table>` : ''}
+      ${sent.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 6px">
+        Risk profiles sent to agents</h4>
+        <table><tbody>${sent.slice(0, 6).map(x => `<tr>
+          <td><b>${esc(x.to_agent)}</b></td>
+          <td class="dim">${esc(clamp(x.subject, 64))}</td>
+          <td class="dim mono">${x.delivered_at
+            ? 'picked up ' + esc(x.delivered_at.slice(11, 16))
+            : '<span style="color:var(--warn)">waiting</span>'}</td>
+        </tr>`).join('')}</tbody></table>
+        ${waiting.length ? `<p class="hint">${waiting.length}
+          still waiting to be picked up. Nothing is pushed at an agent — it
+          arrives the next time the agent asks Prophecy anything.</p>` : ''}` : ''}
+      ${events.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:18px 0 6px">
+        What the agents have asked for</h4>
+        <div class="feed">${events.slice(0, 8).map(e => `<div class="feed-row ${esc(e.kind)}">
+          <span class="mark">${FEED_ICON[e.kind] || '\u00B7'}</span>
+          <span class="who">${esc(e.agent)}</span>
+          <span class="what">${esc(LOOP_WORDS[e.kind] || clamp(e.detail, 90))}</span>
+          <span class="when dim">${esc((e.at || '').slice(11, 16))}</span>
+        </div>`).join('')}</div>` : ''}
+      ${live.length || events.length ? '' : `<p class="hint" style="margin-top:14px">
+        Nothing has connected yet. The settings block on
+        <button class="chip" data-tab-jump="setup">Home</button> is the whole
+        setup — paste it into a coding agent and it checks in on its own.</p>`}`;
+  }).catch(() => {
+    out.innerHTML = '<p class="empty">No agent activity for this project yet.</p>';
+  });
+}
+
+document.addEventListener('click', e => {
+  const jump = e.target.closest('[data-tab-jump]');
+  if (jump) {
+    const tab = jump.dataset.tabJump;
+    if (tab === 'setup') { showApp(false); loadSetup(); return; }
+    const btn = document.querySelector(`nav button[data-tab="${tab}"]`);
+    if (btn) btn.click();
+  }
+});
+$('#refreshLoop').onclick = loadAgentLoop;
 
 $('#runAnalyze').onclick = () => {
   const target = $('#analyzeTarget').value.trim();

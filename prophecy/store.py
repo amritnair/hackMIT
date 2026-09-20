@@ -56,6 +56,11 @@ CREATE TABLE IF NOT EXISTS outcomes (
     source TEXT DEFAULT 'verify',
     ran_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, to_agent TEXT,
+    subject TEXT, body TEXT, sent_by TEXT DEFAULT 'dashboard',
+    sent_at TEXT DEFAULT CURRENT_TIMESTAMP, delivered_at TEXT
+);
 """
 
 
@@ -351,6 +356,56 @@ def live_sessions(db, minutes=30):
 def feed(db, limit=40):
     return [dict(r) for r in db.execute(
         "SELECT * FROM events ORDER BY id DESC LIMIT ?", (limit,)
+    )]
+
+
+def queue_message(db, sha, to_agent, subject, body, sent_by="dashboard"):
+    """Something for one agent to read the next time it calls in.
+
+    An agent is not a server: it cannot be pushed to, it can only be answered.
+    So a risk profile addressed to an agent waits here until that agent's next
+    MCP call, and rides back on the reply.
+
+    Sending the same unread thing twice is a no-op, the same way re-sharing a
+    finding is. Pressing the button again while the agent has not called in yet
+    should not make it read the same profile twice.
+    """
+    already = db.execute(
+        "SELECT id FROM messages WHERE to_agent = ? AND subject = ?"
+        " AND body = ? AND delivered_at IS NULL LIMIT 1",
+        (to_agent, subject, body),
+    ).fetchone()
+    if already:
+        return already["id"]
+    cur = db.execute(
+        "INSERT INTO messages (sha, to_agent, subject, body, sent_by)"
+        " VALUES (?,?,?,?,?)",
+        (sha, to_agent, subject, body, sent_by),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def pending_messages(db, agent, mark=True):
+    """Undelivered messages for one agent, marked delivered as they go out."""
+    rows = [dict(r) for r in db.execute(
+        "SELECT * FROM messages WHERE to_agent = ? AND delivered_at IS NULL"
+        " ORDER BY id", (agent,)
+    )]
+    if rows and mark:
+        db.execute(
+            "UPDATE messages SET delivered_at = CURRENT_TIMESTAMP"
+            " WHERE id IN (%s)" % ",".join("?" * len(rows)),
+            [r["id"] for r in rows],
+        )
+        db.commit()
+    return rows
+
+
+def messages(db, limit=40):
+    """Everything sent to an agent, delivered or still waiting."""
+    return [dict(r) for r in db.execute(
+        "SELECT * FROM messages ORDER BY id DESC LIMIT ?", (limit,)
     )]
 
 

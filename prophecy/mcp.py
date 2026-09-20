@@ -328,6 +328,24 @@ class Server:
             lines.append("  reached by: " + ", ".join(layers[0][:8]))
         return "\n".join(lines)
 
+    def inbox(self, agent):
+        """Anything a person addressed to this agent, newest last.
+
+        Prepended to whatever the agent asked for, because an agent only reads
+        when it is already reading: a message nobody fetches is a message
+        nobody acts on.
+        """
+        if not agent:
+            return ""
+        _, db = self._open()
+        waiting = store.pending_messages(db, agent)
+        if not waiting:
+            return ""
+        blocks = [f"### {m['subject']}\n{m['body']}" for m in waiting]
+        return ("## For you, from your team\n"
+                + "\n\n".join(blocks)
+                + "\n\n---\n\n")
+
     def call(self, name, args):
         handler = {
             "analyze_change": self.analyze,
@@ -341,7 +359,11 @@ class Server:
         }.get(name)
         if not handler:
             raise ValueError(f"unknown tool {name}")
-        return handler(args)
+        answer = handler(args)
+        # every tool an agent calls is a chance to hand it what is waiting
+        if name != "leave_repo_session":
+            return self.inbox(args.get("agent")) + answer
+        return answer
 
 
 def _render_analysis(a):

@@ -77,6 +77,19 @@ class Handler(BaseHTTPRequestHandler):
         if name == "mcp_config":
             from .mcp import config_snippet
             return {"config": config_snippet(path), "repo": path}
+        if name == "notify":
+            return _notify_agent(
+                path, repo,
+                query.get("agent", [""])[0],
+                query.get("target", [""])[0],
+                query.get("base", ["main"])[0],
+            )
+        if name == "messages":
+            db = store.connect(path)
+            return {
+                "messages": store.messages(db),
+                "live": [s["agent"] for s in store.live_sessions(db)],
+            }
         if name not in COMMANDS:
             return {"error": f"unknown command {name}"}
         db = store.connect(path)
@@ -264,6 +277,68 @@ def _file_detail(repo, path):
         "is_test": info["is_test"],
         "is_schema": path in repo["schema_files"],
         "is_regenerated": is_regenerated(path),
+    }
+
+
+def _notify_agent(path, repo, agent, target, base):
+    """Queue the risk profile of one change for the agent doing that change.
+
+    Deliberately runs the same command the dashboard's own list runs and picks
+    the matching change out of it, rather than analysing the branch a second
+    time here. Two code paths would be two chances to send an agent a number
+    the person looking at the page never saw.
+    """
+    from .cli import COMMANDS
+    from .mcp import _render_analysis
+
+    if not agent:
+        return {"error": "who is this for?"}
+    if not target:
+        return {"error": "which change?"}
+
+    db = store.connect(path)
+    args = Namespace(json=True, repo=path, base=base, tasks=[])
+    found = COMMANDS["risk"](repo, args, db)
+    changes = found.get("changes", [])
+    analysis = next((c for c in changes if target in (c.get("label") or "")), None)
+    if not analysis:
+        return {"error": f"{target} is not in flight here"}
+
+    body = _render_analysis(analysis)
+
+    # Two changes can edit different files and still collide through what they
+    # reach. That is the part an agent cannot work out alone, so it is the part
+    # worth sending: its own reading plus what it looks like next to everyone
+    # else's.
+    label = analysis["label"]
+    meets = [i for i in found.get("interactions", []) if label in i["between"]]
+    if meets:
+        body += "\n\nTogether with other work in flight:"
+        for i in meets:
+            others = [b for b in i["between"] if b != label]
+            body += (f"\n- with {', '.join(others)}: {i['combined_score']}/100 "
+                     f"({i['combined_band']}) combined, against "
+                     f"{analysis['risk_score']} alone"
+                     + (" — worse together than apart" if i.get("escalates")
+                        else ""))
+            for line in i.get("evidence", [])[:3]:
+                body += f"\n    {line}"
+
+    subject = (f"Risk profile for {target} — {analysis['risk_score']}/100 "
+               f"({analysis['risk_band']})")
+    store.queue_message(db, repo["sha"], agent, subject, body)
+    store.log(db, repo["sha"], "notified", agent,
+              f"sent the risk profile for {target} "
+              f"({analysis['risk_score']}/100)")
+    live = any(s["agent"] == agent for s in store.live_sessions(db))
+    return {
+        "queued": True,
+        "agent": agent,
+        "subject": subject,
+        "body": body,
+        "live": live,
+        "score": analysis["risk_score"],
+        "band": analysis["risk_band"],
     }
 
 
