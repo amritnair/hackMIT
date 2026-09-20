@@ -384,6 +384,124 @@
     margin-bottom: 6px; }
   .mcp-loop code { font-size: .9em; color: var(--cyan); }
 
+  /* ── how context moves between agents ────────────────────────
+     A tree, because the shape is the argument: one background at the top, paid
+     for once, and every agent hanging off it rather than reading it again. */
+  .share-wrap { margin: 4px -6px 0; overflow-x: auto; }
+  #shareTree { width: 100%; min-width: 560px; height: 340px; display: block; }
+  #shareTree .link { stroke: var(--line-2); stroke-width: 1.4; fill: none;
+    transition: stroke .15s, stroke-width .15s, opacity .15s; }
+  #shareTree .link.crossover { stroke: var(--cyan); stroke-dasharray: 4 3;
+    opacity: .75; }
+  #shareTree .link.lit { stroke: var(--accent); stroke-width: 2.4; opacity: 1; }
+  #shareTree .link.dim { opacity: .12; }
+  #shareTree g.knot { cursor: pointer; }
+  #shareTree g.knot rect, #shareTree g.knot circle { transition: all .15s; }
+  #shareTree .box { fill: var(--raised); stroke: var(--line-2); rx: 9; }
+  #shareTree g.knot:hover .box, #shareTree g.knot.on .box {
+    fill: #2A2438; stroke: var(--accent); }
+  #shareTree .root .box { fill: rgba(139,92,246,.16); stroke: var(--accent); }
+  #shareTree .contested .box { stroke: var(--cyan); }
+  #shareTree text { font-family: var(--mono); font-size: 10.5px;
+    fill: var(--text-2); pointer-events: none; }
+  #shareTree text.name { font-size: 11.5px; fill: var(--text); }
+  #shareTree text.small { font-size: 9.5px; fill: var(--text-3); }
+  #shareTree .live { fill: var(--good); }
+  #shareTree g.faded { opacity: .28; }
+  .share-detail { margin-top: 14px; padding: 14px 16px; border-radius: 12px;
+    background: var(--raised); border: 1px solid var(--line); }
+  .share-detail h4 { margin: 0 0 8px; font-size: 13.5px; color: var(--text); }
+  .share-detail .quote { font-family: var(--mono); font-size: 11.5px;
+    color: var(--text-2); border-left: 2px solid var(--cyan);
+    padding: 3px 0 3px 10px; margin: 7px 0; }
+  .share-detail .quote b { color: var(--text); font-weight: 500; }
+
+  /* ── the editor ──────────────────────────────────────────────
+     Laid out like an editor because that is what it is: files on the left,
+     the file in the middle, and the reason you are here on the right. */
+  #editor { position: fixed; inset: 0; z-index: 60; background: var(--bg);
+    display: flex; flex-direction: column; }
+  #editor[hidden] { display: none; }
+  .ed-bar { display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+    background: var(--card); }
+  .ed-path { font-family: var(--mono); font-size: 13px; color: var(--text); }
+  .ed-branch { font-size: 12px; }
+  .ed-dirty { font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--warn); border: 1px solid rgba(251,191,36,.35);
+    background: rgba(251,191,36,.1); padding: 2px 7px; border-radius: 999px; }
+  .ed-body { flex: 1; display: grid; min-height: 0;
+    grid-template-columns: 230px minmax(0, 1fr) 320px; }
+  .ed-tree, .ed-side { overflow: auto; background: var(--card); }
+  .ed-tree { border-right: 1px solid var(--line); }
+  .ed-side { border-left: 1px solid var(--line); padding: 14px; }
+  .ed-tree-head { padding: 10px; border-bottom: 1px solid var(--line); }
+  .ed-tree-head .field { margin: 0; font-size: 12px; padding: 6px 9px; }
+  .ed-dir { font-family: var(--mono); font-size: 11px; color: var(--text-3);
+    padding: 10px 12px 4px; letter-spacing: .04em; }
+  .ed-file { display: flex; align-items: center; gap: 7px; width: 100%;
+    text-align: left; font-family: var(--mono); font-size: 12px;
+    color: var(--text-2); background: none; border: 0; cursor: pointer;
+    padding: 5px 12px 5px 20px; }
+  .ed-file:hover { background: var(--raised); color: var(--text); }
+  .ed-file[aria-current="true"] { background: rgba(139,92,246,.16);
+    color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+  .ed-file i { width: 6px; height: 6px; border-radius: 50%; flex: none;
+    background: transparent; }
+  .ed-file i.dirty { background: var(--warn); }
+  .ed-main { display: flex; flex-direction: column; min-width: 0; }
+  .ed-tabs { display: flex; gap: 2px; padding: 0 12px;
+    border-bottom: 1px solid var(--line); background: var(--card); }
+  .ed-tab { background: none; border: 0; cursor: pointer; font: inherit;
+    font-size: 12.5px; color: var(--text-3); padding: 10px 12px;
+    border-bottom: 2px solid transparent; }
+  .ed-tab[aria-selected="true"] { color: var(--text);
+    border-bottom-color: var(--accent); }
+  .ed-pane { flex: 1; min-height: 0; display: flex; overflow: hidden; }
+  .ed-pane[hidden] { display: none; }
+  .ed-gutter { flex: none; padding: 14px 10px 40vh; text-align: right;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+    color: var(--text-3); background: var(--card);
+    border-right: 1px solid var(--line); overflow: hidden;
+    user-select: none; min-width: 48px; }
+  /* the painted copy and the real textarea are stacked and must agree on every
+     metric, or the caret drifts away from the text under it */
+  .ed-input { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+  .ed-paint, .ed-input textarea { margin: 0; padding: 14px 18px 40vh;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+    tab-size: 4; white-space: pre; overflow: auto; border: 0;
+    position: absolute; inset: 0; }
+  .ed-paint { color: var(--text-2); pointer-events: none; }
+  .ed-input textarea { background: transparent; color: transparent;
+    caret-color: var(--cyan); resize: none; outline: none; }
+  .ed-input textarea::selection { background: rgba(139,92,246,.35); }
+  .tok-key { color: #C4B5FD; }
+  .tok-str { color: #86EFAC; }
+  .tok-com { color: var(--text-3); font-style: italic; }
+  .tok-num { color: #FDBA74; }
+  .tok-def { color: var(--cyan); }
+  .tok-dec { color: var(--warn); }
+  .ed-diff { margin: 0; padding: 14px 18px; overflow: auto; flex: 1;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.55; }
+  .ed-diff .add { color: var(--good); }
+  .ed-diff .del { color: var(--bad); }
+  .ed-diff .hunk { color: var(--cyan); }
+  .ed-side-block { margin-bottom: 20px; }
+  .ed-side-block > b { display: block; font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-3); margin-bottom: 9px; }
+  .ed-side .story { margin: 0 0 10px; font-size: 13px; }
+  .ed-side textarea.field { width: 100%; margin: 4px 0 8px; font-size: 13px;
+    font-family: var(--ui); resize: vertical; }
+  .ed-stage { display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11.5px; color: var(--text-2);
+    padding: 4px 0; cursor: pointer; }
+  .ed-stage input { accent-color: var(--accent); }
+  .ed-stage em { font-style: normal; color: var(--text-3); }
+  @media (max-width: 1100px) {
+    .ed-body { grid-template-columns: minmax(0, 1fr); }
+    .ed-tree, .ed-side { display: none; }
+  }
+
   /* the same loop on the landing page, where it is the pitch rather than the
      reference */
   .mcp-band { display: grid; gap: 1px; margin: 26px 0 0;
@@ -686,6 +804,24 @@
     </div>
 
     <div class="card">
+      <h3>Who has handed what to whom
+        <button class="btn small secondary" id="refreshShare">Refresh</button></h3>
+      <div class="body">
+        <p class="story" id="shareStory">Reading what the agents have passed
+          between each other.</p>
+        <div class="share-wrap">
+          <svg id="shareTree" role="img"
+            aria-label="How context is shared between the agents"></svg>
+        </div>
+        <div class="share-detail" id="shareDetail">
+          <p class="hint" style="margin:0">Hover a line to follow it. Click an
+            agent to see what it contributed, or a file to see what was said
+            about it — and to open it.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <h3>How that number is reached</h3>
       <div class="body">
         <div class="ledger-row" id="howRows">
@@ -841,7 +977,8 @@
         <span><i class="contested"></i> two people in here</span>
         <span><i class="plain"></i> source file</span>
         <span><i class="test"></i> test file</span>
-        <span class="dim">click to focus · click again to reset · drag to move</span>
+        <span class="dim">click to focus · double-click to edit it · drag to
+          move</span>
       </div>
     </div>
     
@@ -893,6 +1030,65 @@
   <div class="body" id="drawerBody"></div>
 </aside>
 
+<!-- Editing the file the map is warning about, and committing it from here.
+     Prophecy already knows what this file reaches; the point of putting an
+     editor inside it is that the consequences stay on screen while you type. -->
+<div id="editor" hidden aria-hidden="true">
+  <header class="ed-bar">
+    <span class="ed-path" id="edPath">—</span>
+    <span class="ed-dirty" id="edDirty" hidden>unsaved</span>
+    <span class="ed-branch mono dim" id="edBranch"></span>
+    <span style="flex:1"></span>
+    <button class="btn small secondary" id="edRevert">Discard changes</button>
+    <button class="btn small" id="edSave" disabled>Save</button>
+    <button class="btn small secondary" id="edClose">Close</button>
+  </header>
+
+  <div class="ed-body">
+    <div class="ed-tree">
+      <div class="ed-tree-head">
+        <input class="field" id="edFilter" placeholder="find a file"
+               autocomplete="off">
+      </div>
+      <div id="edFiles"></div>
+    </div>
+
+    <div class="ed-main">
+      <div class="ed-tabs">
+        <button class="ed-tab" data-view="code" aria-selected="true">Code</button>
+        <button class="ed-tab" data-view="diff">Changes against the last commit</button>
+      </div>
+      <div class="ed-pane" id="edCodePane">
+        <div class="ed-gutter" id="edGutter"></div>
+        <div class="ed-input">
+          <pre class="ed-paint" id="edPaint" aria-hidden="true"></pre>
+          <textarea id="edText" spellcheck="false" wrap="off"
+                    aria-label="File contents"></textarea>
+        </div>
+      </div>
+      <div class="ed-pane" id="edDiffPane" hidden>
+        <pre class="ed-diff" id="edDiff"></pre>
+      </div>
+    </div>
+
+    <div class="ed-side">
+      <div class="ed-side-block">
+        <b>What this file reaches</b>
+        <div id="edReach"><p class="loading">reading</p></div>
+      </div>
+      <div class="ed-side-block">
+        <b>Commit</b>
+        <div id="edChanged"></div>
+        <textarea class="field" id="edMessage" rows="3"
+                  placeholder="What did you change, and why?"></textarea>
+        <button class="btn small" id="edCommit" disabled>Commit</button>
+        <p class="hint" id="edCommitNote">Only the files you tick are committed.
+          Anything else dirty in the tree is left alone.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 
 const $ = s => document.querySelector(s);
@@ -931,6 +1127,21 @@ function api(cmd, params = {}) {
   });
 }
 
+/* Writing needs a body rather than a query string, and the things that write
+   are the things worth being loud about when they fail: a save or a commit that
+   quietly did nothing is worse than an error. */
+function apiPost(cmd, body = {}) {
+  return fetch(`/api/${cmd}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repo: REPO, ...body }),
+  }).then(r => r.json()).then(d => {
+    if (d && d.error) { showBanner(d.error); throw new Error(d.error); }
+    hideBanner();
+    return d;
+  });
+}
+
 /* Nothing that reads as a crash ever reaches the banner. "see server log" is a
    note to whoever is running the process, not something a person using the
    page can act on, so it goes to the console and the banner stays down —
@@ -953,7 +1164,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
     s.hidden = s.id !== b.dataset.tab);
   if (b.dataset.tab === 'history') { loadInsights(); loadRecord(); }
   if (b.dataset.tab === 'team') { loadLive(); loadPlan(false); loadRoster(); }
-  if (b.dataset.tab === 'context') loadUsage();
+  if (b.dataset.tab === 'context') { loadUsage(); loadSharing(); }
   if (b.dataset.tab === 'setup') loadSetup();
   if (b.dataset.tab === 'changes') { loadRisk(); checkGitHub(); loadAgentLoop(); }
 });
@@ -2180,7 +2391,9 @@ function showNodeDetail(id) {
         <p class="mono dim" style="margin-top:6px">${d.symbols.slice(0, 8)
           .map(x => esc(x.signature)).join('<br>')}</p>` : ''}
       <p style="margin-top:16px">
-        <button class="btn small secondary" data-openfile="${esc(id)}">Open the file</button>
+        <button class="btn small" data-edopen="${esc(id)}">Open in the editor</button>
+        <button class="btn small secondary" data-openfile="${esc(id)}">Just the
+          details</button>
       </p>`;
   }).catch(() => { panel.innerHTML = '<p class="empty">Not a parsed file.</p>'; });
 }
@@ -2191,6 +2404,461 @@ document.addEventListener('click', e => {
   if (hop) { G.focus = hop.dataset.node; applyFocus(); showNodeDetail(G.focus); }
   const open = e.target.closest('[data-openfile]');
   if (open) openFile(open.dataset.openfile);
+});
+
+/* ── how context moves between agents ─────────────────────────
+   Three rows: the background every agent starts from, the agents, and the files
+   they left findings on. A file two agents both wrote about is the interesting
+   one — that is the moment one agent's reading saved another agent the work,
+   so it gets the dashed cyan line and says who it reached. */
+const SHARE = { data: null, pick: null };
+
+function shareTree(d) {
+  const svg = $('#shareTree');
+  const agents = (d.agents || []).slice(0, 6);
+  const files = (d.files || []).slice(0, 8);
+  const notes = d.notes || [];
+  const live = new Set(d.live || []);
+
+  if (!agents.length) {
+    svg.innerHTML = '';
+    $('#shareStory').innerHTML = 'No agent has been briefed on this project '
+      + 'yet. Once one joins over MCP, what it reads and what it works out '
+      + 'shows up here, and the next agent starts from it instead of from '
+      + 'nothing.';
+    return;
+  }
+
+  const W = Math.max(560, svg.clientWidth || 900), H = 340;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const rootY = 34, agentY = 150, fileY = 268;
+  const spread = (n, i) => W * (i + 1) / (n + 1);
+  const at = { root: { x: W / 2, y: rootY } };
+  agents.forEach((a, i) => at[`a:${a.agent}`] = { x: spread(agents.length, i), y: agentY });
+  files.forEach((f, i) => at[`f:${f.file}`] = { x: spread(files.length, i), y: fileY });
+
+  // who wrote about what, and which files ended up with more than one author
+  const wrote = new Map();
+  notes.forEach(n => {
+    if (!at[`f:${n.file}`] || !at[`a:${n.agent}`]) return;
+    const key = `${n.agent}|${n.file}`;
+    wrote.set(key, (wrote.get(key) || 0) + 1);
+  });
+
+  const curve = (from, to) =>
+    `M${from.x},${from.y} C${from.x},${(from.y + to.y) / 2} ` +
+    `${to.x},${(from.y + to.y) / 2} ${to.x},${to.y}`;
+
+  const links = agents.map(a =>
+    `<path class="link" data-from="root" data-to="a:${esc(a.agent)}"
+      d="${curve({ x: at.root.x, y: rootY + 26 }, { x: at[`a:${a.agent}`].x, y: agentY - 20 })}"/>`);
+
+  [...wrote.keys()].forEach(key => {
+    const [agent, file] = key.split('|');
+    const many = (files.find(f => f.file === file) || {}).agents > 1;
+    links.push(`<path class="link ${many ? 'crossover' : ''}"
+      data-from="a:${esc(agent)}" data-to="f:${esc(file)}"
+      d="${curve({ x: at[`a:${agent}`].x, y: agentY + 20 },
+                 { x: at[`f:${file}`].x, y: fileY - 16 })}"/>`);
+  });
+
+  const knot = (id, x, y, w, h, cls, inner) =>
+    `<g class="knot ${cls}" data-knot="${esc(id)}">
+      <rect class="box" x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}"/>
+      ${inner}</g>`;
+
+  const bg = d.shared_background || {};
+  const nodes = [knot('root', at.root.x, rootY, 320, 52, 'root', `
+    <text class="name" x="${at.root.x}" y="${rootY - 4}" text-anchor="middle">
+      everything about this codebase</text>
+    <text class="small" x="${at.root.x}" y="${rootY + 12}" text-anchor="middle">
+      ${(bg.paid_once_tokens || 0).toLocaleString()} tokens, read once ·
+      served again ${bg.served_from_cache || 0}×</text>`)];
+
+  agents.forEach(a => {
+    const p = at[`a:${a.agent}`];
+    nodes.push(knot(`a:${a.agent}`, p.x, p.y, 150, 54, 'agent', `
+      ${live.has(a.agent) ? `<circle class="live" cx="${p.x - 58}" cy="${p.y - 10}" r="3.5"/>` : ''}
+      <text class="name" x="${p.x}" y="${p.y - 6}" text-anchor="middle">${esc(a.agent)}</text>
+      <text class="small" x="${p.x}" y="${p.y + 9}" text-anchor="middle">
+        ${a.wrote || 0} found · ${a.pulled || 0} received</text>
+      <text class="small" x="${p.x}" y="${p.y + 21}" text-anchor="middle">
+        ${(a.task_tokens || 0).toLocaleString()} tokens of its own</text>`));
+  });
+
+  files.forEach(f => {
+    const p = at[`f:${f.file}`];
+    nodes.push(knot(`f:${f.file}`, p.x, p.y, Math.max(96, base(f.file).length * 7.2), 44,
+      f.agents > 1 ? 'contested' : '', `
+      <text class="name" x="${p.x}" y="${p.y - 3}" text-anchor="middle">${esc(base(f.file))}</text>
+      <text class="small" x="${p.x}" y="${p.y + 12}" text-anchor="middle">
+        ${f.notes} finding(s)${f.agents > 1 ? ` · ${f.agents} agents` : ''}</text>`));
+  });
+
+  svg.innerHTML = links.join('') + nodes.join('');
+
+  const crossings = files.filter(f => f.agents > 1);
+  $('#shareStory').innerHTML =
+    `Every agent here starts from the same reading of this codebase — `
+    + `<b>${(bg.paid_once_tokens || 0).toLocaleString()} tokens</b> that were `
+    + `paid for once and handed out ${bg.briefs || 0} time(s). What hangs `
+    + `underneath is each agent's own work: the findings it wrote down, and the `
+    + `findings it was given. `
+    + (crossings.length
+      ? `${crossings.length === 1 ? 'One file has' : `${crossings.length} files have`}
+         findings from more than one agent — dashed lines — which is exactly
+         where one agent's work saved another the trouble of working it out
+         again.`
+      : `Nothing has been worked out twice yet: no two agents have left
+         findings on the same file.`);
+}
+
+function shareLight(id) {
+  const svg = $('#shareTree');
+  svg.querySelectorAll('.link').forEach(l => {
+    const involved = !id || l.dataset.from === id || l.dataset.to === id;
+    l.classList.toggle('lit', Boolean(id) && involved);
+    l.classList.toggle('dim', Boolean(id) && !involved);
+  });
+  svg.querySelectorAll('g.knot').forEach(g => {
+    g.classList.toggle('on', g.dataset.knot === id);
+  });
+}
+
+function shareDetail(id) {
+  const d = SHARE.data;
+  if (!d || id === 'root') {
+    $('#shareDetail').innerHTML = `<h4>The half nobody pays for twice</h4>
+      <p class="hint" style="margin:0">Structure, dependencies and history of
+        this codebase, identical for every agent on this commit. Each agent's
+        own task is appended after it, where changing it costs nothing.</p>`;
+    return;
+  }
+  const notes = d.notes || [];
+  if (id.startsWith('a:')) {
+    const agent = id.slice(2);
+    const mine = notes.filter(n => n.agent === agent);
+    const row = (d.agents || []).find(a => a.agent === agent) || {};
+    $('#shareDetail').innerHTML = `<h4>${esc(agent)}</h4>
+      <p class="hint" style="margin:0 0 4px">Briefed ${row.briefs || 0} time(s),
+        wrote ${row.wrote || 0} finding(s) across ${row.files || 0} file(s), and
+        was handed ${row.pulled || 0} from other agents.</p>
+      ${mine.slice(0, 5).map(n => `<p class="quote"><b>${esc(base(n.file))}</b>
+        — ${esc(n.note)}</p>`).join('')
+        || '<p class="hint" style="margin:0">It has not written anything down yet.</p>'}`;
+    return;
+  }
+  const file = id.slice(2);
+  const about = notes.filter(n => n.file === file);
+  const who = [...new Set(about.map(n => n.agent))];
+  $('#shareDetail').innerHTML = `<h4>${esc(file)}</h4>
+    <p class="hint" style="margin:0 0 4px">${about.length} finding(s) from
+      ${who.map(esc).join(', ') || 'nobody'}.
+      ${who.length > 1 ? 'Because more than one agent has been in here, each '
+        + 'one after the first was told what the others already found.' : ''}</p>
+    ${about.slice(0, 5).map(n => `<p class="quote"><b>${esc(n.agent)}</b>
+      — ${esc(n.note)}</p>`).join('')}
+    <p style="margin:10px 0 0"><button class="btn small secondary"
+      data-edopen="${esc(file)}">Open ${esc(base(file))}</button></p>`;
+}
+
+function loadSharing() {
+  api('sharing').then(d => {
+    SHARE.data = d;
+    shareTree(d);
+  }).catch(() => {
+    $('#shareStory').textContent = 'No sharing recorded for this project yet.';
+  });
+}
+
+$('#refreshShare').onclick = loadSharing;
+$('#shareTree').addEventListener('mouseover', e => {
+  const g = e.target.closest('g.knot');
+  if (g) shareLight(g.dataset.knot);
+});
+$('#shareTree').addEventListener('mouseleave', () => {
+  shareLight(SHARE.pick);
+});
+$('#shareTree').addEventListener('click', e => {
+  const g = e.target.closest('g.knot');
+  if (!g) return;
+  SHARE.pick = SHARE.pick === g.dataset.knot ? null : g.dataset.knot;
+  shareLight(SHARE.pick);
+  if (SHARE.pick) shareDetail(SHARE.pick);
+});
+addEventListener('resize', () => { if (SHARE.data) shareTree(SHARE.data); });
+
+/* ── the editor ───────────────────────────────────────────────
+   The map says a file is load-bearing; this is where you act on that. It is a
+   real editor over the real working tree, and the commit button runs real git.
+
+   Highlighting is done by painting a copy of the text underneath a transparent
+   textarea. That keeps native editing — caret, selection, undo, IME — and
+   costs one repaint per keystroke, rather than reimplementing a text control. */
+const ED = { path: null, loaded: '', files: [], worktree: null, staged: new Set() };
+
+const KEYWORDS = {
+  py: `def class return if elif else for while in not and or is None True False
+       import from as with try except finally raise yield lambda global nonlocal
+       assert break continue pass del async await self`,
+  ts: `function class const let var return if else for while in of new this
+       import from export default extends implements interface type enum public
+       private protected static async await try catch finally throw typeof
+       instanceof null undefined true false void break continue switch case`,
+};
+
+function keywordsFor(lang) {
+  const src = lang === 'py' ? KEYWORDS.py : KEYWORDS.ts;
+  return new Set(src.split(/\s+/).filter(Boolean));
+}
+
+/* One pass, one regex: alternatives are tried in order, so a keyword inside a
+   string is never seen as a keyword. Replacing token by token instead would
+   corrupt anything that had already been marked up. */
+function paint(src, lang) {
+  const kw = keywordsFor(lang);
+  const pattern = new RegExp([
+    /(?<com>#[^\n]*|\/\/[^\n]*|\/\*[\s\S]*?\*\/)/.source,
+    /(?<str>"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)/.source,
+    /(?<dec>@[A-Za-z_]\w*)/.source,
+    /(?<num>\b\d[\d_]*(?:\.\d+)?\b)/.source,
+    /(?<word>\b[A-Za-z_]\w*\b)/.source,
+  ].join('|'), 'g');
+
+  let out = '', last = 0, m;
+  while ((m = pattern.exec(src))) {
+    out += esc(src.slice(last, m.index));
+    const g = m.groups;
+    const text = esc(m[0]);
+    if (g.com) out += `<span class="tok-com">${text}</span>`;
+    else if (g.str) out += `<span class="tok-str">${text}</span>`;
+    else if (g.dec) out += `<span class="tok-dec">${text}</span>`;
+    else if (g.num) out += `<span class="tok-num">${text}</span>`;
+    else if (kw.has(m[0])) out += `<span class="tok-key">${text}</span>`;
+    else if (/(?:def|class|function)\s+$/.test(src.slice(0, m.index)))
+      out += `<span class="tok-def">${text}</span>`;
+    else out += text;
+    last = m.index + m[0].length;
+  }
+  return out + esc(src.slice(last));
+}
+
+function edRepaint() {
+  const text = $('#edText').value;
+  const lang = (ED.path || '').endsWith('.py') ? 'py' : 'ts';
+  $('#edPaint').innerHTML = paint(text, lang);
+  const lines = text.split('\n').length;
+  $('#edGutter').innerHTML = Array.from({ length: lines },
+    (_, i) => i + 1).join('<br>');
+  const dirty = text !== ED.loaded;
+  $('#edDirty').hidden = !dirty;
+  $('#edSave').disabled = !dirty;
+  edSync();
+}
+
+// three stacked panes scrolling as one
+function edSync() {
+  const t = $('#edText');
+  $('#edPaint').scrollTop = t.scrollTop;
+  $('#edPaint').scrollLeft = t.scrollLeft;
+  $('#edGutter').scrollTop = t.scrollTop;
+}
+
+function edTree() {
+  const filter = $('#edFilter').value.trim().toLowerCase();
+  const dirty = new Set((ED.worktree?.files || []).map(f => f.path));
+  const shown = ED.files.filter(f => !filter || f.toLowerCase().includes(filter));
+  const dirs = new Map();
+  shown.forEach(f => {
+    const dir = f.includes('/') ? f.slice(0, f.lastIndexOf('/')) : '.';
+    (dirs.get(dir) || dirs.set(dir, []).get(dir)).push(f);
+  });
+  $('#edFiles').innerHTML = [...dirs.entries()].map(([dir, items]) =>
+    `<div class="ed-dir">${esc(dir)}</div>` + items.map(f =>
+      `<button class="ed-file" data-edopen="${esc(f)}"
+        aria-current="${f === ED.path}"><i class="${dirty.has(f) ? 'dirty' : ''}"></i>
+        ${esc(base(f))}</button>`).join('')).join('')
+    || '<p class="empty" style="padding:14px">No file matches.</p>';
+}
+
+function edChanged() {
+  const files = ED.worktree?.files || [];
+  $('#edBranch').textContent = ED.worktree
+    ? `on ${ED.worktree.branch} · ${ED.worktree.head || 'no commits yet'}` : '';
+  $('#edChanged').innerHTML = files.length
+    ? files.map(f => `<label class="ed-stage">
+        <input type="checkbox" data-stage="${esc(f.path)}"
+          ${ED.staged.has(f.path) ? 'checked' : ''}>
+        ${esc(f.path)} <em>${esc(f.state)}</em></label>`).join('')
+    : '<p class="hint" style="margin:0 0 8px">Nothing has changed since the '
+      + 'last commit.</p>';
+  $('#edCommit').disabled = !ED.staged.size;
+}
+
+function edLoadWorktree() {
+  return api('worktree').then(w => {
+    ED.worktree = w;
+    // a file you just edited is the one you meant to commit
+    (w.files || []).forEach(f => { if (f.path === ED.path) ED.staged.add(f.path); });
+    [...ED.staged].forEach(p => {
+      if (!(w.files || []).some(f => f.path === p)) ED.staged.delete(p);
+    });
+    edChanged();
+    edTree();
+  }).catch(() => {});
+}
+
+function edSide(path) {
+  const edges = (window.__graph || {}).edges || [];
+  const importers = edges.filter(e => e.to === path).map(e => e.from);
+  const importsOut = edges.filter(e => e.from === path).map(e => e.to);
+  api('file', { path }).then(d => {
+    $('#edReach').innerHTML = `
+      <p class="story">${fileStory(path, d, importers, importsOut)}</p>
+      ${CONTESTED.has(path) ? `<p class="rec" style="border-color:var(--bad)">
+        Somebody else has this file open in a change right now. Committing here
+        is the collision the Risk tab is scoring.</p>` : ''}
+      ${importers.length ? `<div class="chain">${importers.slice(0, 8).map(f =>
+        `<button class="chip" data-edopen="${esc(f)}">${esc(base(f))}</button>`)
+        .join('')}</div>` : ''}`;
+  }).catch(() => { $('#edReach').innerHTML = ''; });
+}
+
+function openEditor(path) {
+  const panel = $('#editor');
+  panel.hidden = false;
+  panel.setAttribute('aria-hidden', 'false');
+  ED.files = ((window.__graph || {}).nodes || []).map(n => n.id).sort();
+  edOpenFile(path);
+  edLoadWorktree();
+}
+
+function edOpenFile(path) {
+  ED.path = path;
+  $('#edPath').textContent = path;
+  $('#edText').value = '';
+  $('#edPaint').textContent = 'reading…';
+  api('read', { path }).then(d => {
+    ED.loaded = d.content || '';
+    $('#edText').value = ED.loaded;
+    edRepaint();
+    $('#edText').focus();
+  }).catch(() => { $('#edPaint').textContent = 'Could not read that file.'; });
+  edTree();
+  edSide(path);
+  edShowView('code');
+}
+
+function edShowView(view) {
+  document.querySelectorAll('.ed-tab').forEach(t =>
+    t.setAttribute('aria-selected', String(t.dataset.view === view)));
+  $('#edCodePane').hidden = view !== 'code';
+  $('#edDiffPane').hidden = view !== 'diff';
+  if (view !== 'diff') return;
+  $('#edDiff').textContent = 'reading…';
+  api('filediff', { path: ED.path }).then(d => {
+    const lines = (d.diff || '').split('\n');
+    $('#edDiff').innerHTML = lines.length && d.diff
+      ? lines.map(l => {
+          const cls = l.startsWith('+++') || l.startsWith('---') ? 'dim'
+            : l.startsWith('@@') ? 'hunk' : l.startsWith('+') ? 'add'
+            : l.startsWith('-') ? 'del' : '';
+          return `<span class="${cls}">${esc(l)}</span>`;
+        }).join('\n')
+      : 'This file matches the last commit.';
+  }).catch(() => { $('#edDiff').textContent = 'Could not read the diff.'; });
+}
+
+function edSave() {
+  if ($('#edText').value === ED.loaded) return Promise.resolve();
+  const body = { path: ED.path, content: $('#edText').value };
+  $('#edSave').disabled = true;
+  return apiPost('save', body).then(d => {
+    ED.loaded = body.content.endsWith('\n') || !body.content
+      ? body.content : body.content + '\n';
+    $('#edText').value = ED.loaded;
+    ED.staged.add(ED.path);
+    edRepaint();
+    ED.worktree = d.worktree;
+    edChanged();
+    edTree();
+  }).catch(() => { $('#edSave').disabled = false; });
+}
+
+function closeEditor() {
+  if ($('#edText').value !== ED.loaded &&
+      !confirm('This file has unsaved changes. Close anyway?')) return;
+  $('#editor').hidden = true;
+  $('#editor').setAttribute('aria-hidden', 'true');
+  // the graph and the risk numbers are now out of date by definition
+  if (REPO) { loadRepo(); loadRisk(); }
+}
+
+$('#edText').addEventListener('input', edRepaint);
+$('#edText').addEventListener('scroll', edSync);
+$('#edText').addEventListener('keydown', e => {
+  if (e.key === 'Tab') {                 // indent, rather than leave the field
+    e.preventDefault();
+    const t = e.target, at = t.selectionStart;
+    t.setRangeText('    ', at, t.selectionEnd, 'end');
+    edRepaint();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); edSave(); }
+});
+$('#edSave').onclick = edSave;
+$('#edClose').onclick = closeEditor;
+$('#edFilter').oninput = edTree;
+document.querySelectorAll('.ed-tab').forEach(t =>
+  t.onclick = () => edShowView(t.dataset.view));
+
+$('#edRevert').onclick = () => {
+  if (!ED.path) return;
+  if (!confirm(`Throw away uncommitted changes to ${ED.path}?`)) return;
+  apiPost('revert', { path: ED.path }).then(d => {
+    ED.worktree = d.worktree;
+    ED.staged.delete(ED.path);
+    edOpenFile(ED.path);
+    edChanged();
+  }).catch(() => {});
+};
+
+$('#edChanged').addEventListener('change', e => {
+  const box = e.target.closest('[data-stage]');
+  if (!box) return;
+  box.checked ? ED.staged.add(box.dataset.stage) : ED.staged.delete(box.dataset.stage);
+  $('#edCommit').disabled = !ED.staged.size;
+});
+
+$('#edCommit').onclick = () => {
+  const message = $('#edMessage').value.trim();
+  if (!message) { $('#edMessage').focus(); return; }
+  const paths = [...ED.staged];
+  $('#edCommit').disabled = true;
+  $('#edCommitNote').textContent = 'committing…';
+  // save first: committing the file you are looking at should commit what you
+  // are looking at, not the last version that happened to reach disk
+  edSave().then(() => apiPost('commit', { message, paths })).then(d => {
+    ED.worktree = d.worktree;
+    ED.staged.clear();
+    $('#edMessage').value = '';
+    edChanged();
+    edTree();
+    edShowView('code');
+    $('#edCommitNote').innerHTML = `Committed <code>${esc(d.committed)}</code> —
+      ${d.files.length} file(s). This is a real commit on
+      ${esc(d.worktree.branch)}; nothing has been pushed.`;
+  }).catch(err => {
+    $('#edCommitNote').textContent = String(err.message || 'the commit failed');
+    $('#edCommit').disabled = false;
+  });
+};
+
+document.addEventListener('click', e => {
+  const open = e.target.closest('[data-edopen]');
+  if (open) openEditor(open.dataset.edopen);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('#editor').hidden) closeEditor();
 });
 
 function toggleFocus(id) {
@@ -2233,6 +2901,11 @@ $('#graph').addEventListener('pointerup', e => {
   G.drag = null;
   $('#graph').classList.remove('dragging');
   run(60);
+});
+// double-click a node to edit it, the way double-clicking a file does anywhere
+$('#graph').addEventListener('dblclick', e => {
+  const g = e.target.closest('.node');
+  if (g) openEditor(g.dataset.id);
 });
 $('#reflow').onclick = () => layout(window.__graph);
 document.addEventListener('click', e => {
@@ -2481,7 +3154,7 @@ function loadPlan(confirm) {
         + 'them has found that the next person should know.'
       : 'Nothing in flight right now.';
     $('#briefPrefix').textContent = '';
-    if (d.recorded) { loadUsage(); loadLive(); }
+    if (d.recorded) { loadUsage(); loadLive(); loadSharing(); }
   }).catch(() => {
     $('#planOut').innerHTML = '<p class="empty">Could not read that repository.</p>';
   });

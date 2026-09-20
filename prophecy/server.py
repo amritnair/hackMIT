@@ -51,6 +51,46 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, "application/json",
                           json.dumps(payload, default=str).encode())
 
+    def do_POST(self):
+        """Editing sends whole files, which do not belong in a query string."""
+        url = urlparse(self.path)
+        if not url.path.startswith("/api/"):
+            return self._send(404, "text/plain", b"not found")
+        try:
+            size = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(size) or b"{}")
+        except (ValueError, json.JSONDecodeError):
+            return self._send(400, "application/json",
+                              json.dumps({"error": "unreadable request"}).encode())
+        try:
+            payload = self._write(url.path[5:], body)
+        except Exception:
+            traceback.print_exc()
+            return self._send(500, "application/json", json.dumps({
+                "error": "internal",
+                "detail": "prophecy hit an error handling that request; "
+                          "the traceback is in the terminal running it",
+            }).encode())
+        return self._send(200, "application/json",
+                          json.dumps(payload, default=str).encode())
+
+    def _write(self, name, body):
+        """The endpoints that change the repository rather than read it."""
+        from . import workspace
+        path = (body.get("repo") or self.repo_path or "").strip()
+        problem = _not_a_repo(path)
+        if problem:
+            return {"error": problem}
+        if name == "save":
+            return workspace.write_file(scan(path), body.get("path", ""),
+                                        body.get("content", ""))
+        if name == "commit":
+            return workspace.commit(path, body.get("paths") or [],
+                                    body.get("message", ""))
+        if name == "revert":
+            return workspace.revert_file(path, body.get("path", ""))
+        return {"error": f"unknown command {name}"}
+
     def _call(self, name, query):
         from .cli import COMMANDS
         # The dashboard can point at any repo on this machine. The server is
@@ -87,6 +127,17 @@ class Handler(BaseHTTPRequestHandler):
                 query.get("target", [""])[0],
                 query.get("base", ["main"])[0],
             )
+        if name == "read":
+            from . import workspace
+            return workspace.read_file(repo, query.get("path", [""])[0])
+        if name == "worktree":
+            from . import workspace
+            return workspace.worktree(path)
+        if name == "filediff":
+            from . import workspace
+            return {"diff": workspace.diff_file(path, query.get("path", [""])[0])}
+        if name == "sharing":
+            return store.sharing(store.connect(path))
         if name == "messages":
             db = store.connect(path)
             return {

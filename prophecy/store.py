@@ -359,6 +359,58 @@ def feed(db, limit=40):
     )]
 
 
+def sharing(db, limit=120):
+    """The context one agent handed to the next, as a shape rather than a total.
+
+    The money on the Context tab answers "what did the sharing save". This
+    answers the question underneath it: what was actually shared, by whom, and
+    where two agents ended up reading the same thing.
+    """
+    notes = [dict(r) for r in db.execute(
+        "SELECT agent, file, note, written_at FROM notes"
+        " ORDER BY written_at DESC LIMIT ?", (limit,)
+    )]
+    files = [dict(r) for r in db.execute(
+        "SELECT file, COUNT(*) notes, COUNT(DISTINCT agent) agents"
+        " FROM notes GROUP BY file ORDER BY agents DESC, notes DESC"
+    )]
+    agents = [dict(r) for r in db.execute(
+        "SELECT agent, COUNT(*) wrote, COUNT(DISTINCT file) files"
+        " FROM notes GROUP BY agent ORDER BY wrote DESC"
+    )]
+    briefed = {r["agent"]: dict(r) for r in db.execute(
+        "SELECT agent, COUNT(*) briefs, SUM(suffix_tokens) task_tokens,"
+        " SUM(notes_pulled) pulled FROM briefs GROUP BY agent"
+    )}
+    for row in agents:
+        row.update(briefed.pop(row["agent"], {}))
+    # an agent can have been briefed without having found anything worth saying
+    for left in briefed.values():
+        left["wrote"], left["files"] = 0, 0
+        agents.append(left)
+
+    rows = [dict(r) for r in db.execute("SELECT * FROM briefs")]
+    seen, reused, prefix_tokens = set(), 0, 0
+    for row in rows:
+        key = (row["sha"], row["prefix_hash"])
+        if key in seen:
+            reused += 1
+        else:
+            seen.add(key)
+            prefix_tokens += row["prefix_tokens"]
+    return {
+        "notes": notes,
+        "files": files,
+        "agents": sorted(agents, key=lambda a: -(a.get("wrote") or 0)),
+        "shared_background": {
+            "briefs": len(rows),
+            "paid_once_tokens": prefix_tokens,
+            "served_from_cache": reused,
+        },
+        "live": [s["agent"] for s in live_sessions(db)],
+    }
+
+
 def queue_message(db, sha, to_agent, subject, body, sent_by="dashboard"):
     """Something for one agent to read the next time it calls in.
 
