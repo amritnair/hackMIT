@@ -775,7 +775,7 @@
     * { animation: none !important; transition: none !important; }
   }
 
-  .shell { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+  .shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
   .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     padding: 10px 16px; background: #0A0A0C; border-bottom: 1px solid #222; }
   .top .hint { color: #8A8580; font-size: 13px; }
@@ -930,7 +930,6 @@
       <ul class="why" id="why"></ul>
     </aside>
   </div>
-  <div class="foot">A simulation. Prophecy is a local MCP server, and Claude Code talks to it over stdio, on this machine. Nothing here is a live model call.</div>
 </div>
 
 <script>
@@ -940,10 +939,10 @@ const STEPS = [
   {
     kicker: "The plug",
     title: "Claude Code is connected to Prophecy.",
-    said: "See the pill in the title bar? That is an <b>MCP connection</b>. MCP is just a plug. Claude Code can now ask Prophecy questions the same way it asks to read a file. The questions travel on a local wire called stdio. Nothing leaves this computer.",
+    said: "See the pill in the title bar? That is an <b>MCP connection</b>. MCP is just a plug. Claude Code can now ask Prophecy questions the same way it asks to read a file. The questions go to this server over HTTP.",
     mcp: true,
     pipe: { dir: "Claude Code → Prophecy", text: 'initialize\n{ "clientInfo": { "name": "claude-code" } }' },
-    why: ["MCP = a plug so a coding agent can use extra tools.", "Prophecy is one of those tools, running on Ada’s laptop.", "The handshake is how Claude Code says “I’m Claude Code, Ada is using me.”"],
+    why: ["MCP = a plug so a coding agent can use extra tools.", "Prophecy is that tool: this server, over HTTP.", "The handshake is how Claude Code says “I’m Claude Code, Ada is using me.”"],
   },
   {
     kicker: "Ada types",
@@ -985,8 +984,8 @@ const STEPS = [
   {
     kicker: "Someone else sits down",
     title: "Grace’s Cursor just opened the same project.",
-    said: "Grace is a teammate. Her Cursor is a <b>different program</b>. It does not share memory with Ada’s Claude Code. The only thing they share is Prophecy, sitting on this machine, holding the map and the notes.",
-    other: "Grace’s Cursor connected to the same Prophecy (MCP, a second process).",
+    said: "Grace is a teammate. Her Cursor is a <b>different program</b>. It does not share memory with Ada’s Claude Code. The only thing they share is this Prophecy — the map and the notes.",
+    other: "Grace’s Cursor connected to the same Prophecy over MCP.",
     pipe: { dir: "Grace’s Cursor → Prophecy", text: "initialize  { clientInfo: { name: \"cursor\" } }\ntools/call  join_repo_session" },
     pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map: CACHE HIT × 0.1\nnote from Ada already in the briefing" },
     tokens: { naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK), billed: (PREFIX * 1.25 + ADA_TASK) + (PREFIX * 0.1 + GRACE_TASK), blurb: "Grace did not buy the map. She photocopied Ada’s, at 1/10th the price. She also got Ada’s note, so she did not spend tokens hunting for it.", pct: 62 },
@@ -1051,7 +1050,7 @@ const STEPS = [
     said: "Left side: a programmer’s Claude Code, talking to Prophecy through MCP like any other tool. Right side: what that was really doing. The map is paid once. Notes stick to files. Risk is “who else does this hit,” scored before a commit. When the score is high, the warning shows up in Claude by itself.",
     claude: "I’ll wait for Grace before I commit the email change. Prophecy will keep watching this file.",
     why: [
-      "MCP connection: Claude Code plugged into a local Prophecy process.",
+      "MCP connection: Claude Code plugged into this Prophecy over HTTP.",
       "Tokens saved: shared map cached; later agents pay 1/10th; findings are not rediscovered.",
       "Context shared: a note on a file, handed to the next agent that goes there.",
       "Risk: blast radius + teammates in that radius, with a range, not a vibe.",
@@ -1219,8 +1218,8 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
       <h3>Connect your agents
         <span class="state todo" id="mcpState">no agents yet</span></h3>
       <div class="body">
-        <p>Paste one block of settings into your coding agent. After that,
-          every agent that opens this project checks in on its own.</p>
+        <p>Paste this into Claude Code, Cursor, or any MCP client. They talk
+          to this Prophecy over HTTP — same machine or not.</p>
         <p class="story">An agent writing code here does not have to guess who
           else is in the codebase. It asks, over MCP, and gets an answer built
           from this project's real dependency graph. And it works both ways:
@@ -1253,14 +1252,12 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <p style="margin-top:14px">
           <button class="btn small" data-copy="mcp">Copy the settings</button>
           <span class="hint" id="agentSeen" style="margin-left:12px"></span></p>
+        <p class="hint" id="mcpUrlHint"></p>
         <details style="margin-top:14px">
           <summary>Show what gets pasted</summary>
           <pre id="mcpConfig" class="empty">Pick a project first.</pre>
-          <p class="hint">Eight tools in total, including
-            <code>get_repository_risk</code>,
-            <code>get_dependency_context</code> and
-            <code>leave_repo_session</code>. Nothing leaves this machine:
-            the agent talks to a local process reading a local repository.</p>
+          <p class="hint">The agent POSTs JSON-RPC to this Prophecy. Point a
+            tunnel at this port and the same settings work from anywhere.</p>
         </details>
       </div>
     </div>
@@ -4716,6 +4713,11 @@ api('mcp_config').then(d => {
   window.__mcp = JSON.stringify(d.config, null, 2);
   $('#mcpConfig').textContent = window.__mcp;
   $('#mcpConfig').className = '';
+  const hint = $('#mcpUrlHint');
+  if (hint && d.url) {
+    hint.innerHTML = `Endpoint <code>${esc(d.url)}</code>. Claude Code:
+      <code>claude mcp add --transport http prophecy ${esc(d.url)}</code>`;
+  }
 }).catch(() => {});
 
 function loadRecord() {

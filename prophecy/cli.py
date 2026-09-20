@@ -162,7 +162,7 @@ def build_parser():
     people.add_argument("--github", default="", help="their GitHub handle")
     people.add_argument("--role", default="")
 
-    serve = sub.add_parser("serve", help="dashboard on localhost")
+    serve = sub.add_parser("serve", help="dashboard and MCP on the network")
     serve.add_argument("--port", type=int, default=8000)
     return parser
 

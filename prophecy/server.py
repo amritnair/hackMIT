@@ -5,8 +5,11 @@ static HTML file. No build step, no node_modules, nothing to install.
 """
 
 import json
+import os
+import socket
 import subprocess
 import traceback
+import uuid
 from argparse import Namespace
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -37,6 +40,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, "image/png", LOGO.read_bytes())
         if url.path == "/mcp-demo.html":
             return self._send(200, "text/html", DEMO.read_bytes())
+        if url.path == "/mcp":
+            return self._mcp_get()
         if not url.path.startswith("/api/"):
             return self._send(404, "text/plain", b"not found")
 
@@ -54,9 +59,16 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, "application/json",
                           json.dumps(payload, default=str).encode())
 
+    def do_OPTIONS(self):
+        if urlparse(self.path).path == "/mcp":
+            return self._send(204, "text/plain", b"", cors=True)
+        return self._send(404, "text/plain", b"not found")
+
     def do_POST(self):
-        """Editing sends whole files, which do not belong in a query string."""
+        """MCP is JSON-RPC in the body; file edits are too big for a query string."""
         url = urlparse(self.path)
+        if url.path == "/mcp":
+            return self._mcp_post()
         if not url.path.startswith("/api/"):
             return self._send(404, "text/plain", b"not found")
         try:
@@ -122,7 +134,10 @@ class Handler(BaseHTTPRequestHandler):
             return {"repos": _discover_repos()}
         if name == "mcp_config":
             from .mcp import config_snippet
-            return {"config": config_snippet(path), "repo": path}
+            token = os.environ.get("PROPHECY_MCP_TOKEN", "")
+            url = self._public_mcp_url()
+            return {"config": config_snippet(path, url=url, token=token),
+                    "url": url, "repo": path}
         if name == "notify":
             return _notify_agent(
                 path, repo,
@@ -189,12 +204,91 @@ class Handler(BaseHTTPRequestHandler):
             result["graph"] = _graph(repo)
         return result
 
-    def _send(self, code, kind, body):
+    def _send(self, code, kind, body, cors=False, headers=None):
         self.send_response(code)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
+        if cors:
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods",
+                             "GET, POST, OPTIONS, DELETE")
+            self.send_header("Access-Control-Allow-Headers",
+                             "Content-Type, Accept, Authorization, "
+                             "Mcp-Session-Id, MCP-Protocol-Version")
+            self.send_header("Access-Control-Expose-Headers", "Mcp-Session-Id")
+        for key, value in (headers or {}).items():
+            self.send_header(key, value)
         self.end_headers()
-        self.wfile.write(body)
+        if body:
+            self.wfile.write(body)
+
+    def _public_mcp_url(self):
+        host = (self.headers.get("Host") or "127.0.0.1").strip()
+        proto = (self.headers.get("X-Forwarded-Proto") or "http").split(",")[0].strip()
+        return f"{proto}://{host}/mcp"
+
+    def _mcp_headers(self):
+        sid = getattr(self.server, "mcp_session", None)
+        return {"Mcp-Session-Id": sid} if sid else {}
+
+    def _mcp_server(self):
+        from .mcp import Server
+        held = getattr(self.server, "mcp", None)
+        if held is None:
+            self.server.mcp = Server(self.repo_path)
+            held = self.server.mcp
+        return held
+
+    def _mcp_auth(self):
+        token = os.environ.get("PROPHECY_MCP_TOKEN", "")
+        if not token:
+            return True
+        got = self.headers.get("Authorization") or ""
+        return got == f"Bearer {token}"
+
+    def _mcp_get(self):
+        """Browsers get a description. MCP clients that want SSE can POST."""
+        from .mcp import PROTOCOL
+        body = json.dumps({
+            "name": "prophecy",
+            "transport": "streamable-http",
+            "protocolVersion": PROTOCOL,
+            "url": self._public_mcp_url(),
+        }).encode()
+        return self._send(200, "application/json", body, cors=True,
+                          headers=self._mcp_headers())
+
+    def _mcp_post(self):
+        from .mcp import handle
+        if not self._mcp_auth():
+            return self._send(401, "application/json", json.dumps({
+                "jsonrpc": "2.0", "id": None,
+                "error": {"code": -32001, "message": "unauthorized"},
+            }).encode(), cors=True)
+        try:
+            size = int(self.headers.get("Content-Length") or 0)
+            payload = json.loads(self.rfile.read(size) or b"{}")
+        except (ValueError, json.JSONDecodeError):
+            return self._send(400, "application/json", json.dumps({
+                "jsonrpc": "2.0", "id": None,
+                "error": {"code": -32700, "message": "parse error"},
+            }).encode(), cors=True, headers=self._mcp_headers())
+        batch = isinstance(payload, list)
+        replies = []
+        for req in (payload if batch else [payload]):
+            reply = handle(self._mcp_server(), req)
+            if reply is not None:
+                replies.append(reply)
+        if not replies:
+            self.send_response(202)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            for key, value in self._mcp_headers().items():
+                self.send_header(key, value)
+            self.end_headers()
+            return
+        body = json.dumps(replies if batch else replies[0]).encode()
+        return self._send(200, "application/json", body, cors=True,
+                          headers=self._mcp_headers())
 
 
 SKIP = {"node_modules", "venv", ".venv", "vendor", "Library", "Applications"}
@@ -423,14 +517,32 @@ def _graph(repo):
     return {"nodes": nodes, "edges": edges}
 
 
-def serve(repo_path, port):
+def _lan_ip():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.connect(("8.8.8.8", 80))
+        return sock.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        sock.close()
+
+
+def serve(repo_path, port, host="0.0.0.0"):
+    from .mcp import Server
     # Threaded, because browsers hold idle speculative connections open and a
     # single-threaded server would sit waiting on one instead of answering.
-    server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, repo=repo_path))
-    server.daemon_threads = True
-    print(f"prophecy dashboard on http://127.0.0.1:{port}  (ctrl-c to stop)")
+    httpd = ThreadingHTTPServer((host, port), partial(Handler, repo=repo_path))
+    httpd.daemon_threads = True
+    httpd.mcp = Server(repo_path)
+    httpd.mcp_session = str(uuid.uuid4())
+    lan = _lan_ip()
+    print(f"prophecy dashboard  http://127.0.0.1:{port}")
+    print(f"MCP for agents      http://{lan}:{port}/mcp")
+    print(f"                    claude mcp add --transport http prophecy "
+          f"http://{lan}:{port}/mcp")
     try:
-        server.serve_forever()
+        httpd.serve_forever()
     except KeyboardInterrupt:
         print()
     return 0

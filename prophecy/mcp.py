@@ -5,9 +5,11 @@ gives an agent context when it starts. MCP lets it ask again at any moment —
 which matters because the thing worth knowing ("someone else just started
 editing the file you are in") arrives after you began.
 
-MCP is JSON-RPC 2.0 over stdio. The handshake and the three methods that
-matter are about a hundred lines, so this implements them directly rather
-than taking a dependency for a tool whose pitch is that it has none.
+MCP is JSON-RPC 2.0. Locally it is one JSON object per line on stdio; on
+the network it is the same objects POSTed to `/mcp`. The handshake and the
+methods that matter are about a hundred lines, so this implements them
+directly rather than taking a dependency for a tool whose pitch is that it
+has none.
 """
 
 import hashlib
@@ -502,6 +504,45 @@ def queue_risk_warning(db, repo, analysis, meets=None, sent_by="auto", force=Fal
     return agent
 
 
+def handle(server, request):
+    """One JSON-RPC object in, a reply dict or None for a notification."""
+    if not isinstance(request, dict):
+        return {"jsonrpc": "2.0", "id": None,
+                "error": {"code": -32600, "message": "invalid request"}}
+    method, request_id = request.get("method"), request.get("id")
+    try:
+        if method == "initialize":
+            info = (request.get("params") or {}).get("clientInfo") or {}
+            server.client = client_name(info.get("name"))
+            result = {
+                "protocolVersion": PROTOCOL,
+                "capabilities": {"tools": {}},
+                "serverInfo": {"name": "prophecy", "version": "0.1.0"},
+            }
+        elif method == "tools/list":
+            result = {"tools": tools()}
+        elif method == "tools/call":
+            params = request.get("params") or {}
+            text = server.call(params.get("name"), params.get("arguments") or {})
+            result = {"content": [{"type": "text", "text": text}]}
+        elif method == "ping":
+            result = {}
+        else:
+            if request_id is None:
+                return None  # a notification we do not handle
+            raise ValueError(f"unknown method {method}")
+        if request_id is None:
+            return None
+        return {"jsonrpc": "2.0", "id": request_id, "result": result}
+    except Exception as exc:
+        if request_id is None:
+            return None
+        return {
+            "jsonrpc": "2.0", "id": request_id,
+            "error": {"code": -32000, "message": str(exc)[:300]},
+        }
+
+
 def serve(repo_path=".", stdin=None, stdout=None):
     """Read JSON-RPC lines, write JSON-RPC lines. Notifications get no reply."""
     stdin = stdin or sys.stdin
@@ -516,46 +557,24 @@ def serve(repo_path=".", stdin=None, stdout=None):
             request = json.loads(line)
         except json.JSONDecodeError:
             continue
-
-        method, request_id = request.get("method"), request.get("id")
-        try:
-            if method == "initialize":
-                info = (request.get("params") or {}).get("clientInfo") or {}
-                server.client = client_name(info.get("name"))
-                result = {
-                    "protocolVersion": PROTOCOL,
-                    "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "prophecy", "version": "0.1.0"},
-                }
-            elif method == "tools/list":
-                result = {"tools": tools()}
-            elif method == "tools/call":
-                params = request.get("params") or {}
-                text = server.call(params.get("name"), params.get("arguments") or {})
-                result = {"content": [{"type": "text", "text": text}]}
-            elif method == "ping":
-                result = {}
-            else:
-                if request_id is None:
-                    continue  # a notification we do not handle
-                raise ValueError(f"unknown method {method}")
-            reply = {"jsonrpc": "2.0", "id": request_id, "result": result}
-        except Exception as exc:
-            if request_id is None:
-                continue
-            reply = {
-                "jsonrpc": "2.0", "id": request_id,
-                "error": {"code": -32000, "message": str(exc)[:300]},
-            }
-
-        if request_id is not None:
+        reply = handle(server, request)
+        if reply is not None:
             stdout.write(json.dumps(reply) + "\n")
             stdout.flush()
     return 0
 
 
-def config_snippet(repo_path):
-    """What to paste into an MCP client's config to reach this repo."""
+def config_snippet(repo_path, url=None, token=""):
+    """What to paste into an MCP client's config to reach this repo.
+
+    A URL is the public shape: any agent that can POST JSON-RPC talks to
+    this Prophecy. stdio is the fallback when nothing is listening on HTTP.
+    """
+    if url:
+        prophecy = {"type": "http", "url": url}
+        if token:
+            prophecy["headers"] = {"Authorization": f"Bearer {token}"}
+        return {"mcpServers": {"prophecy": prophecy}}
     return {
         "mcpServers": {
             "prophecy": {

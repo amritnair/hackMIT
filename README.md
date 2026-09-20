@@ -58,11 +58,12 @@ flagged along with the list of files that import it.
 grades the forecast against what happened. Optionally runs your tests in the
 merged tree. Your own checkout is never touched.
 
-`context` writes the whole thing out as markdown you can hand to a person or
-paste into an agent's prompt. `serve` puts all of it on localhost, where you
-can point it at any git repo on the machine.
+`serve` puts the dashboard on the network, and the same process is an MCP
+server at `/mcp`. Any coding agent that can POST JSON-RPC (Claude Code,
+Cursor, Codex) talks to it over HTTP, so it does not have to be on this
+machine. `claude mcp add --transport http prophecy http://HOST:8000/mcp`
 
-`brief` is the same idea shaped for several agents at once. Prompt caching is
+`brief` writes that context shaped for several agents at once. Prompt caching is
 a prefix match — one changed byte near the front invalidates everything after
 it — so the brief is split in two. The repo half (load-bearing files, their
 public signatures, where the tests live, which files to regenerate rather
@@ -136,7 +137,7 @@ Prophecy brief "task" --request        # a Messages request, breakpoint placed
 Prophecy explain R2fa01f          # one risk in full, from any earlier run
 Prophecy verify some-branch --test "pytest"
 Prophecy insights
-Prophecy serve                    # dashboard on localhost:8000
+Prophecy serve                    # dashboard + MCP on :8000
 ```
 
 The dashboard is one HTML file served by the standard library. There is no

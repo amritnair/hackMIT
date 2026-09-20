@@ -106,6 +106,7 @@ def main():
         check_llm(repo)
         check_sharing(root, repo)
         check_mcp(root)
+        check_mcp_http(root)
 
     check_risk_engine()
 
@@ -222,6 +223,59 @@ def check_mcp(root):
     # an unknown method answers with an error, not a crash
     bad = rpc(root, {"jsonrpc": "2.0", "id": 3, "method": "nonsense"})[0]
     assert bad["error"]["code"] == -32000
+
+
+def check_mcp_http(root):
+    """An agent reaches Prophecy over HTTP, the way a remote client does."""
+    import json as _json
+    import threading
+    import urllib.request
+    from functools import partial
+    from http.server import ThreadingHTTPServer
+
+    from prophecy.mcp import Server, handle
+    from prophecy.server import Handler
+
+    listed = handle(Server(str(root)),
+                    {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    assert "join_repo_session" in {t["name"] for t in listed["result"]["tools"]}
+
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0),
+                                partial(Handler, repo=str(root)))
+    httpd.mcp = Server(str(root))
+    httpd.mcp_session = "test-session"
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        port = httpd.server_address[1]
+        url = f"http://127.0.0.1:{port}/mcp"
+
+        def post(obj, extra=None):
+            req = urllib.request.Request(
+                url, data=_json.dumps(obj).encode(),
+                headers={"Content-Type": "application/json", **(extra or {})},
+                method="POST")
+            with urllib.request.urlopen(req) as r:
+                return _json.loads(r.read()), r.headers
+
+        info = urllib.request.urlopen(url)
+        about = _json.loads(info.read())
+        assert about["name"] == "prophecy" and about["url"].endswith("/mcp")
+
+        tools, headers = post({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        assert tools["result"]["tools"]
+        assert headers.get("Mcp-Session-Id") == "test-session"
+        assert headers.get("Access-Control-Allow-Origin") == "*"
+
+        joined, _ = post({
+            "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": {"name": "join_repo_session",
+                       "arguments": {"agent": "ada", "task": "http test"}},
+        })
+        text = joined["result"]["content"][0]["text"]
+        assert "api/middleware.py" in text, text[:400]
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
 
 
 def check_sharing(root, repo):
