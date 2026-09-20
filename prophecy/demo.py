@@ -1205,7 +1205,9 @@ def build(path):
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(body)
 
-    run(root, "git", "init", "-q")
+    # every branch below is cut from "main", so name it rather than trusting
+    # git's default, which is "master" on a fresh install
+    run(root, "git", "init", "-q", "-b", "main")
     run(root, "git", "config", "user.email", "demo@example.com")
     run(root, "git", "config", "user.name", "demo")
     run(root, "git", "add", "-A")

@@ -204,6 +204,49 @@ was full of lockfiles and changelogs that conflict constantly for reasons
 unrelated to risk. Separating generated files from source fixed both the
 measurement and a detector that had been giving bad advice.
 
+## the dashboard
+
+Seven screens, one question each. Everything on them comes from the same
+engine as the command line.
+
+**Home** is the landing page. An animated eye watches a network of files as
+you scroll: an agent asks first, gets consequences rather than a lint, and
+flags light up where changes collide. A strip underneath shows what has been
+read (files understood, dependencies traced, changes in flight, the riskiest
+one), and the setup steps connect GitHub (read-only), link your team, or
+start a project already wired for agents.
+
+**MCP** has a scripted walkthrough of three agents (Ada's Claude Code,
+Grace's Cursor, Linus's Codex) and what each is told. It is a script, not a
+live model. Under it is the real connection: one URL, a one-click install for
+Cursor, or the settings to paste into any other MCP client.
+
+**Risk** is the main screen. It opens with a verdict in plain words, the
+severity out of 100 and the worst collision. A graph joins every change in
+flight to the ones its work meets, with critical pairs dashed in red. The
+list beside it opens one change at a time: the score as a range, the
+evidence, who else is in the same code, and a button that queues its risk
+profile in that agent's inbox for its next call. Below are the agents
+working here, where changes meet (grouped around the branch that keeps
+colliding), and three tools: check one branch, forecast work nobody has
+started, and list the branches.
+
+**Crew** is the view for a product manager: one row per workflow, with who is
+on it and how risky it is, as a list or as cards. It has a feed of what has
+happened and a summary of who is in the same files.
+
+**Context** shows what agents are sent. One bar sets what it would cost for
+every agent to read the whole codebase against what was actually sent, and a
+diagram shows which findings passed from which agent to which. The numbers
+are the CLI path, where the cache arithmetic is true (see above).
+
+**Map** is the dependency graph. A file is bigger the more files import it
+and red when two people are in it. You can search, filter, zoom, click a file
+for what reaches it, and double-click to edit and commit.
+
+**Ledger** is the record: what Prophecy said, who changed what, and a button
+that replays real merges to grade the forecasts, described above.
+
 ## running it
 
 Python 3.10 or newer. No dependencies.
@@ -235,6 +278,13 @@ The dashboard is one HTML file served by the standard library. No build step,
 no node_modules. Everything is scoped to one project: history, findings and
 settings live in `.prophecy/` inside that repository and are shared with
 nothing else.
+
+`prophecy serve` listens on every network interface, so that an agent on
+another machine can reach `/mcp`. The dashboard has no login, and it can read,
+edit and commit files in any repository on the machine it runs on. Do not put
+it on the public internet as it is. Setting `PROPHECY_MCP_TOKEN` in the
+environment makes `/mcp` demand a bearer token; it does not protect the
+dashboard.
 
 ```
 python test_prophecy.py
