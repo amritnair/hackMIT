@@ -11,14 +11,14 @@
     --cc-line: #3A3938; --cc-text: #F4F3EE; --cc-dim: #A8A29E; --cc-mute: #78716C;
     --claude: #D97757; --claude-2: #E8A087;
     --ok: #6B9F6B; --warn: #D4A017; --bad: #E07070;
-    --pr-bg: #0A111D; --pr-card: #111A2A; --pr-line: #1F2D45;
-    --pr-text: #EEF4FF; --pr-dim: #A2B1C9; --pr-mute: #6C7C96;
-    --pr-accent: #7DBBFF; --pr-cyan: #67E8F9;
+    --pr-bg: #000000; --pr-card: #0B0B0B; --pr-line: #222222;
+    --pr-text: #F5F5F5; --pr-dim: #A3A3A3; --pr-mute: #737373;
+    --pr-accent: #FFFFFF; --pr-cyan: #FFFFFF;
     --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: #0A0A0C; color: var(--cc-text);
+  html, body { margin: 0; height: 100%; background: #050505; color: var(--cc-text);
     font: 14.5px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
   button { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--claude); outline-offset: 2px; }
@@ -28,7 +28,7 @@
 
   .shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
   .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    padding: 10px 16px; background: #0A0A0C; border-bottom: 1px solid #222; }
+    padding: 10px 16px; background: #050505; border-bottom: 1px solid #222; }
   .top .hint { color: #8A8580; font-size: 13px; }
   .grow { flex: 1; }
   .btn { border: 0; border-radius: 8px; padding: 7px 14px; cursor: pointer;
@@ -110,9 +110,9 @@
     text-transform: uppercase; margin-bottom: 4px; }
   .card .v { font-size: 20px; letter-spacing: -.03em; }
   .card small { display: block; color: var(--pr-mute); font-size: 12px; margin-top: 3px; }
-  .meter { height: 8px; border-radius: 99px; background: #22222C; overflow: hidden; margin: 8px 0 2px; }
+  .meter { height: 8px; border-radius: 99px; background: #222222; overflow: hidden; margin: 8px 0 2px; }
   .meter i { display: block; height: 100%; background: var(--pr-accent); width: 0; transition: width .45s; }
-  .thermo { height: 10px; border-radius: 99px; background: #22222C; overflow: hidden; margin: 8px 0; }
+  .thermo { height: 10px; border-radius: 99px; background: #222222; overflow: hidden; margin: 8px 0; }
   .thermo i { display: block; height: 100%; width: 0; transition: width .45s;
     background: linear-gradient(90deg, #6B9F6B, #D4A017, #E07070); }
   .note { font-size: 13.5px; color: var(--pr-dim); background: #1A1A26; border-radius: 8px;
@@ -124,7 +124,7 @@
     border-radius: 50%; background: var(--pr-accent); }
 
   .foot { padding: 8px 16px; border-top: 1px solid #222; color: #7A7570;
-    font-size: 12px; background: #0A0A0C; }
+    font-size: 12px; background: #050505; }
 </style>
 
 <div class="shell">
