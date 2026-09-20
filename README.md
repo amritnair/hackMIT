@@ -11,6 +11,18 @@ It works from a sentence describing work nobody has started yet, from a
 branch, from an open pull request, or from a coding agent that asks over MCP
 before it commits.
 
+## live demo
+
+Public dashboard (HackMIT judging tunnel; laptop must be awake):
+
+- Dashboard: https://bay-way-driving-unlock.trycloudflare.com/
+- MCP: https://bay-way-driving-unlock.trycloudflare.com/mcp
+- Demo app on GitHub: https://github.com/amritnair/prophecy-demo
+
+```
+claude mcp add --transport http prophecy https://bay-way-driving-unlock.trycloudflare.com/mcp
+```
+
 ```
 $ prophecy risk
 
