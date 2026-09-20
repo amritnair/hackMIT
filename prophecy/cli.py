@@ -11,6 +11,7 @@ from . import github, llm
 from .agent import brief, observations, request_skeleton
 from .create import new_project
 from .demo import build as build_demo, seed as seed_demo
+from .history import commits, preview_restore, restore
 from .risk_engine import (analyze_change, interactions,
                           repository_risk)
 from .work import in_flight
@@ -115,6 +116,17 @@ def build_parser():
                     help="a branch, a commit, or base...head")
 
     sub.add_parser("risk", help="risk across everything in flight right now")
+
+    sub.add_parser("history",
+                   help="who changed what, and what prophecy said about it")
+
+    rs = sub.add_parser("restore", help="put an old version back in your tree")
+    rs.add_argument("sha")
+    rs.add_argument("paths", nargs="*")
+    rs.add_argument("--force", action="store_true",
+                    help="restore even with uncommitted changes")
+    rs.add_argument("--preview", action="store_true",
+                    help="show what would change without writing anything")
 
     chk = sub.add_parser("check",
                          help="run before committing; exits non-zero if risky")
@@ -707,10 +719,15 @@ def _print_analysis(a):
 
 def cmd_analyze(repo, args, db):
     base, head = _split_target(args.target, args.base)
-    concurrent = [w for w in _work_in_flight(repo, args, db)
-                  if w["label"] != head and head not in w["label"]]
-    result = analyze_change(repo, base, head, label=head,
+    work = _work_in_flight(repo, args, db)
+    mine = next((w for w in work if head in w["label"]), None)
+    owner = store.whose(db, mine["agent"]) if mine else None
+    concurrent = [w for w in work
+                  if head not in w["label"]
+                  and (owner is None or store.whose(db, w["agent"]) != owner)]
+    result = analyze_change(repo, base, head, label=head, agent=owner,
                             concurrent=concurrent)
+    store.save_verdict(db, repo["sha"], result)
     if not args.json:
         _print_analysis(result)
     return result
@@ -725,13 +742,18 @@ def cmd_risk(repo, args, db):
         head = item["label"].split()[-1] if item["kind"] == "branch" else None
         if not head:
             continue
+        owner = store.whose(db, item["agent"])
         analyses.append(analyze_change(
-            repo, args.base, head, label=item["label"],
-            agent=store.whose(db, item["agent"]),
-            concurrent=[w for w in work if w is not item],
+            repo, args.base, head, label=item["label"], agent=owner,
+            # somebody's own live session is not a collaborator to coordinate
+            # with; without this, ada gets told to talk to ada
+            concurrent=[w for w in work
+                        if w is not item and store.whose(db, w["agent"]) != owner],
         ))
     found = interactions(analyses)
     overall = repository_risk(analyses, found)
+    for a in analyses:
+        store.save_verdict(db, repo["sha"], a)
 
     if not args.json:
         print(f"repository risk {overall['score']}/100 — {overall['band'].upper()}")
@@ -779,6 +801,56 @@ def cmd_check(repo, args, db):
             print(f"OK — risk {result['risk_score']}/100, under {args.max}.")
     result["over_threshold"] = over
     return result
+
+
+def cmd_history(repo, args, db):
+    said = store.verdicts(db)
+    log = commits(repo["repo"], 25)
+    by_label = {}
+    for v in said:
+        by_label.setdefault(v["label"], v)
+
+    if not args.json:
+        if said:
+            print("what prophecy said")
+            for v in said[:12]:
+                print(f"  {v['at'][:16]}  {(v['agent'] or '?')[:12]:<12} "
+                      f"{v['label'][:34]:<34} {v['risk_score']:>3} "
+                      f"{v['risk_band']}")
+                for line in (v["said"] or [])[:1]:
+                    print(f"      -> {line[:96]}")
+        else:
+            print("nothing analyzed yet — run `prophecy risk`.")
+        print("\nwho changed what")
+        for c in log[:12]:
+            verdict = by_label.get(c["subject"])
+            mark = f"  [{verdict['risk_band']}]" if verdict else ""
+            print(f"  {c['short']}  {c['author'][:12]:<12} {c['when'][:14]:<14} "
+                  f"{c['subject'][:44]}{mark}")
+            print(f"      {len(c['files'])} file(s): "
+                  f"{', '.join(c['files'][:3])}")
+        print("\nto put a version back:  prophecy restore <sha> [paths]")
+    return {"verdicts": said, "commits": log}
+
+
+def cmd_restore(repo, args, db):
+    if args.preview:
+        out = preview_restore(repo["repo"], args.sha, args.paths)
+    else:
+        out = restore(repo["repo"], args.sha, args.paths, args.force)
+    if not args.json:
+        if out.get("error"):
+            print(out["error"], file=sys.stderr)
+            for line in out.get("uncommitted", [])[:6]:
+                print(f"  {line}")
+            return out
+        if args.preview:
+            print(f"restoring {args.sha[:10]} would change:")
+            print(out["diffstat"] or "  nothing — the tree already matches")
+        else:
+            print(f"restored {', '.join(out['restored'])} from {args.sha[:10]}")
+            print(f"  {out['note']}")
+    return out
 
 
 def cmd_people(repo, args, db):
@@ -1015,6 +1087,7 @@ COMMANDS = {
     "note": cmd_note, "usage": cmd_usage, "fleet": cmd_fleet,
     "sessions": cmd_sessions, "people": cmd_people,
     "analyze": cmd_analyze, "risk": cmd_risk, "check": cmd_check,
+    "history": cmd_history, "restore": cmd_restore,
 }
 
 if __name__ == "__main__":

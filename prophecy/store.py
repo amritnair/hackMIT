@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS members (
     role TEXT, added_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(name)
 );
+CREATE TABLE IF NOT EXISTS verdicts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, label TEXT, agent TEXT,
+    head_sha TEXT, risk_score INT, risk_band TEXT, confidence REAL,
+    files TEXT, failures TEXT, said TEXT, intent TEXT,
+    at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS outcomes (
     id INTEGER PRIMARY KEY AUTOINCREMENT, sha TEXT, base TEXT, branch TEXT,
     merged_clean INT, tests_passed INT, detail TEXT,
@@ -233,6 +239,42 @@ def whose(db, handle):
         (handle, handle),
     ).fetchone()
     return row["name"] if row else handle
+
+
+def save_verdict(db, repo_sha, analysis):
+    """Keep what we said about a change, so it can be read back later.
+
+    A prediction nobody can look up afterwards is not accountable. This is the
+    row the track record reads, and the row a postmortem would want.
+    """
+    db.execute(
+        "INSERT INTO verdicts (sha, label, agent, head_sha, risk_score,"
+        " risk_band, confidence, files, failures, said, intent)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        (repo_sha, analysis["label"], analysis.get("agent") or "",
+         analysis.get("head_sha") or "", analysis["risk_score"],
+         analysis["risk_band"], analysis["confidence"],
+         json.dumps(analysis["changed_files"]),
+         json.dumps([{k: f[k] for k in ("severity", "title", "detail")}
+                     for f in analysis["potential_failures"]]),
+         json.dumps(analysis["recommendations"]),
+         json.dumps(analysis.get("intent", {}))),
+    )
+    db.commit()
+
+
+def verdicts(db, limit=50):
+    out = []
+    for row in db.execute("SELECT * FROM verdicts ORDER BY id DESC LIMIT ?",
+                          (limit,)):
+        item = dict(row)
+        for field in ("files", "failures", "said", "intent"):
+            try:
+                item[field] = json.loads(item[field] or "null")
+            except (TypeError, ValueError):
+                item[field] = None
+        out.append(item)
+    return out
 
 
 def log(db, sha, kind, agent, detail, tokens=0):

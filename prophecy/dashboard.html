@@ -91,7 +91,40 @@
   .btn.secondary:hover { background: #272733; box-shadow: none; }
   .btn.small { font-size: 13px; padding: 8px 16px; }
 
-  .hero { padding: 72px 0 26px; }
+  .hero { padding: 72px 0 26px; position: relative; }
+  /* a slow drift behind the hero, so the page is not dead on arrival */
+  .hero::before {
+    content: ""; position: absolute; inset: -80px -120px 0;
+    background:
+      radial-gradient(420px 220px at 18% 30%, rgba(139,92,246,.16), transparent 70%),
+      radial-gradient(360px 200px at 78% 20%, rgba(103,232,249,.10), transparent 70%);
+    filter: blur(6px); pointer-events: none; z-index: -1;
+    animation: drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    from { transform: translate3d(-14px, -6px, 0) scale(1); }
+    to { transform: translate3d(18px, 10px, 0) scale(1.06); }
+  }
+  .pulse-strip {
+    display: grid; gap: 10px; margin: 4px 0 26px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  .pulse-strip div {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px 18px; animation: liftIn .6s cubic-bezier(.2,.8,.3,1) both;
+  }
+  .pulse-strip div:nth-child(2) { animation-delay: .07s; }
+  .pulse-strip div:nth-child(3) { animation-delay: .14s; }
+  .pulse-strip div:nth-child(4) { animation-delay: .21s; }
+  .pulse-strip b {
+    display: block; font: 700 26px/1 var(--ui); letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .pulse-strip span { display: block; margin-top: 5px; font-size: 12.5px;
+    color: var(--text-3); }
+  @keyframes liftIn { from { opacity: 0; transform: translateY(10px); } }
+  .step { transition: border-color .18s ease, transform .18s ease; }
+  .step:hover { border-color: var(--line-2); transform: translateY(-1px); }
   .stage {
     margin: 0 0 30px; background: var(--card); border: 1px solid var(--line);
     border-radius: 20px; padding: 10px 10px 0; overflow: hidden;
@@ -356,7 +389,7 @@
     <button data-tab="changes">Changes</button>
     <button data-tab="overview">Code map</button>
     <button data-tab="history">Track record</button>
-    <button data-tab="setup">Settings</button>
+    <button data-tab="setup">Home</button>
   </nav>
 </header>
 
@@ -366,10 +399,12 @@
   <section id="setup">
     <div class="hero hero-split">
       <div>
-        <p class="eyebrow">See the impact before you ship</p>
-        <h2 class="display">Forecast what a<br>change will touch.</h2>
-        <p class="lede">Prophecy maps a proposed change through your repository —
-          callers, tests, schemas — so concurrent work stops colliding in the dark.</p>
+        <p class="eyebrow">Before you waste the work</p>
+        <h2 class="display">Don't find out<br>in production.</h2>
+        <p class="lede">You and your agents are changing the same codebase at
+          the same time. Prophecy checks the work against your collaborators
+          before any of it ships — so you find the collision now, not after a
+          day of building on top of it.</p>
         <p style="margin-top:22px">
           <button class="btn" id="enterApp">Open the workspace</button>
           <a class="btn secondary small" style="margin-left:8px;text-decoration:none"
@@ -383,6 +418,13 @@
           <span>Three people, three reasonable changes.</span>
         </div>
       </div>
+    </div>
+
+    <div class="pulse-strip" id="pulseStrip" hidden>
+      <div><b id="pFiles">0</b><span>files understood</span></div>
+      <div><b id="pLinks">0</b><span>dependencies traced</span></div>
+      <div><b id="pFlight">0</b><span>changes in flight</span></div>
+      <div><b id="pRisk">—</b><span>riskiest right now</span></div>
     </div>
 
     <div class="steps">
@@ -620,6 +662,20 @@
         answer.</p>
     </div>
     <div class="card">
+      <h3>What Prophecy said <span class="tag predicted">on the record</span>
+        <button class="btn small secondary" id="loadRecord">Refresh</button></h3>
+      <div class="body flush" id="verdictList"><p class="empty"
+        style="padding:18px">Nothing analyzed yet. Run an analysis on the
+        Changes tab and it lands here.</p></div>
+    </div>
+
+    <div class="card">
+      <h3>Who changed what</h3>
+      <div class="body flush" id="commitList"><p class="loading"
+        style="padding:18px">reading history</p></div>
+    </div>
+
+    <div class="card">
       <h3>This project so far</h3>
       <div class="body" id="insOut"><p class="loading">reading</p></div>
     </div>
@@ -684,7 +740,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
     x.setAttribute('aria-selected', String(x === b)));
   document.querySelectorAll('main section').forEach(s =>
     s.hidden = s.id !== b.dataset.tab);
-  if (b.dataset.tab === 'history') loadInsights();
+  if (b.dataset.tab === 'history') { loadInsights(); loadRecord(); }
   if (b.dataset.tab === 'team') {
     loadUsage(); loadLive(); loadPlan(false); loadRoster();
   }
@@ -766,90 +822,191 @@ api('repos').then(d => { REPOS = d.repos || []; fillRepoList(); }).catch(() => {
    changes that each look fine, converging on one stored field, and the
    number that only appears once you look at them together. */
 const CAST = [
-  { who: 'ada', what: 'make email required', y: 40, score: 83, hot: true },
-  { who: 'grace', what: 'redesign signup', y: 110, score: 1, hot: false },
-  { who: 'linus', what: 'tidy the user table', y: 180, score: 9, hot: false },
+  { who: 'ada', what: 'make email required', y: 42, score: 83, hot: true },
+  { who: 'grace', what: 'redesign signup', y: 112, score: 13, hot: false },
+  { who: 'linus', what: 'tidy the user table', y: 182, score: 9, hot: false },
 ];
 const BEATS = [
-  'Three people, three reasonable changes.',
-  'Each one scores low or medium on its own.',
+  'Three people. Three reasonable changes.',
+  'Each one looks harmless on its own.',
   'None of them touch the same file — but all three reach users.email.',
-  'Together: 95, critical. No diff would have shown that.',
+  'Together: 97, critical. You would have found this in production.',
 ];
 
-function drawStage(beat, t) {
+const ease = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const out = (x) => 1 - Math.pow(1 - x, 3);
+
+function buildStage() {
   const svg = document.getElementById('stage');
-  if (!svg) return;
-  const shown = (i) => beat > 0 || t > 0.2 + i * 0.2;
-  const wires = beat >= 2;
-  const verdict = beat >= 3;
-  const ticked = verdict ? Math.round(95 * Math.min(1, t * 2.4)) : 0;
-
+  if (!svg) return null;
   svg.innerHTML = `
+    <defs>
+      <linearGradient id="hot" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#F87171"/>
+      </linearGradient>
+      <linearGradient id="cool" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#67E8F9" stop-opacity=".45"/>
+        <stop offset="1" stop-color="#67E8F9"/>
+      </linearGradient>
+      <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+        <feGaussianBlur stdDeviation="6"/>
+      </filter>
+    </defs>
+    <ellipse id="halo" cx="294" cy="120" rx="66" ry="30" fill="#F87171"
+      opacity="0" filter="url(#soft)"/>
     ${CAST.map((c, i) => `
-      <g opacity="${shown(i) ? 1 : 0}" style="transition:opacity .5s ease">
-        <rect x="4" y="${c.y - 19}" width="150" height="38" rx="10"
-          fill="#20202B" stroke="${verdict && c.hot ? '#F87171' : '#3A3A4A'}"
-          style="transition:stroke .5s"/>
+      <g class="row" data-i="${i}" opacity="0"
+         transform="translate(-14 0)">
+        <rect class="plate" x="4" y="${c.y - 19}" width="150" height="38" rx="11"
+          fill="#1A1A24" stroke="#33333F"/>
         <text x="16" y="${c.y - 3}" fill="#F5F3FF" font-size="10.5"
-          font-family="var(--ui)" font-weight="600">${c.who}</text>
-        <text x="16" y="${c.y + 12}" fill="#A3A3B5" font-size="9.5"
-          font-family="var(--ui)">${c.what}</text>
-        <text x="144" y="${c.y + 3}" text-anchor="end" font-size="11"
-          font-family="var(--mono)"
-          fill="${c.hot ? '#F87171' : '#A3A3B5'}">${c.score}</text>
-      </g>
-      <path d="M156 ${c.y} C 196 ${c.y}, 200 120, 238 120"
-        stroke="${c.hot ? '#8B5CF6' : '#67E8F9'}" stroke-width="1.6" fill="none"
-        stroke-dasharray="180" stroke-dashoffset="${wires ? 0 : 180}"
-        opacity="${wires ? 0.95 : 0}"
-        style="transition:stroke-dashoffset 1s ease, opacity .4s"/>`).join('')}
-
-    <g opacity="${wires ? 1 : 0}" style="transition:opacity .5s">
-      <rect x="238" y="102" width="112" height="36" rx="10" fill="#20202B"
-        stroke="${verdict ? '#F87171' : '#67E8F9'}" style="transition:stroke .5s"/>
+          font-weight="600">${c.who}</text>
+        <text x="16" y="${c.y + 12}" fill="#9B9BAF" font-size="9.5">${c.what}</text>
+        <text class="num" x="144" y="${c.y + 3}" text-anchor="end" font-size="11"
+          font-family="var(--mono)" fill="#9B9BAF">${c.score}</text>
+      </g>`).join('')}
+    ${CAST.map((c, i) => `
+      <path class="wire" data-i="${i}" fill="none" stroke-linecap="round"
+        stroke="url(#${c.hot ? 'hot' : 'cool'})" stroke-width="${c.hot ? 2 : 1.5}"
+        d="M158 ${c.y} C 200 ${c.y}, 202 120, 236 120"
+        stroke-dasharray="6 168" stroke-dashoffset="174" opacity="0"/>`).join('')}
+    <g id="target" opacity="0">
+      <rect id="targetPlate" x="236" y="101" width="116" height="38" rx="11"
+        fill="#1A1A24" stroke="#67E8F9"/>
       <text x="294" y="124" text-anchor="middle" fill="#F5F3FF" font-size="11"
         font-family="var(--mono)">users.email</text>
     </g>
-
-    <g opacity="${verdict ? 1 : 0}" style="transition:opacity .6s">
-      <text x="294" y="196" text-anchor="middle" fill="#F87171" font-size="40"
-        font-family="var(--ui)" font-weight="700"
-        letter-spacing="-1.5">${ticked}</text>
-      <text x="294" y="215" text-anchor="middle" fill="#F87171" font-size="9.5"
-        font-family="var(--ui)" font-weight="600"
-        letter-spacing="1">TOGETHER · CRITICAL</text>
+    <g id="verdict" opacity="0">
+      <text id="tick" x="294" y="196" text-anchor="middle" fill="#F87171"
+        font-size="40" font-weight="700" letter-spacing="-1.5">0</text>
+      <text x="294" y="214" text-anchor="middle" fill="#F87171" font-size="9"
+        font-weight="600" letter-spacing="1.4">TOGETHER · CRITICAL</text>
     </g>`;
+  return {
+    svg,
+    rows: [...svg.querySelectorAll('.row')],
+    wires: [...svg.querySelectorAll('.wire')],
+    target: svg.querySelector('#target'),
+    plate: svg.querySelector('#targetPlate'),
+    halo: svg.querySelector('#halo'),
+    verdict: svg.querySelector('#verdict'),
+    tick: svg.querySelector('#tick'),
+    nums: [...svg.querySelectorAll('.num')],
+    plates: [...svg.querySelectorAll('.plate')],
+  };
 }
 
 function playStage() {
-  const svg = document.getElementById('stage');
+  const el = buildStage();
   const caption = document.getElementById('stageCaption');
-  if (!svg || !caption) return;
-  const say = (i) => { caption.innerHTML = `<span>${BEATS[i]}</span>`; };
+  if (!el || !caption) return;
+  const say = (i) => {
+    caption.innerHTML = `<span>${BEATS[i]}</span>`;
+    caption.firstChild.animate(
+      [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1 }],
+      { duration: 420, easing: 'ease-out' });
+  };
+
+  const settle = () => {
+    el.rows.forEach(r => { r.setAttribute('opacity', 1);
+      r.setAttribute('transform', 'translate(0 0)'); });
+    el.wires.forEach(w => { w.setAttribute('opacity', .95);
+      w.setAttribute('stroke-dasharray', '174'); w.setAttribute('stroke-dashoffset', 0); });
+    el.target.setAttribute('opacity', 1);
+    el.plate.setAttribute('stroke', '#F87171');
+    el.halo.setAttribute('opacity', .2);
+    el.verdict.setAttribute('opacity', 1);
+    el.tick.textContent = '97';
+    el.nums[0].setAttribute('fill', '#F87171');
+    el.plates[0].setAttribute('stroke', '#F87171');
+  };
 
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    drawStage(3, 1);
-    say(3);
-    return;
+    settle(); say(3); return;
   }
-  let beat = 0, start = performance.now();
-  say(0);
-  const step = (now) => {
-    const t = Math.min(1, (now - start) / 2300);
-    drawStage(beat, t);
-    if (t >= 1) {
-      // hold on the payoff a beat longer than the setup
-      const wait = beat === BEATS.length - 1 ? 1400 : 250;
-      if (now - start > 2300 + wait) {
-        beat = (beat + 1) % BEATS.length;
-        say(beat);
-        start = now;
+
+  // one timeline, four beats, each phase eased rather than snapped
+  // the last phase is a fade, so the loop does not snap back to an empty
+  // frame — which reads as the page breaking rather than the story repeating
+  const PHASES = [1500, 1200, 2000, 2600, 600];
+  let phase = 0, t0 = performance.now(), shown = -1;
+
+  const frame = (now) => {
+    const span = PHASES[phase];
+    const p = Math.min(1, (now - t0) / span);
+    if (shown !== phase && phase < BEATS.length) { say(phase); shown = phase; }
+
+    if (phase === 4) {
+      const fade = 1 - ease(p);
+      el.svg.style.opacity = fade.toFixed(3);
+      if (p >= 1) el.svg.style.opacity = '';
+    } else {
+      el.svg.style.opacity = '';
+    }
+
+    // 0 — the three changes arrive, staggered
+    el.rows.forEach((row, i) => {
+      const local = phase === 0
+        ? Math.max(0, Math.min(1, (p - i * 0.22) / 0.55)) : 1;
+      row.setAttribute('opacity', out(local));
+      row.setAttribute('transform', `translate(${(-14 * (1 - out(local))).toFixed(2)} 0)`);
+    });
+
+    // 1 — their scores read out, ada's runs hot
+    if (phase >= 1) {
+      el.nums.forEach((n, i) => {
+        const lit = phase > 1 || p > 0.3 + i * 0.2;
+        n.setAttribute('fill', lit && CAST[i].hot ? '#F87171'
+          : lit ? '#C9C9DA' : '#9B9BAF');
+      });
+      if (phase > 1 || p > 0.5) el.plates[0].setAttribute('stroke', '#5B4A7A');
+    }
+
+    // 2 — the wires travel, and the field they all reach lights up
+    if (phase >= 2) {
+      const travel = phase > 2 ? 1 : ease(p);
+      el.wires.forEach((w, i) => {
+        const local = Math.max(0, Math.min(1, (travel - i * 0.12) / 0.72));
+        w.setAttribute('opacity', local > 0 ? .95 : 0);
+        // the dash grows from a pulse into a full line as it lands
+        w.setAttribute('stroke-dasharray', `${(6 + 168 * local).toFixed(1)} 174`);
+        w.setAttribute('stroke-dashoffset', (174 * (1 - local)).toFixed(1));
+      });
+      el.target.setAttribute('opacity', out(Math.min(1, travel * 1.6)));
+    }
+
+    // 3 — the number nobody would have seen
+    if (phase >= 3) {
+      const k = ease(Math.min(1, p * 1.5));
+      el.verdict.setAttribute('opacity', k);
+      el.tick.textContent = Math.round(97 * k);
+      el.plate.setAttribute('stroke', '#F87171');
+      el.halo.setAttribute('opacity', (0.28 * k * (0.8 + 0.2 *
+        Math.sin(now / 320))).toFixed(3));
+      el.plates[0].setAttribute('stroke', '#F87171');
+    }
+
+    if (p >= 1) {
+      const hold = phase === 3 ? 1700 : phase === 4 ? 0 : 180;
+      if (now - t0 > span + hold) {
+        phase = (phase + 1) % PHASES.length;
+        t0 = now;
+        if (phase === 0) {
+          el.wires.forEach(w => { w.setAttribute('opacity', 0);
+            w.setAttribute('stroke-dasharray', '6 168');
+            w.setAttribute('stroke-dashoffset', 174); });
+          el.target.setAttribute('opacity', 0);
+          el.plate.setAttribute('stroke', '#67E8F9');
+          el.verdict.setAttribute('opacity', 0);
+          el.halo.setAttribute('opacity', 0);
+          el.nums.forEach(n => n.setAttribute('fill', '#9B9BAF'));
+          el.plates.forEach(x => x.setAttribute('stroke', '#33333F'));
+        }
       }
     }
-    requestAnimationFrame(step);
+    requestAnimationFrame(frame);
   };
-  requestAnimationFrame(step);
+  requestAnimationFrame(frame);
 }
 playStage();
 
@@ -868,7 +1025,55 @@ function showApp(open) {
   }
 }
 
+function countTo(el, target, suffix = '') {
+  if (!el) return;
+  const from = parseInt(el.textContent.replace(/\D/g, ''), 10) || 0;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || from === target) {
+    el.textContent = target.toLocaleString() + suffix;
+    return;
+  }
+  const started = performance.now();
+  const step = (now) => {
+    const p = Math.min(1, (now - started) / 700);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (target - from) * eased).toLocaleString()
+      + suffix;
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function loadPulse() {
+  Promise.all([
+    api('scan').catch(() => null),
+    api('risk').catch(() => null),
+  ]).then(([scan, risk]) => {
+    if (!scan) return;
+    $('#pulseStrip').hidden = false;
+    countTo($('#pFiles'), scan.file_count || 0);
+    countTo($('#pLinks'), Object.values(scan.callers || {})
+      .reduce((n, v) => n + v.length, 0));
+    const changes = (risk && risk.changes) || [];
+    countTo($('#pFlight'), changes.length);
+    const worst = changes.reduce((m, c) =>
+      !m || c.risk_score > m.risk_score ? c : m, null);
+    const cell = $('#pRisk');
+    if (worst) {
+      cell.textContent = worst.risk_score;
+      cell.style.color = worst.risk_band === 'critical'
+        || worst.risk_band === 'high' ? 'var(--bad)'
+        : worst.risk_band === 'medium' ? 'var(--warn)' : '';
+      cell.nextElementSibling.textContent =
+        `${worst.risk_band} · ${worst.label.replace('branch ', '')}`;
+    } else {
+      cell.textContent = '—';
+      cell.nextElementSibling.textContent = 'nothing in flight';
+    }
+  });
+}
+
 function loadSetup() {
+  loadPulse();
   $('#setup').hidden = false;
   $('#tabs').hidden = false;
   document.querySelectorAll('main section').forEach(s => s.hidden = s.id !== 'setup');
@@ -1810,6 +2015,76 @@ api('mcp_config').then(d => {
   $('#mcpConfig').textContent = window.__mcp;
   $('#mcpConfig').className = '';
 }).catch(() => {});
+
+function loadRecord() {
+  api('history').then(d => {
+    const said = d.verdicts || [], log = d.commits || [];
+
+    $('#verdictList').innerHTML = said.length ? said.slice(0, 20).map(v => `
+      <div class="risk ${v.risk_band === 'critical' || v.risk_band === 'high'
+        ? 'high' : v.risk_band === 'medium' ? 'medium' : ''}">
+        <div style="padding:13px 20px 13px 23px">
+          <div class="headline"><b>${v.risk_score}</b> ${esc(v.risk_band)}
+            · ${esc(v.label)}</div>
+          <div class="between" style="margin:2px 0 6px">
+            ${esc(v.agent || 'unattributed')} · ${esc(v.at.slice(0, 16))}
+            · ${(v.files || []).length} file(s)
+            · ${Math.round((v.confidence || 0) * 100)}% sure</div>
+          ${(v.failures || []).length ? `<ul>${v.failures.slice(0, 2).map(f =>
+            `<li>[${esc(f.severity)}] ${esc(f.title)}</li>`).join('')}</ul>` : ''}
+          ${(v.said || []).map(x => `<p class="rec">${esc(x)}</p>`).join('')}
+        </div></div>`).join('')
+      : `<p class="empty" style="padding:18px">Nothing analyzed yet.</p>`;
+
+    $('#commitList').innerHTML = log.length ? `<table style="margin:0 20px">
+      <thead><tr><th>commit</th><th>who</th><th>what</th><th>files</th>
+        <th></th></tr></thead>
+      <tbody>${log.slice(0, 20).map(c => `<tr>
+        <td class="mono dim">${esc(c.short)}</td>
+        <td>${esc(c.author)}<div class="dim" style="font-size:12px">${esc(c.when)}</div></td>
+        <td>${esc(c.subject)}</td>
+        <td class="dim">${c.files.slice(0, 2).map(f =>
+          `<button class="chip" data-file="${esc(f)}">${esc(f)}</button>`).join(' ')}
+          ${c.files.length > 2 ? `<span class="dim"> +${c.files.length - 2}</span>` : ''}</td>
+        <td><button class="btn small secondary" data-restore="${esc(c.sha)}"
+          >Put this back</button></td></tr>`).join('')}</tbody></table>
+      <p class="hint" style="padding:0 20px 16px">Restoring writes the old
+        files into your working tree and stops there — no commit, no history
+        rewrite, no push. <code>git checkout -- .</code> undoes it.</p>`
+      : `<p class="empty" style="padding:18px">No history here yet.</p>`;
+  }).catch(() => {});
+}
+$('#loadRecord').onclick = loadRecord;
+
+// restoring is two clicks: see the diff, then decide
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-restore]');
+  if (!b) return;
+  const sha = b.dataset.restore;
+  b.disabled = true;
+  api('restore', { sha, preview: '1' }).then(p => {
+    b.disabled = false;
+    if (p.error) { showBanner(p.error); return; }
+    const stat = (p.diffstat || '').trim();
+    if (!stat) { showBanner('Your tree already matches that version.'); return; }
+    const dirty = (p.uncommitted || []).length;
+    const ok = confirm(
+      `Put back ${sha.slice(0, 10)}?\n\n${stat}\n\n` +
+      (dirty ? `${dirty} file(s) have uncommitted changes — commit or stash `
+             + 'them first.\n\n' : '') +
+      'This writes the old files into your working tree and stops. Nothing is '
+      + 'committed or pushed, and git checkout -- . undoes it.');
+    if (!ok) return;
+    api('restore', { sha }).then(r => {
+      if (r.error) { showBanner(r.error); return; }
+      hideBanner();
+      showBanner(`Restored from ${sha.slice(0, 10)}. ${r.changed.length} `
+        + 'file(s) now differ in your working tree — read the diff before '
+        + 'committing.');
+      loadRecord();
+    });
+  }).catch(() => { b.disabled = false; });
+});
 
 function loadInsights() {
   api('insights').then(d => {

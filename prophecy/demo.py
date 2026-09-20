@@ -98,6 +98,7 @@ def test_create_user_email_optional():
     user = create_user(1, "ada")
     assert user.email is None
 ''',
+    ".gitignore": ".prophecy/\n__pycache__/\n",
     "README.md": "# demo app\n\nA small account service, used to show what "
                  "prophecy does when three people change one contract.\n",
 }
