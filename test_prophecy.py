@@ -100,12 +100,14 @@ def main():
         text = prophecy.capsule(repo, rate, found)
         assert "api/middleware.py" in text and "Coordination" in text
 
+        check_hints(repo)
         check_branches(root, repo)
         check_backfill(root)
         check_brief(repo)
         check_llm(repo)
         check_sharing(root, repo)
         check_mcp(root)
+        check_slice_and_brevity(root)
         check_mcp_http(root)
 
     check_risk_engine()
@@ -381,6 +383,10 @@ def check_brief(repo):
     first = data["suffixes"][0]
     assert first["task"] == "Add rate limiting to the API"
     assert "rate_limit(request, limit=...)" in first["text"]
+    # the agent is told to work from the slice rather than open the files, and
+    # that instruction is per-task, so it must sit in the suffix
+    assert "Only open the rest of a file" in first["text"]
+    assert "Only open the rest of a file" not in data["prefix"]
     assert "Agree on who owns" in first["text"]
     assert data["suffixes"][1]["text"] != first["text"]
 
@@ -612,6 +618,89 @@ def check_risk_engine():
         assert "api/signup.py" in layers[0]
         crit, signals = risk_engine.criticality(repo, "app/models.py", layers)
         assert crit > 0 and signals
+
+def check_hints(repo):
+    """Signals the caller already has, for tasks the words alone would miss."""
+    task = "Add rate limiting to the API"
+
+    # without hints nothing moves: the same files, ranked the same way
+    plain = prophecy.predict(repo, task)
+    assert plain["files"][0]["file"] == "api/middleware.py", plain["files"]
+    before = [f["file"] for f in plain["files"]]
+    assert prophecy.predict(repo, task, hints=None)["files"] == plain["files"]
+    assert "billing/invoice.py" not in before, before
+
+    # a file the task shares no words with still lands, because it is dirty
+    dirty = prophecy.predict(repo, task,
+                             hints={"dirty": ["billing/invoice.py"]})
+    hit = next((f for f in dirty["files"] if f["file"] == "billing/invoice.py"),
+               None)
+    assert hit, [f["file"] for f in dirty["files"]]
+    assert any("uncommitted" in e for e in hit["evidence"]), hit["evidence"]
+    assert not hit["lexical"]
+
+    # so does one another session has claimed
+    claimed = prophecy.predict(repo, task,
+                               hints={"claimed": ["billing/invoice.py"]})
+    hit = next(f for f in claimed["files"] if f["file"] == "billing/invoice.py")
+    assert any("already in this file" in e for e in hit["evidence"]), hit
+
+    # dirty outranks merely recent, so git log does not fill the slice. Said
+    # on a task the words miss entirely, because when the words do hit they
+    # are meant to win: api/handlers.py matching "API" is not a tie to break.
+    neutral = prophecy.predict(repo, "zzzz qqqq", hints={
+        "dirty": ["billing/invoice.py"], "recent": ["api/handlers.py"]})
+    order = [f["file"] for f in neutral["files"]]
+    assert order.index("billing/invoice.py") < order.index("api/handlers.py"), order
+
+    # and a lexical hit still outranks a file that is only recent
+    lexical_wins = prophecy.predict(repo, task,
+                                    hints={"recent": ["billing/invoice.py"]})
+    ranked = [f["file"] for f in lexical_wins["files"]]
+    assert ranked[0] == "api/middleware.py", ranked
+
+    # a path this repository does not have is dropped, not guessed at
+    bogus = prophecy.predict(repo, task, hints={"dirty": ["nope/gone.py"]})
+    assert [f["file"] for f in bogus["files"]] == before
+
+    # words set the ceiling: a signal never inflates a forecast the words
+    # already made
+    assert dirty["confidence"] == plain["confidence"]
+
+    # but a forecast carried entirely by signals is not zero-confidence, and
+    # it stays low enough that nobody acts on it without looking
+    signal_only = prophecy.predict(repo, "zzzz qqqq",
+                                   hints={"dirty": ["billing/invoice.py"]})
+    assert signal_only["files"], signal_only
+    assert 0.3 < signal_only["confidence"] < 0.5, signal_only["confidence"]
+
+
+def check_slice_and_brevity(root):
+    """The agent is handed a slice, and a short answer unless it asks."""
+    reply = rpc(root, {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                       "params": {"name": "get_dependency_context",
+                                  "arguments": {"path": "api/middleware.py"}}})[0]
+    slice_text = reply["result"]["content"][0]["text"]
+    assert "rate_limit(request, limit=...)" in slice_text, slice_text
+    assert "(line " in slice_text, slice_text
+    assert "Open the file itself only if" in slice_text
+
+    def analyze(**extra):
+        out = rpc(root, {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                         "params": {"name": "analyze_change", "arguments": dict(
+                             {"head": "limits", "base": "main"}, **extra)}})[0]
+        return out["result"]["content"][0]["text"]
+
+    short, long = analyze(), analyze(detail=True)
+    assert len(short) < len(long), (len(short), len(long))
+    assert "risk" in short and "/100" in short
+    assert "detail: true" in short
+    # the reasoning is what costs tokens on every later turn, so it is the
+    # part that waits to be asked for
+    assert "What could break" not in short
+    assert "Not known" not in short
+    assert "What could break" in long and "Not known" in long
+
 
 if __name__ == "__main__":
     main()

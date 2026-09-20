@@ -140,6 +140,15 @@ def volatile_suffix(repo, forecast, risks, notes=()):
                 + ", ".join(f["callers"][:4])
             )
 
+    if forecast["files"]:
+        lines += [
+            "",
+            "Start from those symbols and line ranges. They are the slice this "
+            "task is predicted to need, so you do not have to read the tree to "
+            "find it. Only open the rest of a file when the slice turns out "
+            "not to be enough, and say so when that happens.",
+        ]
+
     if forecast["tests"]:
         lines += ["", "## Tests that cover this"] + [
             f"- `{t}`" for t in forecast["tests"]

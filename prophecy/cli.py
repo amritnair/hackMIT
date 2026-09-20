@@ -1,5 +1,6 @@
-"""Forecast which parts of a repo a planned task will touch, and where two
-pieces of work collide."""
+"""Given everything else happening in this repository, what would this change
+break? Works from a branch, a pull request, a sentence describing work nobody
+has started, or a coding agent asking over MCP before it commits."""
 
 import argparse
 import json
@@ -7,7 +8,7 @@ import shlex
 import sys
 
 from . import store
-from . import github, llm
+from . import github, history, llm
 from .agent import brief, observations, request_skeleton
 from .create import new_project
 from .demo import build as build_demo, seed as seed_demo
@@ -205,7 +206,7 @@ def main(argv=None):
             return 1
         else:
             print(f"Created {result['name']} at {result['path']}")
-            print("  agent settings committed in .mcp.json — any agent opening "
+            print("  agent settings committed in .mcp.json: any agent opening "
                   "this project joins on its own")
             if result.get("remote"):
                 print(f"  pushed to {result['remote']}")
@@ -255,7 +256,7 @@ def cmd_status(repo, args, db):
     solo = risks(repo, [as_forecast(b) for b in live.values()])
     store.save_risks(db, solo)
     if not args.json:
-        print(f"base {args.base} — {len(live)} other branch(es)")
+        print(f"base {args.base}, {len(live)} other branch(es)")
         for name, b in live.items():
             print(f"\n  {name}  +{b['ahead']}/-{b['behind']}  "
                   f"{b['author']}, {b['last_commit']}")
@@ -266,14 +267,41 @@ def cmd_status(repo, args, db):
         if solo:
             print(f"\n{len(solo)} risk(s) from branches on their own:")
             for r in solo:
-                print(f"  {MARK[r['risk_level']]} [{r['id']}] {r['risk_type']} — "
+                print(f"  {MARK[r['risk_level']]} [{r['id']}] {r['risk_type']}: "
                       f"{r['evidence'][0]}")
     return {"base": args.base, "branches": found, "risks": solo}
 
 
-def _forecast(repo, task, args):
+def _repo_hints(repo, db=None):
+    """Signals this machine already has about where work is happening.
+
+    Only reachable when we hold a real path, which the CLI always does. A
+    lookup that fails costs one signal, not the forecast.
+    """
+    hints = {"dirty": [], "recent": [], "claimed": []}
+    try:
+        hints["dirty"] = history.dirty_paths(repo["repo"])
+    except Exception:
+        pass
+    try:
+        hints["recent"] = [f for commit in history.commits(repo["repo"], 8)
+                           for f in commit["files"]]
+    except Exception:
+        pass
+    if db is not None:
+        try:
+            hints["claimed"] = [
+                f["file"] for w in in_flight(repo, "main", db, store)
+                for f in w["forecast"]["files"]
+            ]
+        except Exception:
+            pass
+    return hints
+
+
+def _forecast(repo, task, args, db=None):
     """Lexical always; the model only when asked, and never silently."""
-    lexical = predict(repo, task)
+    lexical = predict(repo, task, hints=_repo_hints(repo, db))
     if not getattr(args, "llm", False):
         return lexical
     try:
@@ -290,7 +318,7 @@ def _forecast(repo, task, args):
 
 
 def cmd_plan(repo, args, db):
-    forecast = _forecast(repo, args.task, args)
+    forecast = _forecast(repo, args.task, args, db)
     if not args.json:
         _print_forecast(forecast)
     return forecast
@@ -353,7 +381,7 @@ def cmd_predict(repo, args, db):
 
 def cmd_simulate(repo, args, db):
     found = branches(repo["repo"], args.base)
-    forecasts = [_forecast(repo, t, args) for t in args.tasks]
+    forecasts = [_forecast(repo, t, args, db) for t in args.tasks]
     forecasts += [as_forecast(found[n]) for n in args.branch if n in found]
     if not forecasts:
         print("give me some tasks, or --branch <name>", file=sys.stderr)
@@ -390,8 +418,9 @@ def _collide(repo, args, db, forecasts, header=None):
 
 
 def cmd_context(repo, args, db):
-    forecast = predict(repo, args.task)
-    others = [predict(repo, t) for t in args.against]
+    hints = _repo_hints(repo, db)
+    forecast = predict(repo, args.task, hints=hints)
+    others = [predict(repo, t, hints=hints) for t in args.against]
     found = risks(repo, [forecast, *others])
     store.save_risks(db, found)
     markdown = capsule(repo, forecast, found)
@@ -402,7 +431,8 @@ def cmd_context(repo, args, db):
 
 def cmd_brief(repo, args, db):
     found = branches(repo["repo"], args.base)
-    forecasts = [predict(repo, t) for t in args.tasks]
+    hints = _repo_hints(repo, db)
+    forecasts = [predict(repo, t, hints=hints) for t in args.tasks]
     forecasts += [as_forecast(found[n]) for n in args.branch if n in found]
     found_risks = risks(repo, forecasts)
     store.save_risks(db, found_risks)
@@ -417,13 +447,13 @@ def cmd_brief(repo, args, db):
     if not args.json:
         e = data["economics"]
         print("=" * 62)
-        print("CACHED PREFIX — same bytes for every agent on this commit")
+        print("CACHED PREFIX: same bytes for every agent on this commit")
         print("=" * 62)
         print(data["prefix"])
         for s in data["suffixes"]:
             print()
             print("=" * 62)
-            print(f"AFTER THE BREAKPOINT — {s['task']}")
+            print(f"AFTER THE BREAKPOINT: {s['task']}")
             print("=" * 62)
             print(s["text"])
         print()
@@ -681,8 +711,8 @@ def _split_target(target, base):
 
 def _print_analysis(a):
     print(f"{a['label']}")
-    print(f"  risk {a['risk_score']}/100 — {a['risk_band'].upper()}"
-          f"   (range {a['risk_range']['min']}–{a['risk_range']['max']},"
+    print(f"  risk {a['risk_score']}/100, {a['risk_band'].upper()}"
+          f"   (range {a['risk_range']['min']}-{a['risk_range']['max']},"
           f" confidence {int(a['confidence'] * 100)}%)")
     print(f"  criticality of what it touches: {a['criticality_band']}"
           f"   blast radius: {a['blast_radius']['size']}"
@@ -768,7 +798,7 @@ def cmd_risk(repo, args, db):
         a["auto_warned"] = bool(queue_risk_warning(db, repo, a, mine))
 
     if not args.json:
-        print(f"repository risk {overall['score']}/100 — {overall['band'].upper()}")
+        print(f"repository risk {overall['score']}/100, {overall['band'].upper()}")
         for line in overall["drivers"]:
             print(f"  {line}")
         print(f"\nin flight ({len(analyses)})")
@@ -798,8 +828,8 @@ def cmd_check(repo, args, db):
     over = result["risk_score"] > args.max
     if not args.json:
         if over:
-            print(f"HOLD — risk {result['risk_score']}/100 "
-                  f"(range {result['risk_range']['min']}–"
+            print(f"HOLD: risk {result['risk_score']}/100 "
+                  f"(range {result['risk_range']['min']}-"
                   f"{result['risk_range']['max']}, "
                   f"confidence {int(result['confidence'] * 100)}%), "
                   f"over the {args.max} you set.")
@@ -810,7 +840,7 @@ def cmd_check(repo, args, db):
             print("\nThis is a threshold you chose, not a verdict. "
                   "--max raises it.")
         else:
-            print(f"OK — risk {result['risk_score']}/100, under {args.max}.")
+            print(f"OK: risk {result['risk_score']}/100, under {args.max}.")
     result["over_threshold"] = over
     return result
 
@@ -832,7 +862,7 @@ def cmd_history(repo, args, db):
                 for line in (v["said"] or [])[:1]:
                     print(f"      -> {line[:96]}")
         else:
-            print("nothing analyzed yet — run `prophecy risk`.")
+            print("nothing analyzed yet: run `prophecy risk`.")
         print("\nwho changed what")
         for c in log[:12]:
             verdict = by_label.get(c["subject"])
@@ -858,7 +888,7 @@ def cmd_restore(repo, args, db):
             return out
         if args.preview:
             print(f"restoring {args.sha[:10]} would change:")
-            print(out["diffstat"] or "  nothing — the tree already matches")
+            print(out["diffstat"] or "  nothing: the tree already matches")
         else:
             print(f"restored {', '.join(out['restored'])} from {args.sha[:10]}")
             print(f"  {out['note']}")
@@ -964,7 +994,7 @@ def cmd_explain(repo, args, db):
         for line in risk["evidence"]:
             print(f"    - {line}")
         print(f"  recommendation: {risk['recommendation']}")
-        print(f"  confidence {risk['confidence']} — a heuristic, not a probability.")
+        print(f"  confidence {risk['confidence']}: a heuristic, not a probability.")
     return risk
 
 
@@ -1068,7 +1098,7 @@ def cmd_insights(repo, args, db):
         if data["recurring"]:
             print("\nrisks that keep coming back:")
             for row in data["recurring"]:
-                print(f"  [{row['id']}] {row['risk_type']} — {row['tasks']}")
+                print(f"  [{row['id']}] {row['risk_type']}: {row['tasks']}")
     return data
 
 

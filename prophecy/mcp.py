@@ -14,6 +14,7 @@ has none.
 
 import hashlib
 import json
+import re
 import os
 import sys
 
@@ -34,11 +35,16 @@ def tools():
         {
             "name": "join_repo_session",
             "description": (
-                "Register this agent as working in the repository and get a "
-                "briefing: the files the task is likely to touch, the symbols "
-                "in them, anything other agents already found there, and who "
-                "else is working in the same code right now. Call this once "
-                "before starting work."
+                "Call this once before starting work, instead of exploring "
+                "the tree. You get the slice this task is predicted to need: "
+                "the likely files, the symbols in them with their line "
+                "numbers, findings other agents pinned to those files, and "
+                "who else is in the same code right now. The prediction uses "
+                "the dependency graph plus what is uncommitted, what changed "
+                "recently, and what another session already claimed, so it "
+                "still lands when the task shares no words with the file. Do "
+                "not read whole files first; start from the slice and open "
+                "more only if it is not enough."
             ),
             "inputSchema": {
                 "type": "object",
@@ -98,8 +104,11 @@ def tools():
                 "Before you commit: what could this change break, how badly, "
                 "and why. Reads the dependency graph, the signature-level "
                 "diff, git history and everything else in flight, and returns "
-                "a risk range with the evidence behind it. Ask this instead of "
-                "guessing whether a change is safe."
+                "a risk range. Ask this instead of guessing whether a change "
+                "is safe. The answer is short by default: score, reach, who "
+                "else is in the same code, and the worst findings. Pass "
+                "detail: true when you actually need the evidence and the "
+                "uncertainty behind it."
             ),
             "inputSchema": {
                 "type": "object",
@@ -115,6 +124,12 @@ def tools():
                                "description": "What you are trying to do, in "
                                               "your own words. Used to check "
                                               "the diff against the intent."},
+                    "detail": {"type": "boolean", "description": (
+                        "Default false, which returns the score, the reach, "
+                        "who else is in the same code and the two worst "
+                        "findings. Ask again with true for the full evidence "
+                        "and the uncertainty behind it."
+                    )},
                 },
             },
         },
@@ -139,9 +154,10 @@ def tools():
         {
             "name": "get_dependency_context",
             "description": (
-                "What reaches a file or symbol: direct importers, indirect "
-                "ones, how critical it looks and why. Ask before modifying "
-                "something you did not write."
+                "One file, as a slice: what it exports with line numbers, who "
+                "imports it, how critical it looks and why. Ask this instead "
+                "of reading the whole file, and before modifying something "
+                "you did not write."
             ),
             "inputSchema": {
                 "type": "object",
@@ -218,6 +234,36 @@ class Server:
         repo = scan(self.repo_path)
         return repo, store.connect(self.repo_path)
 
+    def _hints(self, repo, db, agent, elsewhere=None):
+        """Signals about this minute that the words in a task cannot carry.
+
+        All of it is already on disk or in the project database. Nothing here
+        calls a model, and a lookup that fails just means one fewer signal.
+        """
+        from . import history
+        hints = {"dirty": [], "recent": [], "claimed": []}
+        try:
+            hints["dirty"] = history.dirty_paths(repo["repo"])
+        except Exception:
+            pass
+        try:
+            hints["recent"] = [
+                f for commit in history.commits(repo["repo"], 8)
+                for f in commit["files"]
+            ]
+        except Exception:
+            pass
+        try:
+            work = elsewhere if elsewhere is not None else [
+                w for w in in_flight(repo, "main", db, store)
+                if w["agent"] != agent
+            ]
+            hints["claimed"] = [f["file"] for w in work
+                                for f in w["forecast"]["files"]]
+        except Exception:
+            pass
+        return hints
+
     def join(self, args):
         agent, task = args["agent"], args["task"]
         repo, db = self._open()
@@ -227,11 +273,15 @@ class Server:
         store.join_session(db, session_id, repo["sha"], agent, task,
                            client_name(args.get("tool")) or self.client or "mcp")
 
-        forecast = predict(repo, task)
         # Everything else in flight, not just other live sessions: a teammate's
         # open pull request collides just as hard as a running agent.
         elsewhere = [w for w in in_flight(repo, "main", db, store)
                      if w["agent"] != agent]
+        # Point at the slice rather than making the agent read the tree to
+        # find it: the graph, plus what is uncommitted, recently touched, or
+        # already claimed by somebody else.
+        forecast = predict(repo, task,
+                           hints=self._hints(repo, db, agent, elsewhere))
         found = risks(repo, [forecast, *(w["forecast"] for w in elsewhere)])
         others = [
             {"agent": w["agent"], "task": w["label"], "kind": w["kind"]}
@@ -278,10 +328,13 @@ class Server:
             return ("Nothing else is in flight here right now: no other "
                     "sessions, branches or open pull requests.")
 
-        mine = predict(repo, next(
-            (s["task"] for s in store.live_sessions(db) if s["agent"] == agent),
-            " ".join(files) or "",
-        ))
+        task = next((s["task"] for s in store.live_sessions(db)
+                     if s["agent"] == agent), "")
+        hints = self._hints(repo, db, agent, elsewhere)
+        if files:
+            # the agent told us what it is in; that beats predicting it
+            hints["editing"] = [f for f in files if f in repo["files"]]
+        mine = predict(repo, task or " ".join(files), hints=hints)
         found = risks(repo, [mine, *(w["forecast"] for w in elsewhere)])
         live = [{"agent": w["agent"], "task": w["label"]} for w in elsewhere]
         store.touch_session(db, self.session_id(agent))
@@ -318,7 +371,7 @@ class Server:
             store.log(db, repo["sha"], "analyzed", agent,
                       f"checked {head}: {result['risk_score']}/100 "
                       f"({result['risk_band']})")
-        return _render_analysis(result)
+        return _render_analysis(result, detail=bool(args.get("detail")))
 
     def repo_risk(self, args):
         repo, db = self._open()
@@ -334,11 +387,16 @@ class Server:
         lines = [f"Repository risk {overall['score']}/100 "
                  f"({overall['band']}), from {overall['changes']} change(s)."]
         lines += [f"- {d}" for d in overall["drivers"]]
-        for a in sorted(analyses, key=lambda a: -a["risk_score"]):
+        # the riskiest few, not the whole board: this comes back on every
+        # later turn of the agent's conversation
+        ranked = sorted(analyses, key=lambda a: -a["risk_score"])
+        for a in ranked[:6]:
             lines.append(f"\n{a['label']}: {a['risk_score']}/100 "
                          f"({a['risk_band']}), {a['agent']}")
             for f in a["potential_failures"][:2]:
                 lines.append(f"  [{f['severity']}] {f['title']}")
+        if len(ranked) > 6:
+            lines.append(f"\n...and {len(ranked) - 6} quieter change(s).")
         return "\n".join(lines)
 
     def change_interactions(self, args):
@@ -352,7 +410,7 @@ class Server:
         if not found:
             return "Nothing in flight meets anything else right now."
         lines = []
-        for i in found:
+        for i in found[:6]:
             lines.append(
                 f"{' and '.join(i['between'])}: alone "
                 f"{i['individual'][0]} and {i['individual'][1]}, together "
@@ -360,7 +418,9 @@ class Server:
                 + ("  <- this is worse than either on its own"
                    if i["escalates"] else "")
             )
-            lines += [f"  - {e}" for e in i["evidence"]]
+            lines += [f"  - {e}" for e in i["evidence"][:2]]
+        if len(found) > 6:
+            lines.append(f"...and {len(found) - 6} more pair(s).")
         return "\n".join(lines)
 
     def dependency_context(self, args):
@@ -372,15 +432,29 @@ class Server:
         layers = blast_radius(repo, [path])
         crit, signals = criticality(repo, path, layers)
         info = repo["files"][path]
+        callers = repo["callers"].get(path, [])
+        public = [x for x in info["symbols"] if not x["name"].startswith("_")]
         lines = [
-            f"{path}",
-            f"  {len(info['symbols'])} symbol(s), "
-            f"{len(repo['callers'].get(path, []))} direct importer(s)",
-            f"  criticality {crit}/100",
+            f"{path}: {len(info['symbols'])} symbol(s), "
+            f"{len(callers)} direct importer(s), criticality {crit}/100",
         ]
-        lines += [f"  - {s}" for s in signals]
-        if layers:
-            lines.append("  reached by: " + ", ".join(layers[0][:8]))
+        if public:
+            # the point of this tool: enough of the file to work in it
+            lines.append("\nWhat it exports, with line numbers:")
+            lines += [f"  {x['signature']}  (line {x['line']})"
+                      for x in public[:14]]
+            if len(public) > 14:
+                lines.append(f"  ... and {len(public) - 14} more")
+        if callers:
+            lines.append("\nImported by:")
+            lines += [f"  {c}" for c in callers[:8]]
+            if len(callers) > 8:
+                lines.append(f"  ... and {len(callers) - 8} more")
+        if signals:
+            lines.append("\nWhy it matters:")
+            lines += [f"  {s}" for s in signals]
+        lines.append("\nThat is the slice. Open the file itself only if this "
+                     "is not enough.")
         return "\n".join(lines)
 
     def inbox(self, agent):
@@ -421,8 +495,16 @@ class Server:
         return answer
 
 
-def _render_analysis(a):
-    """The same analysis a person sees, written for an agent to act on."""
+def _render_analysis(a, detail=True):
+    """The analysis, written for an agent to act on.
+
+    Short by default over MCP. The whole writeup is a few hundred tokens that
+    come back on every following turn of that conversation, so an agent that
+    only needed the score should not be billed for the reasoning. Ask again
+    with detail for the rest.
+    """
+    if not detail:
+        return _render_brief(a)
     lines = [
         f"{a['label']}: risk {a['risk_score']}/100 ({a['risk_band']}), "
         f"range {a['risk_range']['min']}-{a['risk_range']['max']}, "
@@ -450,6 +532,40 @@ def _render_analysis(a):
     if a["recommendations"]:
         lines.append("\nSuggested:")
         lines += [f"- {r}" for r in a["recommendations"]]
+    return "\n".join(lines)
+
+
+def _render_brief(a):
+    """Score, reach, who else is in it, and the two worst things. Nothing else."""
+    lines = [
+        f"{a['label']}: risk {a['risk_score']}/100 ({a['risk_band']}), "
+        f"range {a['risk_range']['min']}-{a['risk_range']['max']}, "
+        f"confidence {int(a['confidence'] * 100)}%",
+        f"Blast radius {a['blast_radius']['size']}: "
+        f"{len(a['blast_radius']['direct'])} direct, "
+        f"{len(a['blast_radius']['indirect'])} indirect.",
+    ]
+    top = [f["file"] for f in a["changed_files"][:4]] \
+        if a.get("changed_files") and isinstance(a["changed_files"][0], dict) \
+        else list(a.get("changed_files", []))[:4]
+    if top:
+        lines.append("Files: " + ", ".join(top)
+                     + (f" (+{len(a['changed_files']) - len(top)} more)"
+                        if len(a["changed_files"]) > len(top) else ""))
+    if a["intent_contradictions"]:
+        lines.append("Message and diff disagree: "
+                     + a["intent_contradictions"][0])
+    for f in a["potential_failures"][:2]:
+        lines.append(f"[{f['severity']}] {f['title']}")
+    if len(a["potential_failures"]) > 2:
+        lines.append(f"...and {len(a['potential_failures']) - 2} more.")
+    if a["concurrent_overlap"]:
+        lines.append("At the same time: " + ", ".join(
+            f"{o['agent']} on {o['with']}" for o in a["concurrent_overlap"][:3]))
+    if a["recommendations"]:
+        lines.append(a["recommendations"][0])
+    lines.append("Call analyze_change again with detail: true for the "
+                 "evidence, the uncertainty and the rest of the failures.")
     return "\n".join(lines)
 
 
@@ -482,7 +598,7 @@ def queue_risk_warning(db, repo, analysis, meets=None, sent_by="auto", force=Fal
     target = label.split()[-1]
     if not target:
         return None
-    body = _render_analysis(analysis)
+    body = _render_analysis(analysis, detail=True)
     if mine:
         body += "\n\nTogether with other work in flight:"
         for i in mine:

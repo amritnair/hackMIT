@@ -46,8 +46,61 @@ def overlap(a, b):
     return hits
 
 
-def predict(repo, task, limit=8):
+# What a signal is worth when the words miss. Uncommitted and claimed files
+# are about this minute; a recent commit is only about this week, so it is
+# worth less and must not push the top eight full of git log.
+HINT_WEIGHTS = {
+    "editing": (4.5, "the agent said it is editing this file"),
+    "dirty": (4.0, "uncommitted in this working tree"),
+    "claimed": (3.5, "another session is already in this file"),
+    "recent": (1.2, "changed in a recent commit"),
+}
+
+
+def _hint_map(repo, hints):
+    """path -> [(weight, why)], for hint paths this repository actually has.
+
+    Anything that is not a file here is dropped rather than guessed at: a
+    stale path from git status is not evidence about code that exists.
+    """
+    found = {}
+    for kind, (weight, why) in HINT_WEIGHTS.items():
+        seen = set()
+        for path in (hints or {}).get(kind) or ():
+            # one signal counts once however many times it is reported; three
+            # sessions in a file is worth saying, not worth scoring three times
+            if path in repo["files"] and path not in seen:
+                seen.add(path)
+                found.setdefault(path, []).append((weight, why))
+        if kind == "claimed":
+            counts = {}
+            for path in (hints or {}).get(kind) or ():
+                if path in repo["files"]:
+                    counts[path] = counts.get(path, 0) + 1
+            for path, n in counts.items():
+                if n > 1:
+                    found[path] = [
+                        (w, f"{n} other pieces of work are already in this file")
+                        if text == why else (w, text)
+                        for w, text in found[path]
+                    ]
+    return found
+
+
+def predict(repo, task, limit=8, hints=None):
+    """Which files this task is likely to touch.
+
+    Lexical matching against the repository, plus optional signals the caller
+    already knows: what is uncommitted, what changed recently, what another
+    session has claimed. Those let a task land on the right file even when it
+    shares no words with it. They never invent a path, and every one of them
+    says why it was included.
+
+    Without hints this behaves exactly as it did before, so callers that only
+    hold a scanned repository dict do not have to find any of it.
+    """
     task_tokens = tokens(task)
+    hinted = _hint_map(repo, hints)
     scored = []
 
     for rel, info in repo["files"].items():
@@ -81,10 +134,14 @@ def predict(repo, task, limit=8):
             + 2.0 * min(len(symbol_hits), 3)
             + 0.5 * min(len(doc_hits), 2)
         )
-        if not score:
-            continue
+        lexical = score > 0
         if info["is_test"]:
             score *= 0.6  # tests follow the code, they rarely lead it
+        for weight, why in hinted.get(rel, ()):
+            score += weight
+            evidence.append(why)
+        if not score:
+            continue
         scored.append({
             "file": rel,
             "score": round(score, 2),
@@ -92,9 +149,12 @@ def predict(repo, task, limit=8):
             "evidence": evidence[:5],
             "is_test": info["is_test"],
             "callers": repo["callers"].get(rel, []),
+            "lexical": lexical,
         })
 
-    scored.sort(key=lambda f: (-f["score"], f["file"]))
+    # a file the words actually matched sorts above one that only a signal
+    # raised, when the two come out level
+    scored.sort(key=lambda f: (-f["score"], not f["lexical"], f["file"]))
     top = scored[:limit]
 
     grounded = set()
@@ -109,7 +169,7 @@ def predict(repo, task, limit=8):
         "files": top,
         "tests": [f["file"] for f in top if f["is_test"]]
         or _tests_near(repo, [f["file"] for f in top]),
-        "confidence": _confidence(top),
+        "confidence": _confidence_with_signals(top),
         "unsupported_terms": sorted(t for t in task_tokens if not overlap({t}, grounded)),
     }
 
@@ -121,6 +181,22 @@ def _tests_near(repo, files):
         rel for rel, info in repo["files"].items()
         if info["is_test"] and stems & {Path(i.replace(".", "/")).stem for i in info["imports"]}
     )[:5]
+
+
+def _confidence_with_signals(top):
+    """How much to trust this forecast, given what kind of evidence it rests on.
+
+    Words matching code is the strong case: it says this task belongs in this
+    file. A file being uncommitted or claimed is weaker but not nothing, and
+    reporting zero next to a file the caller can see ranked first reads as a
+    bug rather than as honesty. So signals set a floor and the words set the
+    ceiling, and the floor stays below the point where anyone would act on it
+    without looking.
+    """
+    lexical = _confidence([f for f in top if f["lexical"]])
+    if any(not f["lexical"] for f in top):
+        return max(lexical, 0.35)
+    return lexical
 
 
 def _confidence(top):

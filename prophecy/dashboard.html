@@ -52,15 +52,29 @@
   .project form.repo { position: absolute; top: calc(100% + 8px); left: 0;
     z-index: 50; width: 330px; }
   .project form.repo[hidden] { display: none; }
-  form.repo { display: flex; flex: 0 1 290px; min-width: 180px; }
+  form.repo { display: flex; flex: 0 1 290px; min-width: 180px; flex-wrap: wrap; }
   form.repo input { flex: 1; font: 13px/1 var(--ui); color: var(--text);
     background: var(--raised); border: 1px solid var(--line-2); border-right: 0;
     padding: 8px 14px; min-width: 0; border-radius: 999px 0 0 999px; }
   form.repo input:focus { outline: none; }
-  form.repo button { font: 500 13px/1 var(--ui); border: 1px solid var(--line-2);
+  form.repo > button { font: 500 13px/1 var(--ui); border: 1px solid var(--line-2);
     border-left: 0; background: var(--raised); color: var(--text-2);
     padding: 8px 16px; cursor: pointer; border-radius: 0 999px 999px 0; }
-  form.repo button:hover { color: var(--text); }
+  form.repo > button:hover { color: var(--text); }
+  .repo-hits {
+    flex: 1 1 100%; margin-top: 6px; max-height: 280px; overflow-y: auto;
+    background: var(--card); border: 1px solid var(--line-2);
+    border-radius: 12px; }
+  .repo-hits button {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    background: none; border: 0; border-bottom: 1px solid var(--line);
+    border-radius: 0; color: var(--text); padding: 10px 14px;
+    font: 13.5px/1.35 var(--ui); }
+  .repo-hits button:last-child { border-bottom: 0; }
+  .repo-hits button:hover { background: var(--raised); }
+  .repo-hits b { display: block; font-weight: 600; }
+  .repo-hits span { display: block; margin-top: 2px; word-break: break-all;
+    font: 11.5px var(--mono); color: var(--text-3); }
   nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
   nav button { font: 500 13px/1 var(--ui); background: none; border: 0;
     color: var(--text-3); padding: 8px 13px; cursor: pointer; border-radius: 999px; }
@@ -602,10 +616,11 @@
               fill="none" stroke-linecap="round"/></svg>
     </button>
     <form class="repo" id="repoForm" hidden>
-      <input id="repoPath" spellcheck="false" autocomplete="off" list="repoList"
-             aria-label="Project" placeholder="search your projects">
-      <datalist id="repoList"></datalist>
+      <input id="repoPath" spellcheck="false" autocomplete="off"
+             aria-label="Project" placeholder="search your projects"
+             aria-autocomplete="list" aria-controls="repoHits">
       <button type="submit">open</button>
+      <div id="repoHits" class="repo-hits" hidden role="listbox"></div>
     </form>
   </div>
   <nav id="tabs" hidden>
@@ -660,14 +675,16 @@
         <li class="watch-step"><span class="n">02</span>
           <b>It gets consequences, not a lint</b>
           <p>A score with its range and confidence, the callers that would break,
-            and the other work in flight it is about to run into. It is read off
-            this project's real dependency graph.</p>
+            and where this overlaps other work in flight. Join hands back the
+            slice it needs: the likely files, the symbols and their line
+            numbers, so it does not read the tree to find them.</p>
           <span class="watch-tag" style="--c:var(--bad)"><i></i>Flagging what collides</span></li>
         <li class="watch-step"><span class="n">03</span>
           <b>You answer its agent</b>
           <p>Send the risk profile of somebody's change straight to the agent
-            writing it. It arrives on that agent's next call, in the same words
-            Prophecy would have given it.</p>
+            writing it, along with notes already pinned on those files. It
+            arrives on that agent's next call, so nobody pays a second time to
+            work out what a teammate already knows.</p>
           <span class="watch-tag" style="--c:var(--good)"><i></i>Answers sent, flags cleared</span></li>
       </ol>
       <div class="watch-stage" role="img"
@@ -954,18 +971,18 @@ const STEPS = [
   },
   {
     kicker: "The first briefing",
-    title: "Claude pays once to learn the repo.",
-    said: "Prophecy sends back two piles of text. The first pile is a <b>map of the project</b>, 1,067 tokens. That map is the same for every agent on this commit, so it gets cached. Think of it as buying a street map. The second pile is Ada’s own job, which is unique, so it is not cached.",
+    title: "Claude is handed the slice, not the repo.",
+    said: "Prophecy sends back two piles of text. The first is a <b>map of the project</b>, 1,067 tokens: the load-bearing files and what imports what. The second is Ada’s own job, and the part that matters is <b>which files to start in, and the line numbers</b>. Without it, Claude opens the tree and reads until it finds them.",
     tool: {
       name: "prophecy · join_repo_session",
       args: "agent: ada · task: Make email required",
-      result: "Map of prophecy-demo (1,067 tokens), saved to cache.\nYour job sits after the map, so changing it is free for the cache.\nLikely files: app/models.py, api/signup.py\n15 other files import models.py.",
+      result: "Map of prophecy-demo (1,067 tokens).\nStart here: app/models.py create_user (line 14), api/signup.py signup (line 6).\n15 other files import models.py.\nDo not read the rest of those files unless the slice is not enough.",
     },
     claude: "Prophecy says models.py is the center of this. Fifteen files import it. I’ll start there.",
     pipe: { dir: "Claude Code → Prophecy", text: "tools/call  join_repo_session\n{ agent: \"ada\", task: \"Make email required\" }" },
-    pipe2: { dir: "Prophecy → Claude Code", text: "briefing\nprefix 1,067 tokens  (cache WRITE × 1.25)\ntask 2,136 tokens" },
-    tokens: { naive: BASELINE + ADA_TASK, billed: PREFIX * 1.25 + ADA_TASK, blurb: "Ada just paid to write the shared map into cache (a little extra the first time). The next agent will read that map at one tenth the price.", pct: 35 },
-    why: ["A token is a chunk of text the model is charged for.", "The shared map is identical for Ada, Grace, and Linus, so it belongs in the cache.", "Ada’s actual task is different, so it goes after the map, where it cannot spoil the cache."],
+    pipe2: { dir: "Prophecy → Claude Code", text: "briefing\nmap 1,067 tokens\ntask + slice 2,136 tokens" },
+    tokens: { naive: BASELINE + ADA_TASK, billed: PREFIX + ADA_TASK, blurb: "Reading this project to find the right file costs about 6,725 tokens. Being told which file, and which line, costs 1,067.", pct: 64 },
+    why: ["A token is a chunk of text the model is charged for.", "The saving here is the reading Claude did not do: it was pointed at the slice instead of exploring.", "The slice is predicted from the dependency graph, plus what is uncommitted, recently touched, or already claimed by another session."],
   },
   {
     kicker: "A note on a file",
@@ -984,12 +1001,12 @@ const STEPS = [
   {
     kicker: "Someone else sits down",
     title: "Grace’s Cursor just opened the same project.",
-    said: "Grace is a teammate. Her Cursor is a <b>different program</b>. It does not share memory with Ada’s Claude Code. The only thing they share is this Prophecy — the map and the notes.",
+    said: "Grace is a teammate. Her Cursor is a <b>different program</b>. It does not share memory with Ada’s Claude Code. The only thing they share is this Prophecy: the same map, the same slice, and Ada’s note.",
     other: "Grace’s Cursor connected to the same Prophecy over MCP.",
     pipe: { dir: "Grace’s Cursor → Prophecy", text: "initialize  { clientInfo: { name: \"cursor\" } }\ntools/call  join_repo_session" },
-    pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map: CACHE HIT × 0.1\nnote from Ada already in the briefing" },
-    tokens: { naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK), billed: (PREFIX * 1.25 + ADA_TASK) + (PREFIX * 0.1 + GRACE_TASK), blurb: "Grace did not buy the map. She photocopied Ada’s, at 1/10th the price. She also got Ada’s note, so she did not spend tokens hunting for it.", pct: 62 },
-    why: ["Two coding agents. Two MCP plugs. One Prophecy.", "Cache hit = the bytes of the map matched, so the model was not charged full price again.", "Ada’s finding travelled with the briefing. That is context sharing."],
+    pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map, same slice\nnote from Ada already in the briefing" },
+    tokens: { naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK), billed: (PREFIX + ADA_TASK) + (PREFIX + GRACE_TASK), blurb: "Grace skipped the same reading Ada skipped, and Ada’s note came with the briefing, so she did not work out create_user a second time.", pct: 65 },
+    why: ["Two coding agents. Two MCP plugs. One Prophecy.", "A tool result is not a prompt cache: Grace is sent the map again. What she saves is the exploring, and the finding she did not have to re-derive.", "On the CLI path, prophecy brief --request puts that map in a cached prefix, and later calls really do read it back at a fraction of the price."],
   },
   {
     kicker: "Is anyone else here?",
@@ -1034,24 +1051,24 @@ const STEPS = [
   {
     kicker: "Linus too",
     title: "A third agent, same map, same notes.",
-    said: "Linus’s Codex joins. Third plug, same Prophecy. He also gets the cheap photocopy of the map, and Ada’s note on models.py. If every agent had read the repo from scratch, you would have paid three full readings. You paid one, plus each person’s own job.",
-    other: "Linus’s Codex joined. Cache hit. Ada’s note delivered.",
+    said: "Linus’s Codex joins. Third plug, same Prophecy. He gets the same map, his own slice, and Ada’s note on models.py. If every agent had explored the repo to orient itself, you would have paid three full readings. You paid three briefings instead, and nobody re-derived Ada’s finding.",
+    other: "Linus’s Codex joined. Slice sent, Ada’s note delivered.",
     tokens: {
       naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK) + (BASELINE + LINUS_TASK),
-      billed: (PREFIX * 1.25 + ADA_TASK) + (PREFIX * 0.1 + GRACE_TASK) + (PREFIX * 0.1 + LINUS_TASK),
-      blurb: "Three agents. One paid map. Two cheap rereads. Notes passed along so nobody re-learns create_user. That is the token story.",
-      pct: 88,
+      billed: (PREFIX + ADA_TASK) + (PREFIX + GRACE_TASK) + (PREFIX + LINUS_TASK),
+      blurb: "Three agents, three briefings, no exploring, and one finding that was worked out once. That is the token story.",
+      pct: 65,
     },
-    why: ["Naive cost = every agent reads the whole project, every time.", "Actual cost = map once, then tiny cache reads, plus each task.", "The leftover is tokens you did not spend: the number on Prophecy’s Context tab."],
+    why: ["Naive cost = every agent reads the whole project to find its way in.", "Actual cost = a briefing each, pointing at the slice, plus each task.", "The leftover is tokens you did not spend: the number on Prophecy’s Context tab."],
   },
   {
     kicker: "What you saw",
     title: "Three simple things.",
-    said: "Left side: a programmer’s Claude Code, talking to Prophecy through MCP like any other tool. Right side: what that was really doing. The map is paid once. Notes stick to files. Risk is “who else does this hit,” scored before a commit. When the score is high, the warning shows up in Claude by itself.",
+    said: "Left side: a programmer’s Claude Code, talking to Prophecy through MCP like any other tool. Right side: what that was really doing. Each agent is pointed at a slice instead of reading the tree. Notes stick to files, so a fact is worked out once. Risk is “who else does this hit,” scored before a commit. When the score is high, the warning shows up in Claude by itself.",
     claude: "I’ll wait for Grace before I commit the email change. Prophecy will keep watching this file.",
     why: [
       "MCP connection: Claude Code plugged into this Prophecy over HTTP.",
-      "Tokens saved: shared map cached; later agents pay 1/10th; findings are not rediscovered.",
+      "Tokens saved: each agent is sent the slice instead of reading the repo, and a finding is not rediscovered. On the CLI, prophecy brief --request caches the shared map as a real prompt prefix.",
       "Context shared: a note on a file, handed to the next agent that goes there.",
       "Risk: blast radius + teammates in that radius, with a range, not a vibe.",
     ],
@@ -1206,12 +1223,14 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
           this change reach, and who else is in here right now?</p></div>
       <div><i>02</i><b>It gets consequences, not a lint</b>
         <p>A score with its range and confidence, the callers that would break,
-          and the other work in flight it is about to run into. It is read off
-          this project's real dependency graph.</p></div>
+          and where this overlaps other work in flight. Join hands back the
+          slice it needs: the likely files, the symbols and their line
+          numbers, so it does not read the tree to find them.</p></div>
       <div><i>03</i><b>You answer its agent</b>
         <p>Send the risk profile of somebody's change straight to the agent
-          writing it. It arrives on that agent's next call, in the same words
-          Prophecy would have given it.</p></div>
+          writing it, along with notes already pinned on those files. It
+          arrives on that agent's next call, so nobody pays a second time to
+          work out what a teammate already knows.</p></div>
     </div>
 
     <div class="card" id="mcpConnect" style="margin-top:28px">
@@ -1220,27 +1239,34 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
       <div class="body">
         <p>Paste this into Claude Code, Cursor, or any MCP client. They talk
           to this Prophecy over HTTP — same machine or not.</p>
-        <p class="story">An agent writing code here does not have to guess who
-          else is in the codebase. It asks, over MCP, and gets an answer built
-          from this project's real dependency graph. And it works both ways:
-          when you send an agent the risk profile of what it is doing, that
-          reading is waiting for it the next time it asks anything.</p>
+        <p class="story">An agent writing code here does not have to read the
+          tree to find its way in. It asks, over MCP, and gets the slice: the
+          files this task is predicted to touch, the symbols in them and their
+          line numbers, drawn from the dependency graph plus what is
+          uncommitted, what changed recently, and what another session has
+          already claimed. And it works both ways: when you send an agent the
+          risk profile of what it is doing, that reading is waiting for it the
+          next time it asks anything.</p>
         <div class="mcp-loop">
           <div><b>The agent asks</b>
             <ul>
-              <li><code>join_repo_session</code>: who else is here, and what
-                they have already worked out</li>
+              <li><code>join_repo_session</code>: the slice to start from,
+                who else is here, and what they have already worked out</li>
               <li><code>analyze_change</code>: what this change would break,
                 before committing it</li>
               <li><code>check_overlap</code>: whether these files are
                 somebody else's files too</li>
               <li><code>get_change_interactions</code>: what this change
                 looks like next to everything else in flight</li>
+              <li><code>get_dependency_context</code>: one file's exports
+                with line numbers, instead of reading the whole file</li>
               <li><code>share_finding</code>: hands something back for the
                 next agent that goes there</li>
             </ul></div>
           <div><b>Prophecy answers</b>
             <ul>
+              <li>the predicted slice: files, symbols, line numbers, so
+                nothing has to be hunted for</li>
               <li>a risk score with its range and confidence, not a verdict</li>
               <li>the files and callers that would actually be hit</li>
               <li>the other work it is about to collide with, by name</li>
@@ -1301,9 +1327,11 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
   <section id="context" hidden>
     <div class="hero" style="padding:42px 0 4px">
       <h2 class="title">What your agents are being sent</h2>
-      <p class="lede">Everyone working here needs the same background about
-        this codebase. Send it once, cache it, and each agent pays for its own
-        task and nothing else.</p>
+      <p class="lede">The numbers below are the CLI path, where the shared
+        project map really is a cached prefix: sent once, read back cheaply,
+        and each agent pays for its own task. Agents on MCP save differently:
+        join hands them the predicted slice instead of the tree, and a finding
+        pinned to a file is not worked out twice.</p>
     </div>
 
     <p class="scope-note">Scoped to <b id="scopeName">this project</b>:
@@ -1729,9 +1757,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 });
 
 /* ── repo picker ──────────────────────────────────────────────
-   A native datalist rather than a bespoke dropdown: it types like a path
-   field for anyone who knows the path, and lists what is on the machine for
-   anyone who does not. Recently opened repos sort to the top. */
+   A real list under the field, not a native datalist: clicking a hit has
+   to open the project immediately, and the list has to go away with it. */
 let REPOS = [];
 let SERVED = null;
 
@@ -1745,25 +1772,54 @@ function remember(path) {
   lsSet('recent', JSON.stringify(list));
 }
 
-function fillRepoList() {
+function repoChoices() {
   const recent = recents();
   if (SERVED && !REPOS.some(r => r.path === SERVED)) {
     REPOS = [{ path: SERVED, name: base(SERVED) }, ...REPOS];
   }
   const known = new Map(REPOS.map(r => [r.path, r.name]));
-  const ordered = [
+  return [
     ...recent.filter(p => p !== REPO).map(p => [p, known.get(p) || base(p)]),
     ...REPOS.filter(r => !recent.includes(r.path) && r.path !== REPO)
       .map(r => [r.path, r.name]),
   ];
-  $('#repoList').innerHTML = ordered.map(([path, name]) =>
-    `<option value="${esc(path)}">${esc(name)}</option>`).join('');
+}
+
+function fillRepoList() {
+  if ($('#repoForm') && !$('#repoForm').hidden) showRepoHits($('#repoPath').value);
+}
+
+function showRepoHits(q) {
+  const box = $('#repoHits');
+  if (!box || $('#repoForm').hidden) return;
+  const needle = (q || '').trim().toLowerCase();
+  let rows = repoChoices();
+  if (needle) {
+    rows = rows.filter(([path, name]) =>
+      path.toLowerCase().includes(needle) ||
+      name.toLowerCase().includes(needle));
+  }
+  rows = rows.slice(0, 8);
+  box.hidden = rows.length === 0;
+  box.innerHTML = rows.map(([path, name]) =>
+    `<button type="button" role="option" data-pick="${esc(path)}">
+       <b>${esc(name)}</b><span>${esc(path)}</span></button>`).join('');
+}
+
+function closePicker() {
+  const form = $('#repoForm');
+  if (form) form.hidden = true;
+  const hits = $('#repoHits');
+  if (hits) hits.hidden = true;
+  const btn = $('#projectBtn');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
 }
 
 function openRepo(path) {
   REPO = path.trim().replace(/\/$/, '');
   if (!REPO) return;
   $('#repoName').textContent = base(REPO);
+  closePicker();
   setProjectState(true);
   loadSetup();
   remember(REPO);
@@ -1773,10 +1829,22 @@ function openRepo(path) {
 
 $('#repoForm').onsubmit = e => {
   e.preventDefault();
-  openRepo($('#repoPath').value);
-  $('#repoForm').hidden = true;
-  $('#projectBtn').setAttribute('aria-expanded', 'false');
+  const typed = $('#repoPath').value.trim();
+  const exact = repoChoices().find(([p, n]) => p === typed || n === typed);
+  if (exact) { openRepo(exact[0]); return; }
+  const hits = document.querySelectorAll('#repoHits [data-pick]');
+  if (hits.length === 1) { openRepo(hits[0].dataset.pick); return; }
+  openRepo(typed);
 };
+
+$('#repoHits').addEventListener('mousedown', e => {
+  const btn = e.target.closest('[data-pick]');
+  if (!btn) return;
+  e.preventDefault();
+  openRepo(btn.dataset.pick);
+});
+
+$('#repoPath').addEventListener('input', e => showRepoHits(e.target.value));
 
 // the path is a detail, not a headline: the button shows the project, the
 // switcher only appears when someone asks for it
@@ -1786,6 +1854,7 @@ function openPicker() {
   $('#projectBtn').setAttribute('aria-expanded', 'true');
   $('#repoPath').value = '';
   $('#repoPath').focus();
+  showRepoHits('');
 }
 $('#pickProject').onclick = openPicker;
 
@@ -1840,20 +1909,17 @@ $('#projectBtn').onclick = () => {
   const form = $('#repoForm');
   form.hidden = !form.hidden;
   $('#projectBtn').setAttribute('aria-expanded', String(!form.hidden));
-  if (!form.hidden) { $('#repoPath').value = ''; $('#repoPath').focus(); }
+  if (!form.hidden) {
+    $('#repoPath').value = '';
+    $('#repoPath').focus();
+    showRepoHits('');
+  }
 };
 document.addEventListener('click', e => {
-  if (!e.target.closest('.project')) {
-    $('#repoForm').hidden = true;
-    $('#projectBtn').setAttribute('aria-expanded', 'false');
-  }
+  if (!e.target.closest('.project')) closePicker();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') $('#repoForm').hidden = true;
-});
-// picking from the list should just open it, without a second click
-$('#repoPath').addEventListener('change', e => {
-  if (REPOS.some(r => r.path === e.target.value)) openRepo(e.target.value);
+  if (e.key === 'Escape') closePicker();
 });
 
 api('repos').then(d => { REPOS = d.repos || []; fillRepoList(); }).catch(() => {});
@@ -1878,7 +1944,8 @@ const SCENE2 = [
   'Ada, Grace and Linus each point an agent at the same project.',
   'Alone, every agent reads the whole codebase, and two of them work out the '
     + 'same thing about models.py.',
-  'With Prophecy they share one briefing instead, sent once and cached.',
+  'With Prophecy each is handed the slice instead: the files and lines to '
+    + 'start in, and whatever a teammate already worked out.',
   'So when Ada\u2019s agent works something out, Linus\u2019s agent is told '
     + 'before it starts.',
 ];
@@ -1983,7 +2050,7 @@ function buildCrew() {
       <text x="208" y="118" text-anchor="middle" fill="#EEF4FF" font-size="10"
         font-family="var(--mono)">shared background</text>
       <text x="208" y="131" text-anchor="middle" fill="#93A4BF" font-size="8.5"
-        font-family="var(--mono)">sent once, cached</text>
+        font-family="var(--mono)">the slice, not the tree</text>
     </g>
     <g id="waste" opacity="0">
       ${AGENTS.map(a => `

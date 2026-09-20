@@ -455,7 +455,7 @@ def _notify_agent(path, repo, agent, target, base):
     if not analysis:
         return {"error": f"{target} is not in flight here"}
 
-    body = _render_analysis(analysis)
+    body = _render_analysis(analysis, detail=True)
 
     # Two changes can edit different files and still collide through what they
     # reach. That is the part an agent cannot work out alone, so it is the part

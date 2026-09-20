@@ -21,16 +21,18 @@ than under-reports, which is the right direction for a warning system. Proper
 resolution needs per-language module resolution rules and is a day's work per
 language.
 
-**The matcher is lexical.** Four-letter prefix agreement between task words
-and paths/symbols. It cannot connect "throttle requests" to `rate_limit`
-because they share no letters. This is the real ceiling on prediction
-quality, and it is the one gap where a model genuinely helps: embed symbol
-names and docstrings once per commit, embed the task, take the top-k by
-cosine, and keep the lexical matcher as the evidence layer so warnings still
-explain themselves. That is the `LLMProvider` seam in §7 and it does not
-exist yet — there is no provider interface in the codebase at all, because
-one implementation behind an interface is just a file with extra steps. Add
-the interface when the second implementation shows up.
+**The matcher is lexical, plus signals.** Four-letter prefix agreement
+between task words and paths or symbols. On words alone it cannot connect
+"throttle requests" to `rate_limit`, because they share no letters. Two
+things close part of that gap now. `predict` takes optional hints, so a file
+that is uncommitted, recently touched, or already claimed by another session
+can surface with no vocabulary in common, each saying why it was included.
+And `--llm` is a real provider interface (`llm.py`, Anthropic and OpenAI),
+opt-in, never on the MCP path, with anything it names that does not exist
+dropped. What is still missing is the cheap middle: embed symbol names and
+docstrings once per commit, embed the task, take the top-k by cosine, and
+keep the lexical matcher as the evidence layer so warnings still explain
+themselves. That would beat both on recall without a per-call model bill.
 
 **No concept of a service.** The PRD asks for predicted services and a graph
 that spans them. Everything here is file- and symbol-level. For a monorepo

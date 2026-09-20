@@ -7,6 +7,7 @@ undone by `git checkout -- .`, which is the only kind of undo worth offering
 somebody through a web page.
 """
 
+import re
 import subprocess
 from pathlib import Path
 
@@ -39,6 +40,23 @@ def commits(repo_path, limit=40, path=None):
             "when": when, "subject": subject, "files": files,
         })
     return out
+
+
+def porcelain_path(line):
+    """The path out of a `git status --porcelain` line.
+
+    The status column is one or two characters and may be padded, and the
+    first line arrives already left-stripped because git output is trimmed
+    before it gets here. A rename reads "R old -> new"; the new name is the
+    one that exists.
+    """
+    body = re.sub(r"^\s*[A-Z?!]{0,2}\s+", "", line.rstrip())
+    return body.split(" -> ")[-1].strip().strip('"')
+
+
+def dirty_paths(repo_path):
+    """Repo-relative paths with uncommitted work."""
+    return [porcelain_path(line) for line in dirty(repo_path)]
 
 
 def dirty(repo_path):

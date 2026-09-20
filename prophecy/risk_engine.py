@@ -335,7 +335,9 @@ def score_change(repo, change, failures, crit, concurrent_overlap):
     spread = 6 + 4 * len(unknowns)
     score = round(min(base, 97))
     low = max(0, score - spread)
-    high = min(100, score + spread)
+    # the same ceiling the score itself gets: a range that reaches 100 claims
+    # a certainty the evidence does not carry
+    high = min(97, score + spread)
     # confidence falls as the unknowns pile up, and rises with hard evidence
     evidence_count = sum(len(f["affected"]) for f in failures)
     confidence = round(min(0.92, 0.45 + 0.05 * evidence_count - 0.06 * len(unknowns)), 2)
