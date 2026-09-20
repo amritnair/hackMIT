@@ -1293,8 +1293,8 @@ def build(path):
 SEED_SESSIONS = [
     {"agent": "ada", "task": "Make email required during signup",
      "note": ("app/models.py",
-              "create_user has five importers; every one of them omits email "
-              "today, so the default cannot just be dropped")},
+              "every caller of create_user omits email today, so the default "
+              "cannot just be dropped without fixing all of them")},
     {"agent": "grace", "task": "Redesign the signup form",
      "note": ("api/signup.py",
               "signup() builds the user directly rather than going through "

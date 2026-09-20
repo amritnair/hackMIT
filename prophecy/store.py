@@ -370,13 +370,18 @@ def sharing(db, limit=120):
         "SELECT agent, file, note, written_at FROM notes"
         " ORDER BY written_at DESC LIMIT ?", (limit,)
     )]
+    # Prophecy's own observations are read out of the repository, not worked out
+    # by anybody, so they belong to the shared background rather than standing
+    # in the row of agents as though they were a teammate's finding.
     files = [dict(r) for r in db.execute(
-        "SELECT file, COUNT(*) notes, COUNT(DISTINCT agent) agents"
+        "SELECT file, COUNT(*) notes,"
+        " COUNT(DISTINCT CASE WHEN agent <> 'prophecy' THEN agent END) agents"
         " FROM notes GROUP BY file ORDER BY agents DESC, notes DESC"
     )]
     agents = [dict(r) for r in db.execute(
         "SELECT agent, COUNT(*) wrote, COUNT(DISTINCT file) files"
-        " FROM notes GROUP BY agent ORDER BY wrote DESC"
+        " FROM notes WHERE agent <> 'prophecy'"
+        " GROUP BY agent ORDER BY wrote DESC"
     )]
     briefed = {r["agent"]: dict(r) for r in db.execute(
         "SELECT agent, COUNT(*) briefs, SUM(suffix_tokens) task_tokens,"
@@ -406,6 +411,9 @@ def sharing(db, limit=120):
             "briefs": len(rows),
             "paid_once_tokens": prefix_tokens,
             "served_from_cache": reused,
+            "observations": db.execute(
+                "SELECT COUNT(*) n FROM notes WHERE agent = 'prophecy'"
+            ).fetchone()["n"],
         },
         "live": [s["agent"] for s in live_sessions(db)],
     }

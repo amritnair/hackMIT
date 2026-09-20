@@ -2432,7 +2432,10 @@ function shareTree(d) {
   const W = Math.max(560, svg.clientWidth || 900), H = 340;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   const rootY = 34, agentY = 150, fileY = 268;
-  const spread = (n, i) => W * (i + 1) / (n + 1);
+  // each row gets the full width divided into equal slots, and a box is never
+  // wider than its slot — otherwise six agents sit on top of each other
+  const slot = n => W / n;
+  const spread = (n, i) => slot(n) * (i + 0.5);
   const at = { root: { x: W / 2, y: rootY } };
   agents.forEach((a, i) => at[`a:${a.agent}`] = { x: spread(agents.length, i), y: agentY });
   files.forEach((f, i) => at[`f:${f.file}`] = { x: spread(files.length, i), y: fileY });
@@ -2475,10 +2478,20 @@ function shareTree(d) {
       ${(bg.paid_once_tokens || 0).toLocaleString()} tokens, read once ·
       served again ${bg.served_from_cache || 0}×</text>`)];
 
+  // boxes are sized from what is in them, then capped by the slot they sit in
+  const fit = (name, subs, n) => Math.min(
+    slot(n) - 12,
+    Math.max(96, Math.max(name.length * 7, ...subs.map(s => s.length * 5.8)) + 18));
+
   agents.forEach(a => {
     const p = at[`a:${a.agent}`];
-    nodes.push(knot(`a:${a.agent}`, p.x, p.y, 150, 54, 'agent', `
-      ${live.has(a.agent) ? `<circle class="live" cx="${p.x - 58}" cy="${p.y - 10}" r="3.5"/>` : ''}
+    const w = fit(a.agent,
+      [`${a.wrote || 0} found · ${a.pulled || 0} received`,
+       `${(a.task_tokens || 0).toLocaleString()} tokens of its own`],
+      agents.length);
+    nodes.push(knot(`a:${a.agent}`, p.x, p.y, w, 54, 'agent', `
+      ${live.has(a.agent) ? `<circle class="live" cx="${p.x - w / 2 + 10}"
+        cy="${p.y - 10}" r="3.5"/>` : ''}
       <text class="name" x="${p.x}" y="${p.y - 6}" text-anchor="middle">${esc(a.agent)}</text>
       <text class="small" x="${p.x}" y="${p.y + 9}" text-anchor="middle">
         ${a.wrote || 0} found · ${a.pulled || 0} received</text>
@@ -2488,22 +2501,37 @@ function shareTree(d) {
 
   files.forEach(f => {
     const p = at[`f:${f.file}`];
-    nodes.push(knot(`f:${f.file}`, p.x, p.y, Math.max(96, base(f.file).length * 7.2), 44,
+    const sub = `${f.notes} finding(s)${f.agents > 1 ? ` · ${f.agents} agents` : ''}`;
+    nodes.push(knot(`f:${f.file}`, p.x, p.y,
+      fit(base(f.file), [sub], files.length), 44,
       f.agents > 1 ? 'contested' : '', `
       <text class="name" x="${p.x}" y="${p.y - 3}" text-anchor="middle">${esc(base(f.file))}</text>
-      <text class="small" x="${p.x}" y="${p.y + 12}" text-anchor="middle">
-        ${f.notes} finding(s)${f.agents > 1 ? ` · ${f.agents} agents` : ''}</text>`));
+      <text class="small" x="${p.x}" y="${p.y + 12}" text-anchor="middle">${sub}</text>`));
   });
 
   svg.innerHTML = links.join('') + nodes.join('');
+
+  // SVG text neither wraps nor cuts itself off, so a label that is still wider
+  // than its box gets condensed into it rather than left hanging over the edge
+  svg.querySelectorAll('g.knot').forEach(g => {
+    const room = Number(g.querySelector('rect').getAttribute('width')) - 12;
+    g.querySelectorAll('text').forEach(t => {
+      if (t.getComputedTextLength() > room) {
+        t.setAttribute('textLength', room);
+        t.setAttribute('lengthAdjust', 'spacingAndGlyphs');
+      }
+    });
+  });
 
   const crossings = files.filter(f => f.agents > 1);
   $('#shareStory').innerHTML =
     `Every agent here starts from the same reading of this codebase — `
     + `<b>${(bg.paid_once_tokens || 0).toLocaleString()} tokens</b> that were `
-    + `paid for once and handed out ${bg.briefs || 0} time(s). What hangs `
-    + `underneath is each agent's own work: the findings it wrote down, and the `
-    + `findings it was given. `
+    + `paid for once and handed out ${bg.briefs || 0} time(s)`
+    + (bg.observations ? `, along with ${bg.observations} facts Prophecy read
+       straight out of the repository` : '')
+    + `. What hangs underneath is each agent's own work: the findings it wrote `
+    + `down, and the findings it was given. `
     + (crossings.length
       ? `${crossings.length === 1 ? 'One file has' : `${crossings.length} files have`}
          findings from more than one agent — dashed lines — which is exactly
@@ -2550,13 +2578,19 @@ function shareDetail(id) {
   }
   const file = id.slice(2);
   const about = notes.filter(n => n.file === file);
-  const who = [...new Set(about.map(n => n.agent))];
+  // an agent working something out is the thing worth showing; what Prophecy
+  // read out of the repository is background, and counted as such
+  const worked = about.filter(n => n.agent !== 'prophecy');
+  const read = about.filter(n => n.agent === 'prophecy');
+  const who = [...new Set(worked.map(n => n.agent))];
   $('#shareDetail').innerHTML = `<h4>${esc(file)}</h4>
-    <p class="hint" style="margin:0 0 4px">${about.length} finding(s) from
-      ${who.map(esc).join(', ') || 'nobody'}.
+    <p class="hint" style="margin:0 0 4px">${worked.length} finding(s) from
+      ${who.map(esc).join(', ') || 'no agent yet'}.
       ${who.length > 1 ? 'Because more than one agent has been in here, each '
-        + 'one after the first was told what the others already found.' : ''}</p>
-    ${about.slice(0, 5).map(n => `<p class="quote"><b>${esc(n.agent)}</b>
+        + 'one after the first was told what the others already found.' : ''}
+      ${read.length ? `${read.length} more were read straight out of the
+        repository by Prophecy.` : ''}</p>
+    ${[...worked, ...read].slice(0, 5).map(n => `<p class="quote"><b>${esc(n.agent)}</b>
       — ${esc(n.note)}</p>`).join('')}
     <p style="margin:10px 0 0"><button class="btn small secondary"
       data-edopen="${esc(file)}">Open ${esc(base(file))}</button></p>`;
