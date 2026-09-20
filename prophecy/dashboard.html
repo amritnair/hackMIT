@@ -350,6 +350,8 @@
   #graph .edge.lit { stroke: var(--cyan); stroke-width: 1.5; }
   #graph .node.faded { opacity: .18; }
   #graph .node.lit text { fill: var(--text); }
+  #graph .node.match text { fill: var(--text); font-weight: 600; }
+  #graph .node.match .ring { stroke: var(--cyan); }
   .map-controls {
     display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
     margin-bottom: 6px;
@@ -1857,6 +1859,9 @@ function loadSetup() {
   $('#setup').hidden = false;
   $('#tabs').hidden = false;
   document.querySelectorAll('main section').forEach(s => s.hidden = s.id !== 'setup');
+  // this is Home, so the nav has to say so rather than keep the last tab lit
+  document.querySelectorAll('nav button').forEach(x =>
+    x.setAttribute('aria-selected', String(x.dataset.tab === 'setup')));
   api('setup').then(d => {
     const gh = $('#github-body');
     if (d.github) {
@@ -2248,15 +2253,37 @@ function draw() {
 /* Click to focus a file and everything that imports it. Click it again, or
    click the empty canvas, to put the graph back. Hover deliberately does
    nothing: the picture should only change when you ask it to. */
+/* The search box picks out every file whose path contains all of the words
+   typed, wherever they fall in it — a directory name finds everything under
+   it. It marks and never rearranges: typing must not shuffle the picture. */
+function searchTerms() {
+  const box = $('#mapSearch');
+  return ((box && box.value) || '').toLowerCase().split(/\s+/).filter(Boolean);
+}
+const pathMatches = (path, terms) => {
+  const p = path.toLowerCase();
+  return terms.every(t => p.includes(t));
+};
+
 function applyFocus() {
   const svg = $('#graph');
   const id = G.focus;
-  svg.querySelectorAll('.node').forEach(n =>
+  const terms = searchTerms();
+  const hits = new Set(terms.length
+    ? G.nodes.filter(n => pathMatches(n.id, terms)).map(n => n.id) : []);
+  svg.querySelectorAll('.node').forEach(n => {
+    n.classList.toggle('match', hits.has(n.dataset.id));
     n.querySelector('.ring').setAttribute('opacity',
-      n.dataset.id === id ? '.9' : '0'));
+      n.dataset.id === id || hits.has(n.dataset.id) ? '.9' : '0');
+  });
   if (!id) {
-    svg.querySelectorAll('.node').forEach(n => n.classList.remove('faded', 'lit'));
-    svg.querySelectorAll('.edge').forEach(l => l.classList.remove('lit'));
+    svg.querySelectorAll('.node').forEach(n => {
+      const on = hits.has(n.dataset.id);
+      n.classList.toggle('faded', terms.length > 0 && !on);
+      n.classList.toggle('lit', on);
+    });
+    svg.querySelectorAll('.edge').forEach(l =>
+      l.classList.toggle('lit', hits.has(l.dataset.s) && hits.has(l.dataset.t)));
     return;
   }
   const near = new Set([id]);
@@ -2281,6 +2308,17 @@ function mapSummary() {
   const shown = G.nodes.length;
   const total = window.__graph.nodes.length;
   const contested = G.nodes.filter(n => CONTESTED.has(n.id)).length;
+  const terms = searchTerms();
+  if (terms.length) {
+    const drawn = new Set(G.nodes.map(n => n.id));
+    const all = window.__graph.nodes.filter(n => pathMatches(n.id, terms));
+    const on = all.filter(n => drawn.has(n.id)).length;
+    const off = all.length - on;   // files nothing imports are not on the map
+    el.textContent = `${on} ${on === 1 ? 'match' : 'matches'} on the map`
+      + (off ? ` · ${off} more ${off === 1 ? 'file matches' : 'files match'} but `
+        + 'nothing imports them, so they are not drawn' : '');
+    return;
+  }
   el.textContent = `${shown} of ${total} files shown`
     + (contested ? ` · ${contested} contested` : '')
     + ' · bigger means more files import it';
@@ -2369,6 +2407,9 @@ function showNodeDetail(id) {
     .filter(e => e.from === id).map(e => e.to);
 
   api('file', { path: id }).then(d => {
+    // the answer can arrive after the person has moved on — another node, or
+    // another project entirely — and must not write over what is showing now
+    if (G.focus !== id) return;
     const contested = CONTESTED.has(id);
     panel.innerHTML = `
       <h4>${esc(id)}</h4>
@@ -2395,7 +2436,16 @@ function showNodeDetail(id) {
         <button class="btn small secondary" data-openfile="${esc(id)}">Just the
           details</button>
       </p>`;
-  }).catch(() => { panel.innerHTML = '<p class="empty">Not a parsed file.</p>'; });
+  }).catch(() => {
+    if (G.focus === id) panel.innerHTML = '<p class="empty">Not a parsed file.</p>';
+  });
+}
+
+// forget the file the map was describing, along with its highlight
+function clearNodeDetail() {
+  G.focus = null;
+  const panel = document.getElementById('mapDetail');
+  if (panel) { panel.hidden = true; panel.innerHTML = ''; }
 }
 
 // jumping between nodes from the detail panel keeps the graph in step
@@ -2929,7 +2979,7 @@ $('#graph').addEventListener('pointerup', e => {
   if (G.drag && !G.moved) {
     toggleFocus(G.drag.id);
   } else if (!G.drag && !e.target.closest('.node')) {
-    G.focus = null;
+    clearNodeDetail();
     applyFocus();
   }
   G.drag = null;
@@ -2950,15 +3000,17 @@ document.addEventListener('click', e => {
     b.setAttribute('aria-pressed', String(b === f)));
   if (window.__graph) layout(window.__graph);
 });
-let mapTimer;
 if ($('#mapSearch')) $('#mapSearch').oninput = () => {
-  clearTimeout(mapTimer);
-  mapTimer = setTimeout(() => { if (window.__graph) layout(window.__graph); }, 220);
+  if (!window.__graph) return;
+  applyFocus();     // mark matches in place; no re-layout, so nothing moves
+  mapSummary();
 };
 addEventListener('resize', () => { if (window.__graph) layout(window.__graph); });
 
 /* ── loading a repo ───────────────────────────────────────── */
 function loadRepo() {
+  // the last project's file description would otherwise sit under the new map
+  clearNodeDetail();
   $('#repoPath').value = REPO;
   $('#heroLine').textContent = 'scanning';
   $('#heroLine').className = 'loading';
