@@ -389,6 +389,39 @@
   .crew { display: grid; gap: 14px;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
   .crew > p { grid-column: 1 / -1; }
+  .sect-tools { display: flex; align-items: center; gap: 10px; }
+  .view-toggle { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px;
+    background: var(--raised); border: 1px solid var(--line-2); }
+  .view-toggle button { font: 500 12.5px/1 var(--ui); background: none; border: 0;
+    color: var(--text-3); padding: 7px 13px; border-radius: 999px; cursor: pointer; }
+  .view-toggle button:hover { color: var(--text); }
+  .view-toggle button[aria-pressed="true"] { background: var(--accent); color: #000; font-weight: 600; }
+
+  /* the team as a list: one row per workflow */
+  .crew-list .card { margin: 0; }
+  .crew-scroll { overflow-x: auto; }
+  .crew-table { min-width: 640px; }
+  .crew-table th { padding: 14px 18px 12px 0; }
+  .crew-table th:first-child, .crew-table td.cl-who { padding-left: 24px; }
+  .crew-table td { padding: 15px 18px 15px 0; vertical-align: top; }
+  .crew-table tr[data-crew-open] { cursor: pointer; }
+  .cl-who { width: 31%; }
+  .cl-on { width: 41%; }
+  .cl-state { display: flex; align-items: center; margin-top: 6px;
+    font: 500 12.5px/1 var(--ui); color: var(--text-2); }
+  .cl-state .dot-live { margin-right: 7px; }
+  .cl-said { margin-top: 5px; font-size: 12.5px; color: var(--text-3); }
+  .cl-task { margin-bottom: 5px; font-size: 14px; line-height: 1.5; color: var(--text); }
+  .cl-open { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
+  .cl-open .name { font: 500 12.5px/1.4 var(--mono); color: var(--text-2); overflow-wrap: anywhere; }
+  .cl-open:hover .name, .crew-table tr:hover .cl-open .name { color: var(--text); }
+  .cl-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .cl-band { --band: var(--text-2); display: grid; gap: 9px; width: 170px; }
+  .cl-band.high { --band: var(--bad); }
+  .cl-band.medium { --band: var(--warn); }
+  .cl-band b { color: var(--band); font: 600 14px/1.3 var(--ui); }
+  .cl-band .sv { color: var(--text-3); font-size: 12.5px; }
+  .cl-band .range { width: 100%; }
   .person { background: var(--card); border: 1px solid var(--line);
     border-radius: 16px; padding: 18px 20px; display: flex;
     flex-direction: column; gap: 12px; }
@@ -484,8 +517,6 @@
   .seg button:hover { color: var(--text); }
   .seg button[aria-selected="true"] { color: #000; background: var(--accent); font-weight: 600; }
   .pane-lede { margin: 0 0 14px; font-size: 14px; line-height: 1.6; color: var(--text-2); }
-  .pane-row { display: flex; gap: 16px; align-items: center;
-    justify-content: space-between; margin-bottom: 14px; }
   .bleed { margin: 0 -24px; }
   .bleed .risk { border-top: 1px solid var(--line); }
   .risk .rec { border-left: 2px solid var(--accent); padding: 5px 0 5px 12px;
@@ -806,6 +837,12 @@
     .rd-detail { position: static; max-height: none; }
   }
   @media (max-width: 760px) {
+    /* the list keeps all three columns on a phone: a smaller risk bar, no severity number */
+    .crew-table { min-width: 0; }
+    .cl-who, .cl-on { width: auto; }
+    .crew-table td, .crew-table th { padding-right: 10px; }
+    .cl-band { width: 92px; }
+    .cl-band .sv { display: none; }
     .headline-stat { grid-template-columns: 1fr; }
     .hero-split, .clash-stage { grid-template-columns: 1fr; }
     .clash-mid { order: -1; padding-bottom: 4px; }
@@ -1524,7 +1561,13 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
 
     <div class="sect-head">
       <h3>The team</h3>
-      <button class="btn small secondary" id="managePeople">Add someone</button>
+      <div class="sect-tools">
+        <div class="view-toggle" role="group" aria-label="How to show the team">
+          <button type="button" data-crewview="list" aria-pressed="true">List</button>
+          <button type="button" data-crewview="cards" aria-pressed="false">Cards</button>
+        </div>
+        <button class="btn small secondary" id="managePeople">Add someone</button>
+      </div>
     </div>
     <div class="crew" id="teamRoster"><p class="loading">reading</p></div>
 
@@ -1598,17 +1641,6 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
       <div class="body" id="usageOut"><p class="empty">Nothing sent yet. Brief
         the crew and it shows up here.</p></div>
     </div>
-
-    <div class="card">
-      <h3>The shared half
-        <button class="btn small secondary" data-copy="prefix">Copy</button></h3>
-      <div class="body">
-        <p class="hint" style="margin:0 0 12px">Identical for every agent on
-          this commit, so it is paid for roughly once. Each agent's own task
-          goes after it, where changing it costs nothing.</p>
-        <pre id="briefPrefix" class="empty">Nothing sent yet.</pre>
-      </div>
-    </div>
   </section>
 
   <section id="changes" hidden>
@@ -1678,7 +1710,6 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <button type="button" role="tab" data-seg="check" aria-selected="true">Check one</button>
         <button type="button" role="tab" data-seg="forecast" aria-selected="false">Forecast</button>
         <button type="button" role="tab" data-seg="branches" aria-selected="false">Branches</button>
-        <button type="button" role="tab" data-seg="prs" aria-selected="false">Pull requests</button>
       </div>
 
       <div class="body" data-pane="check">
@@ -1712,29 +1743,6 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <div class="bleed" id="branchRisks"><p class="empty" style="padding:18px 24px">None right now.</p></div>
       </div>
 
-      <div class="body" data-pane="prs" hidden>
-        <div class="pane-row">
-          <p class="pane-lede" style="margin:0">Open pull requests, read the same
-            way branches are.</p>
-          <button class="btn small secondary" id="loadPrs">Refresh</button>
-        </div>
-        <div id="prSetup"><p class="loading">checking</p></div>
-        <div id="prListPanel" hidden>
-          <h4 class="sub-h">Open pull requests</h4>
-          <div id="prList"></div>
-        </div>
-        <div id="prRiskPanel" hidden>
-          <h4 class="sub-h">Where the pull requests overlap</h4>
-          <div class="bleed" id="prRisks"></div>
-        </div>
-        <div id="prCommentPanel" hidden>
-          <h4 class="sub-h">The comment it would leave</h4>
-          <p class="hint" style="margin:0 0 12px">Nothing here has been sent to
-            GitHub. Posting is yours to do.</p>
-          <pre id="prComment">No comment yet.</pre>
-          <p class="hint"><code id="prCommand"></code></p>
-        </div>
-      </div>
     </div>
 
     <div id="simOut" hidden></div><div id="stratOut" hidden></div>
@@ -2020,7 +2028,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
   if (b.dataset.tab === 'context') { loadUsage(); loadSharing(); }
   if (b.dataset.tab === 'setup') loadSetup();
   if (b.dataset.tab === 'mcp' && REPO) loadSetup();
-  if (b.dataset.tab === 'changes') { loadRisk(); checkGitHub(); loadAgentLoop(); }
+  if (b.dataset.tab === 'changes') { loadRisk(); loadAgentLoop(); }
 });
 
 /* ── repo picker ──────────────────────────────────────────────
@@ -3069,7 +3077,7 @@ function showApp(open) {
   $('#tabs').hidden = !open;
   if (open) {
     selectTab('changes');
-    loadRisk(); checkGitHub(); loadAgentLoop();
+    loadRisk(); loadAgentLoop();
     loadLive(); loadPlan(false); loadRoster();
   } else {
     selectTab('setup');
@@ -4596,7 +4604,6 @@ function loadPlan(confirm) {
       ? `${plural(pieces, 'piece')} of work in flight, and what each of `
         + 'them has found that the next person should know.'
       : 'Nothing in flight right now.';
-    $('#briefPrefix').textContent = '';
     if (d.recorded) { loadUsage(); loadLive(); loadSharing(); }
   }).catch(() => {
     $('#planOut').innerHTML = '<p class="empty">Could not read that repository.</p>';
@@ -4611,66 +4618,6 @@ document.addEventListener('click', e => {
     loadPlan(true);
   }
 });
-
-/* ── github, in plain words ─────────────────────────────────── */
-function checkGitHub() {
-  $('#prSetup').innerHTML = '<p class="loading">checking</p>';
-  api('pr').then(d => {
-    const prs = d.pull_requests || [];
-    $('#prSetup').innerHTML = `<p class="status good">Connected. Reading
-      ${plural(prs.length, 'open pull request')}.</p>
-      <p class="hint">Prophecy only reads. To leave a comment you run the
-        command yourself.</p>`;
-    $('#prListPanel').hidden = false;
-    renderPrs(d);
-  }).catch(() => {
-    $('#prSetup').innerHTML = `<p class="status bad">Not connected.</p>
-      <p class="hint">Two things are needed, both outside Prophecy:</p>
-      <table style="margin-top:10px"><tbody>
-        <tr><td>a GitHub remote</td><td class="dim">
-          <code>git remote add origin git@github.com:you/repo.git</code></td></tr>
-        <tr><td>the gh CLI, logged in</td><td class="dim">
-          <code>brew install gh &amp;&amp; gh auth login</code></td></tr>
-      </tbody></table>
-      <p class="hint">Everything else on this page works without either.</p>`;
-    $('#prListPanel').hidden = true;
-    $('#prRiskPanel').hidden = true;
-  });
-}
-
-function renderPrs(d) {
-  const prs = d.pull_requests || [];
-  const risks = d.risks || [];
-  $('#prList').innerHTML = prs.length ? `<table>
-    <thead><tr><th>pr</th><th>title</th><th>opened by</th><th>into</th></tr></thead>
-    <tbody>${prs.map(p => `<tr>
-      <td class="num">#${p.number}</td>
-      <td>${esc(p.title)}${p.isDraft ? ' <span class="tag predicted">draft</span>' : ''}</td>
-      <td class="dim">${esc((p.author || {}).login || '?')}</td>
-      <td class="dim">${esc(p.baseRefName || '')}</td></tr>`).join('')}</tbody></table>`
-    : `<p class="empty">No pull requests are open on this repo right now.
-       Open one and it shows up here.</p>`;
-
-  $('#prRiskPanel').hidden = !prs.length;
-  $('#prRisks').innerHTML = risks.length
-    ? risks.map(riskHTML).join('')
-    : `<p class="empty" style="padding:18px">None of these pull requests touch
-       the same code. That is about files and symbols, not behaviour, so a clean
-       report is not a promise that nothing breaks.</p>`;
-
-  if (prs.length) {
-    const n = prs[0].number;
-    $('#prCommentPanel').hidden = false;
-    $('#prComment').textContent = risks.length
-      ? risks.filter(r => r.tasks.some(t => t.includes('#' + n)))
-          .map(r => `**${r.risk_level}** \`${r.risk_type}\`\n`
-            + r.evidence.map(e => '- ' + e).join('\n')
-            + `\n\n> ${r.recommendation}`).join('\n\n') || 'No overlap with other open pull requests.'
-      : 'No overlap with other open pull requests.';
-    $('#prCommand').textContent = `prophecy pr --comment ${n}`;
-  }
-}
-$('#loadPrs').onclick = checkGitHub;
 
 const FEED_ICON = { joined: '\u2192', shared: '\u270E', overlap: '!',
   left: '\u2190', analyzed: '\u25C9', notified: '\u2709' };
@@ -5261,10 +5208,8 @@ document.addEventListener('click', e => {
   const copy = e.target.closest('[data-copy]');
   if (copy) {
     const key = copy.dataset.copy;
-    const text = key === 'mcp' ? window.__mcp
-      : key === 'prefix' ? ($('#briefPrefix') && $('#briefPrefix').textContent)
-      : '';
-    if (text && !['Nothing sent yet.', 'Pick a project first.'].includes(text)) {
+    const text = key === 'mcp' ? window.__mcp : '';
+    if (text && text !== 'Pick a project first.') {
       navigator.clipboard.writeText(text).then(() => {
         const was = copy.textContent;
         copy.textContent = 'Copied';
@@ -5333,11 +5278,74 @@ function loadRoster() {
     const rows = [...seen.values()].sort((a, b) =>
       top(b) - top(a) || b.sessions.length - a.sessions.length
       || a.name.localeCompare(b.name));
-    $('#teamRoster').innerHTML = rows.length ? rows.map(x => personCard(x, credit[x.name] || {})).join('')
-      : `<p class="empty">Nobody yet. People show up here once they have a
-         branch, an open pull request, or a connected agent.</p>`;
+    CREW.rows = rows;
+    CREW.credit = credit;
+    drawCrew();
   });
 }
+
+/* The team as a list, which suits comparing many workflows at once, or as
+   cards, which suit reading one person closely. Same data either way. */
+const CREW = { rows: [], credit: {}, view: lsGet('crewView', 'list') };
+if (!['list', 'cards'].includes(CREW.view)) CREW.view = 'list';
+
+function drawCrew() {
+  const box = $('#teamRoster');
+  document.querySelectorAll('[data-crewview]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.crewview === CREW.view)));
+  if (!CREW.rows.length) {
+    box.className = 'crew';
+    box.innerHTML = `<p class="empty">Nobody yet. People show up here once they have
+      a branch, an open pull request, or a connected agent.</p>`;
+    return;
+  }
+  box.className = CREW.view === 'cards' ? 'crew' : 'crew-list';
+  box.innerHTML = CREW.view === 'cards'
+    ? CREW.rows.map(x => personCard(x, CREW.credit[x.name] || {})).join('')
+    : crewTable(CREW.rows, CREW.credit);
+}
+
+// one row per workflow: a person with three changes gets three rows, so the
+// whole picture is on one screen
+function crewTable(rows, credit) {
+  const body = rows.map(x => {
+    const here = x.sessions[0];
+    const c = credit[x.name] || {};
+    const work = x.work.slice().sort((a, b) => b.risk_score - a.risk_score);
+    const items = work.length ? work : [null];
+    const said = [];
+    if (here && here.last_seen) said.push(`last heard ${ago(here.last_seen)}`);
+    if (c.wrote) said.push(`found ${c.wrote}`);
+    if (c.pulled) said.push(`received ${c.pulled}`);
+    const who = `<td class="cl-who" rowspan="${items.length}">
+      <b class="p-name">${esc(agentLabel(x.name, (here || {}).client))}</b>${x.github
+        ? `<span class="p-handle">@${esc(x.github)}</span>` : ''}
+      <div class="cl-state">${here ? '<i class="dot-live"></i>working now'
+        : esc(x.role || 'idle')}</div>
+      ${said.length ? `<div class="cl-said">${said.join(' · ')}</div>` : ''}</td>`;
+    return items.map((a, i) => `<tr${a ? ` data-crew-open="${esc(a.label)}"` : ''}>
+      ${i === 0 ? who : ''}
+      <td class="cl-on">${i === 0 && here && here.task
+        ? `<div class="cl-task">${esc(here.task)}</div>` : ''}${a
+        ? `<button type="button" class="cl-open" data-crew-open="${esc(a.label)}"><span class="name">${esc(nameOf(a.label))}</span></button>`
+        : i === 0 && !(here && here.task) ? '<span class="dim">Nothing in flight</span>' : ''}</td>
+      <td class="cl-risk">${a ? `<div class="cl-band ${bandOf(a.risk_band)}">
+        <span><b>${esc(a.risk_band)}</b> <span class="sv">severity ${a.risk_score}</span></span>
+        ${rangeBar(a.risk_score, a.risk_range.min, a.risk_range.max)}</div>` : ''}</td>
+    </tr>`).join('');
+  }).join('');
+  return `<div class="card"><div class="body flush crew-scroll">
+    <table class="crew-table"><thead><tr><th>Who</th><th>Working on</th><th>Risk</th></tr></thead>
+    <tbody>${body}</tbody></table></div></div>`;
+}
+
+document.addEventListener('click', e => {
+  const v = e.target.closest('[data-crewview]');
+  if (!v) return;
+  CREW.view = v.dataset.crewview;
+  lsSet('crewView', CREW.view);
+  drawCrew();
+});
 
 // one person: who they are, whether they are here, what they are doing and how
 // risky it is, and what they have handed on. Their changes open in Risk.
