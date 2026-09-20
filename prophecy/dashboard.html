@@ -892,6 +892,18 @@ const CAST = [
   { who: 'grace', what: 'redesign signup', y: 112, score: 13, hot: false },
   { who: 'linus', what: 'tidy the user table', y: 182, score: 9, hot: false },
 ];
+const AGENTS = [
+  { who: 'ada', x: 58, y: 54 },
+  { who: 'grace', x: 58, y: 186 },
+  { who: 'linus', x: 300, y: 186 },
+];
+const SCENE2 = [
+  'Three agents open the same project.',
+  'Each is handed the same background — sent once, not three times.',
+  'ada works out something about models.py and writes it down.',
+  'linus arrives later and is handed it, without asking anyone.',
+];
+
 const BEATS = [
   'Three people. Three reasonable changes.',
   'Each one looks harmless on its own.',
@@ -960,6 +972,103 @@ function buildStage() {
     nums: [...svg.querySelectorAll('.num')],
     plates: [...svg.querySelectorAll('.plate')],
   };
+}
+
+function buildCrew() {
+  const svg = document.getElementById('stage');
+  if (!svg) return null;
+  svg.innerHTML = `
+    <defs>
+      <linearGradient id="flow" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#4ED8A0" stop-opacity="0"/>
+        <stop offset=".5" stop-color="#4ED8A0"/>
+        <stop offset="1" stop-color="#4ED8A0" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <g id="hub" opacity="0">
+      <rect x="150" y="100" width="116" height="40" rx="12" fill="#1A1A24"
+        stroke="#8B5CF6"/>
+      <text x="208" y="118" text-anchor="middle" fill="#F5F3FF" font-size="10"
+        font-family="var(--mono)">the project</text>
+      <text x="208" y="131" text-anchor="middle" fill="#9B9BAF" font-size="8.5"
+        font-family="var(--mono)">shared background</text>
+    </g>
+    ${AGENTS.map((a, i) => `
+      <g class="who" data-i="${i}" opacity="0">
+        <rect x="${a.x - 44}" y="${a.y - 15}" width="88" height="30" rx="9"
+          fill="#1A1A24" stroke="#33333F"/>
+        <text x="${a.x}" y="${a.y + 4}" text-anchor="middle" fill="#F5F3FF"
+          font-size="10.5" font-weight="600">${a.who}</text>
+      </g>
+      <path class="feed" data-i="${i}" fill="none" stroke="#67E8F9"
+        stroke-width="1.4" stroke-linecap="round" opacity="0"
+        stroke-dasharray="4 120" stroke-dashoffset="124"
+        d="M${a.x} ${a.y < 120 ? a.y + 16 : a.y - 16}
+           Q ${a.x} ${a.y < 120 ? 90 : 150}, ${a.x < 150 ? 148 : 268} 120"/>`).join('')}
+    <path id="handoff" fill="none" stroke="url(#flow)" stroke-width="2.4"
+      stroke-linecap="round" opacity="0" stroke-dasharray="30 260"
+      stroke-dashoffset="0" d="M58 172 Q 180 240, 300 200"/>
+    <text id="finding" x="180" y="232" text-anchor="middle" fill="#4ED8A0"
+      font-size="9" font-family="var(--mono)" opacity="0">
+      create_user has five callers that omit email</text>`;
+  return {
+    svg, hub: svg.querySelector('#hub'),
+    people: [...svg.querySelectorAll('.who')],
+    feeds: [...svg.querySelectorAll('.feed')],
+    handoff: svg.querySelector('#handoff'),
+    finding: svg.querySelector('#finding'),
+  };
+}
+
+function playCrew(done) {
+  const el = buildCrew();
+  const caption = document.getElementById('stageCaption');
+  if (!el) { done(); return; }
+  const say = (i) => { caption.innerHTML = `<span>${SCENE2[i]}</span>`; };
+  const PH = [1300, 1700, 1500, 2400, 600];
+  let phase = 0, t0 = performance.now(), shown = -1;
+
+  const frame = (now) => {
+    const p = Math.min(1, (now - t0) / PH[phase]);
+    if (shown !== phase && phase < SCENE2.length) { say(phase); shown = phase; }
+
+    el.people.forEach((g, i) => {
+      const local = phase === 0 ? Math.max(0, Math.min(1, (p - i * .2) / .6)) : 1;
+      g.setAttribute('opacity', out(local));
+    });
+    if (phase >= 1) {
+      const k = phase > 1 ? 1 : ease(p);
+      el.hub.setAttribute('opacity', out(Math.min(1, k * 1.8)));
+      el.feeds.forEach((f, i) => {
+        const local = Math.max(0, Math.min(1, (k - i * .12) / .7));
+        f.setAttribute('opacity', local ? .9 : 0);
+        f.setAttribute('stroke-dasharray', `${(4 + 120 * local).toFixed(1)} 124`);
+        f.setAttribute('stroke-dashoffset', (124 * (1 - local)).toFixed(1));
+      });
+    }
+    if (phase >= 2) {
+      el.finding.setAttribute('opacity', ease(Math.min(1, p * 1.6)));
+    }
+    if (phase >= 3) {
+      // the finding travels from the agent who found it to the one who needs it
+      const k = ease(p);
+      el.handoff.setAttribute('opacity', .95);
+      el.handoff.setAttribute('stroke-dashoffset', (-290 * k).toFixed(1));
+      el.people[2].querySelector('rect').setAttribute(
+        'stroke', k > .55 ? '#4ED8A0' : '#33333F');
+    }
+    if (phase === 4) el.svg.style.opacity = (1 - ease(p)).toFixed(3);
+
+    if (p >= 1) {
+      const hold = phase === 3 ? 1200 : phase === 4 ? 0 : 160;
+      if (now - t0 > PH[phase] + hold) {
+        phase += 1; t0 = now;
+        if (phase >= PH.length) { el.svg.style.opacity = ''; done(); return; }
+      }
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
 }
 
 function playStage() {
@@ -1055,6 +1164,11 @@ function playStage() {
     if (p >= 1) {
       const hold = phase === 3 ? 1700 : phase === 4 ? 0 : 180;
       if (now - t0 > span + hold) {
+        if (phase === PHASES.length - 1) {
+          // hand over to the other story rather than looping one forever
+          playCrew(() => playStage());
+          return;
+        }
         phase = (phase + 1) % PHASES.length;
         t0 = now;
         if (phase === 0) {

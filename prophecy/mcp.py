@@ -160,13 +160,7 @@ class Server:
         self.sessions = {}
 
     def session_id(self, agent):
-        """Stable for an agent in a repo, not per process.
-
-        Each MCP call may arrive in a fresh process. A random id per process
-        meant one agent reconnecting showed up as a crowd.
-        """
-        seed = f"{self.repo_path}|{agent}".encode()
-        return hashlib.blake2s(seed, digest_size=8).hexdigest()
+        return store.session_id(self.repo_path, agent)
 
     def _open(self):
         repo = scan(self.repo_path)

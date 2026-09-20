@@ -149,6 +149,11 @@ def build_parser():
                     help="seed it and open the dashboard on it")
     dm.add_argument("--port", type=int, default=8800)
 
+    ag = sub.add_parser("agents",
+                        help="watch three agents coordinate through prophecy")
+    ag.add_argument("--repo", dest="agents_repo",
+                    help="which project; defaults to the one -C points at")
+
     people = sub.add_parser("people", help="who is on this project")
     people.add_argument("action", nargs="?", default="list",
                         choices=["list", "add", "remove"])
@@ -163,6 +168,10 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
+    if args.cmd == "agents":
+        from .agents_demo import run as run_agents
+        run_agents(args.agents_repo or args.repo)
+        return 0
     if args.cmd == "demo":
         out = build_demo(args.path)
         if args.json:

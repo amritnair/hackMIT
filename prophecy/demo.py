@@ -219,7 +219,8 @@ def seed(root):
     forecasts = []
     for entry in SEED_SESSIONS:
         agent, task = entry["agent"], entry["task"]
-        store_mod.join_session(db, f"seed-{agent}", repo["sha"], agent, task, "mcp")
+        store_mod.join_session(db, store_mod.session_id(root, agent),
+                               repo["sha"], agent, task, "mcp")
         forecast = predict(repo, task)
         forecasts.append(forecast)
         found = risks(repo, forecasts)

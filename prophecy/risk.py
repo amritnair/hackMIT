@@ -22,6 +22,11 @@ def risks(repo, forecasts):
     for forecast in forecasts:
         found += _solo_risks(repo, forecast)
     for a, b in combinations(forecasts, 2):
+        # One person's branch and their own live session are the same work
+        # seen twice. Pairing them produces advice to talk to yourself.
+        owner_a, owner_b = a.get("owner"), b.get("owner")
+        if owner_a and owner_b and owner_a == owner_b:
+            continue
         found += _pair_risks(repo, a, b)
     found.sort(key=lambda r: -r["risk_score"])
     return found

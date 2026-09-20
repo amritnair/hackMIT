@@ -21,7 +21,8 @@ def in_flight(repo, base="main", db=None, store=None, tasks=()):
                     "agent": session["agent"],
                     "label": f"{session['agent']}: {session['task']}",
                     "kind": "session",
-                    "forecast": predict(repo, session["task"]),
+                    "forecast": dict(predict(repo, session["task"]),
+                                     owner=session["agent"]),
                 })
 
     for name, info in branches(repo["repo"], base).items():
@@ -31,13 +32,15 @@ def in_flight(repo, base="main", db=None, store=None, tasks=()):
             "agent": info.get("author") or name,
             "label": f"branch {name}",
             "kind": "branch",
-            "forecast": as_forecast(info),
+            "forecast": dict(as_forecast(info),
+                             owner=info.get("author") or name),
         })
 
     try:
         from . import github
         for pull in github.pull_requests(repo["repo"]):
             shaped = github.forecast(repo["repo"], pull)
+            shaped["owner"] = shaped["pull_request"]["author"]
             work.append({
                 "agent": shaped["pull_request"]["author"],
                 "label": f"PR #{pull['number']} {pull['title']}",

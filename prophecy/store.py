@@ -4,6 +4,7 @@ today, and so forecasts can be compared against merges that happen later.
 Deliberately dumb: rows in, rows out, JSON blobs for anything structured.
 """
 
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
@@ -63,6 +64,11 @@ def connect(repo_path):
     directory.mkdir(exist_ok=True)
     db = sqlite3.connect(directory / "prophecy.db")
     db.row_factory = sqlite3.Row
+    # Several agents work in one project at once, each in its own process.
+    # Without a wait, whichever one loses a write race sees "database is
+    # locked" and reports a failure that is really just a queue.
+    db.execute("PRAGMA busy_timeout = 5000")
+    db.execute("PRAGMA journal_mode = WAL")
     db.executescript(SCHEMA)
     try:  # databases written before outcomes knew where they came from
         db.execute("ALTER TABLE outcomes ADD COLUMN source TEXT DEFAULT 'verify'")
@@ -119,12 +125,23 @@ def record_brief(db, sha, agent, task, prefix_hash, prefix_tokens,
 
 
 def add_note(db, sha, agent, file, note):
-    """One agent's finding about one file, for the next agent who goes there."""
+    """One agent's finding about one file, for the next agent who goes there.
+
+    Re-sharing the same finding is a no-op. An agent that reconnects and says
+    the same thing again should not make the next person read it twice.
+    """
+    already = db.execute(
+        "SELECT 1 FROM notes WHERE file = ? AND agent = ? AND note = ? LIMIT 1",
+        (file, agent, note),
+    ).fetchone()
+    if already:
+        return False
     db.execute(
         "INSERT INTO notes (sha, agent, file, note) VALUES (?,?,?,?)",
         (sha, agent, file, note),
     )
     db.commit()
+    return True
 
 
 def note_exists(db, file, note):
@@ -284,6 +301,16 @@ def log(db, sha, kind, agent, detail, tokens=0):
         (sha, kind, agent, detail, tokens),
     )
     db.commit()
+
+
+def session_id(repo_path, agent):
+    """Stable for one agent in one project, whoever is asking.
+
+    Both the MCP server and anything that seeds sessions derive the id the
+    same way; when they did not, one agent reconnecting showed up twice.
+    """
+    seed = f"{Path(repo_path).resolve()}|{agent}".encode()
+    return hashlib.blake2s(seed, digest_size=8).hexdigest()
 
 
 def join_session(db, session_id, sha, agent, task, client=""):
