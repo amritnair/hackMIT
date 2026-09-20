@@ -344,6 +344,16 @@
   #graph .edge.lit { stroke: var(--cyan); stroke-width: 1.5; }
   #graph .node.faded { opacity: .18; }
   #graph .node.lit text { fill: var(--text); }
+  .map-controls {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 6px;
+  }
+  .map-controls .btn[aria-pressed="true"] {
+    background: var(--text); color: var(--bg); border-color: var(--text);
+  }
+  #mapDetail { border-top: 1px solid var(--line); }
+  #mapDetail h4 { font: 600 15px/1.4 var(--mono); margin: 0 0 4px; }
+  #mapDetail .chain { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
   .legend { display: flex; gap: 16px; flex-wrap: wrap; padding: 13px 20px;
     border-top: 1px solid var(--line); font-size: 12.5px; color: var(--text-3);
     align-items: center; }
@@ -714,9 +724,22 @@
     </div>
     <div class="card">
       <h3>What depends on what
+        <span class="dim" id="mapSummary" style="font-weight:400"></span>
         <button class="btn small secondary" id="reflow">Re-settle</button></h3>
+      <div class="body" style="padding-bottom:0">
+        <div class="map-controls">
+          <input class="field" id="mapSearch" style="flex:1 1 200px;margin:0"
+                 placeholder="find a file" autocomplete="off">
+          <button class="btn small secondary" data-filter="all"
+                  aria-pressed="true">Everything</button>
+          <button class="btn small secondary" data-filter="hot">Most depended on</button>
+          <button class="btn small secondary" data-filter="contested">Contested</button>
+          <button class="btn small secondary" data-filter="nosrc">Hide tests</button>
+        </div>
+      </div>
       <div class="body flush"><svg id="graph" role="img"
         aria-label="File dependency graph"></svg></div>
+      <div class="body" id="mapDetail" hidden></div>
       <div class="legend">
         <span><i class="contested"></i> two people in here</span>
         <span><i class="plain"></i> source file</span>
@@ -1681,6 +1704,7 @@ function layout(graph) {
   G.W = W; G.H = H;
   G.focus = null;
   run(220);
+  mapSummary();
 }
 
 function tick() {
@@ -1737,7 +1761,15 @@ function draw() {
       const fill = contested ? 'var(--red)' : n.is_test ? 'transparent' : 'var(--accent)';
       const stroke = contested ? 'var(--red)' : n.is_test ? '#6f747c' : 'var(--accent)';
       const label = base(n.id);
+      // the label sits outside the circle, so a click aimed at the name used
+      // to land on empty canvas; one transparent target covers both
+      const hitX = right ? n.x + 4 + label.length * 2.6 : n.x - 4 - label.length * 2.6;
       return `<g class="node" data-file="${esc(n.id)}" data-id="${esc(n.id)}">
+        <rect x="${Math.min(n.x, hitX) - n.r - 6}" y="${n.y - 11}"
+          width="${Math.abs(hitX - n.x) + n.r * 2 + 12}" height="22"
+          fill="transparent"/>
+        <circle class="ring" cx="${n.x}" cy="${n.y}" r="${n.r + 5}" fill="none"
+          stroke="var(--accent)" stroke-width="1.5" opacity="0"/>
         <circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${fill}"
           stroke="${stroke}" stroke-width="1"/>
         <text x="${right ? n.x + n.r + 6 : n.x - n.r - 6}" y="${n.y + 3.5}"
@@ -1754,6 +1786,9 @@ function draw() {
 function applyFocus() {
   const svg = $('#graph');
   const id = G.focus;
+  svg.querySelectorAll('.node').forEach(n =>
+    n.querySelector('.ring').setAttribute('opacity',
+      n.dataset.id === id ? '.9' : '0'));
   if (!id) {
     svg.querySelectorAll('.node').forEach(n => n.classList.remove('faded', 'lit'));
     svg.querySelectorAll('.edge').forEach(l => l.classList.remove('lit'));
@@ -1773,16 +1808,77 @@ function applyFocus() {
     l.classList.toggle('lit', l.dataset.s === id || l.dataset.t === id));
 }
 
+let MAP_FILTER = 'all';
+
+function mapSummary() {
+  const el = document.getElementById('mapSummary');
+  if (!el || !window.__graph) return;
+  const shown = G.nodes.length;
+  const total = window.__graph.nodes.length;
+  const contested = G.nodes.filter(n => CONTESTED.has(n.id)).length;
+  el.textContent = `${shown} of ${total} files shown`
+    + (contested ? ` · ${contested} contested` : '')
+    + ' · bigger means more files import it';
+}
+
+// what one file is, in the terms the graph is drawn in
+function showNodeDetail(id) {
+  const panel = document.getElementById('mapDetail');
+  if (!panel) return;
+  panel.hidden = false;
+  panel.innerHTML = '<p class="loading">reading</p>';
+  const node = G.nodes.find(n => n.id === id);
+  const importers = (window.__graph.edges || [])
+    .filter(e => e.to === id).map(e => e.from);
+  const importsOut = (window.__graph.edges || [])
+    .filter(e => e.from === id).map(e => e.to);
+
+  api('file', { path: id }).then(d => {
+    const contested = CONTESTED.has(id);
+    panel.innerHTML = `
+      <h4>${esc(id)}</h4>
+      <p class="hint" style="margin:0">
+        ${d.lines} lines · ${(d.symbols || []).length} symbol(s) ·
+        ${importers.length} file(s) import it · it imports ${importsOut.length}
+        ${contested ? '· <b style="color:var(--bad)">more than one change is in here right now</b>' : ''}</p>
+      ${importers.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:16px 0 0">
+        Editing this reaches</h4>
+        <div class="chain">${importers.slice(0, 10).map(f =>
+          `<button class="chip" data-node="${esc(f)}">${esc(f)}</button>`).join('')}</div>`
+        : '<p class="hint">Nothing here imports it, so a change stays local.</p>'}
+      ${importsOut.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:16px 0 0">
+        It depends on</h4>
+        <div class="chain">${importsOut.slice(0, 10).map(f =>
+          `<button class="chip" data-node="${esc(f)}">${esc(f)}</button>`).join('')}</div>` : ''}
+      ${(d.symbols || []).length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2);margin:16px 0 0">
+        What is in it</h4>
+        <p class="mono dim" style="margin-top:6px">${d.symbols.slice(0, 8)
+          .map(x => esc(x.signature)).join('<br>')}</p>` : ''}
+      <p style="margin-top:16px">
+        <button class="btn small secondary" data-openfile="${esc(id)}">Open the file</button>
+      </p>`;
+  }).catch(() => { panel.innerHTML = '<p class="empty">Not a parsed file.</p>'; });
+}
+
+// jumping between nodes from the detail panel keeps the graph in step
+document.addEventListener('click', e => {
+  const hop = e.target.closest('[data-node]');
+  if (hop) { G.focus = hop.dataset.node; applyFocus(); showNodeDetail(G.focus); }
+  const open = e.target.closest('[data-openfile]');
+  if (open) openFile(open.dataset.openfile);
+});
+
 function toggleFocus(id) {
   if (G.focus === id) {          // same node again: back to normal
     G.focus = null;
     applyFocus();
-    closeDrawer();
+    const panel = document.getElementById('mapDetail');
+    if (panel) panel.hidden = true;
     return;
   }
   G.focus = id;
   applyFocus();
-  openFile(id);
+  showNodeDetail(id);
 }
 
 /* drag a node; the rest of the graph reacts */
@@ -1814,6 +1910,19 @@ $('#graph').addEventListener('pointerup', e => {
   run(60);
 });
 $('#reflow').onclick = () => layout(window.__graph);
+document.addEventListener('click', e => {
+  const f = e.target.closest('[data-filter]');
+  if (!f) return;
+  MAP_FILTER = f.dataset.filter;
+  document.querySelectorAll('[data-filter]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b === f)));
+  if (window.__graph) layout(window.__graph);
+});
+let mapTimer;
+if ($('#mapSearch')) $('#mapSearch').oninput = () => {
+  clearTimeout(mapTimer);
+  mapTimer = setTimeout(() => { if (window.__graph) layout(window.__graph); }, 220);
+};
 addEventListener('resize', () => { if (window.__graph) layout(window.__graph); });
 
 /* ── loading a repo ───────────────────────────────────────── */
