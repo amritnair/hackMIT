@@ -46,7 +46,7 @@ def tools():
                     "task": {"type": "string",
                              "description": "What this session is about to work on."},
                     "tool": {"type": "string", "description": (
-                        "Which coding agent this is — Claude Code, Cursor, "
+                        "Which coding agent this is: Claude Code, Cursor, "
                         "Codex, and so on. Optional: taken from the MCP "
                         "handshake when not given."
                     )},
@@ -129,7 +129,7 @@ def tools():
             "name": "get_change_interactions",
             "description": (
                 "Pairs of changes that are calm on their own and dangerous "
-                "together — one side changing what is stored while another "
+                "together: one side changing what is stored while another "
                 "changes the code that reads it, for example."
             ),
             "inputSchema": {"type": "object", "properties": {}},
@@ -250,7 +250,7 @@ class Server:
         text = data["prefix"] + "\n\n" + data["suffixes"][0]["text"]
         if others:
             text += "\n\n## Also in flight right now\n" + "\n".join(
-                f"- {o['agent']} — {o['task']} ({o['kind'].replace('_', ' ')})"
+                f"- {o['agent']}: {o['task']} ({o['kind'].replace('_', ' ')})"
                 for o in others
             )
         return text
@@ -273,7 +273,7 @@ class Server:
         elsewhere = [w for w in in_flight(repo, "main", db, store)
                      if w["agent"] != agent]
         if not elsewhere:
-            return ("Nothing else is in flight here right now — no other "
+            return ("Nothing else is in flight here right now: no other "
                     "sessions, branches or open pull requests.")
 
         mine = predict(repo, next(
@@ -333,7 +333,7 @@ class Server:
                  f"({overall['band']}), from {overall['changes']} change(s)."]
         lines += [f"- {d}" for d in overall["drivers"]]
         for a in sorted(analyses, key=lambda a: -a["risk_score"]):
-            lines.append(f"\n{a['label']} — {a['risk_score']}/100 "
+            lines.append(f"\n{a['label']}: {a['risk_score']}/100 "
                          f"({a['risk_band']}), {a['agent']}")
             for f in a["potential_failures"][:2]:
                 lines.append(f"  [{f['severity']}] {f['title']}")
@@ -422,7 +422,7 @@ class Server:
 def _render_analysis(a):
     """The same analysis a person sees, written for an agent to act on."""
     lines = [
-        f"{a['label']} — risk {a['risk_score']}/100 ({a['risk_band']}), "
+        f"{a['label']}: risk {a['risk_score']}/100 ({a['risk_band']}), "
         f"range {a['risk_range']['min']}-{a['risk_range']['max']}, "
         f"confidence {int(a['confidence'] * 100)}%",
         f"Blast radius {a['blast_radius']['size']}: "
@@ -488,11 +488,11 @@ def queue_risk_warning(db, repo, analysis, meets=None, sent_by="auto", force=Fal
             body += (f"\n- with {', '.join(others)}: {i['combined_score']}/100 "
                      f"({i['combined_band']}) combined, against "
                      f"{analysis['risk_score']} alone"
-                     + (" — worse together than apart" if i.get("escalates")
+                     + (", worse together than apart" if i.get("escalates")
                         else ""))
             for line in (i.get("evidence") or [])[:3]:
                 body += f"\n    {line}"
-    subject = (f"Risk profile for {target} — {analysis['risk_score']}/100 "
+    subject = (f"Risk profile for {target}: {analysis['risk_score']}/100 "
                f"({analysis['risk_band']})")
     store.queue_message(db, repo["sha"], agent, subject, body, sent_by=sent_by)
     store.log(db, repo["sha"], "notified", agent,

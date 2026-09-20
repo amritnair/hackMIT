@@ -158,7 +158,7 @@ def commit(repo_path, paths, message):
     if code != 0:
         detail = (err or out or "").strip()
         if "please tell me who you are" in detail.lower():
-            detail = ("git does not know who you are yet — set user.name and "
+            detail = ("git does not know who you are yet. Set user.name and "
                       "user.email, then commit again")
         return {"error": detail[:300] or "git refused the commit"}
 

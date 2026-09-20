@@ -83,7 +83,7 @@ def compare(predicted, outcome, forecasts):
     notes = []
     if outcome["merged_clean"]:
         notes.append(
-            "Merged cleanly. Text conflicts were never the claim — the predicted "
+            "Merged cleanly. Text conflicts were never the claim. The predicted "
             "risks above are about behaviour, and this run does not clear them."
         )
     if outcome.get("tests") and not outcome["tests"]["passed"]:

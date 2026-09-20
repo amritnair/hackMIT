@@ -459,7 +459,7 @@ def _work_in_flight(repo, args, db=None):
 def cmd_fleet(repo, args, db):
     work = _work_in_flight(repo, args, db)
     if not work:
-        message = ("Nothing is in flight here — no branches with changes, no "
+        message = ("Nothing is in flight here: no branches with changes, no "
                    "open pull requests. Name some work and I will plan for it.")
         if not args.json:
             print(message)
@@ -532,7 +532,7 @@ def cmd_fleet(repo, args, db):
     opening = (
         f"Right now there is {listed}"
         f" in flight here, across {count(len(people), 'person', 'people')}"
-        f" — {', '.join(people[:4])}."
+        f" ({', '.join(people[:4])})."
     )
     summary = [opening]
 
@@ -553,7 +553,7 @@ def cmd_fleet(repo, args, db):
         summary.append(
             f"{count(len(high_shared), 'of those overlaps looks', 'of those overlaps look')}"
             " worth settling before the work lands rather than at merge time "
-            "— they are in the same functions, not just the same files."
+            "They are in the same functions, not just the same files."
         )
     if solo_high:
         summary.append(
@@ -565,7 +565,7 @@ def cmd_fleet(repo, args, db):
     if fresh:
         summary.append(
             f"I can pass on {count(len(fresh), 'thing')} to whoever works here "
-            "next — who else is in each file, which signatures are about to "
+            "next: who else is in each file, which signatures are about to "
             "change, which files want regenerating rather than merging. All of "
             "it is read from the repository, so nobody has to write it down."
         )

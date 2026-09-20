@@ -9,7 +9,7 @@ import subprocess
 import traceback
 from argparse import Namespace
 from functools import partial
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -376,12 +376,12 @@ def _notify_agent(path, repo, agent, target, base):
             body += (f"\n- with {', '.join(others)}: {i['combined_score']}/100 "
                      f"({i['combined_band']}) combined, against "
                      f"{analysis['risk_score']} alone"
-                     + (" — worse together than apart" if i.get("escalates")
+                     + (", worse together than apart" if i.get("escalates")
                         else ""))
             for line in i.get("evidence", [])[:3]:
                 body += f"\n    {line}"
 
-    subject = (f"Risk profile for {target} — {analysis['risk_score']}/100 "
+    subject = (f"Risk profile for {target}: {analysis['risk_score']}/100 "
                f"({analysis['risk_band']})")
     store.queue_message(db, repo["sha"], agent, subject, body)
     store.log(db, repo["sha"], "notified", agent,
@@ -424,7 +424,10 @@ def _graph(repo):
 
 
 def serve(repo_path, port):
-    server = HTTPServer(("127.0.0.1", port), partial(Handler, repo=repo_path))
+    # Threaded, because browsers hold idle speculative connections open and a
+    # single-threaded server would sit waiting on one instead of answering.
+    server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, repo=repo_path))
+    server.daemon_threads = True
     print(f"prophecy dashboard on http://127.0.0.1:{port}  (ctrl-c to stop)")
     try:
         server.serve_forever()

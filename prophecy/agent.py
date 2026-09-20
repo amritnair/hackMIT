@@ -86,7 +86,7 @@ def stable_prefix(repo, depth=12):
         info = repo["files"][rel]
         public = [s["signature"] for s in info["symbols"]
                   if not s["name"].startswith("_")][:6]
-        lines.append(f"- `{rel}` — imported by {len(callers)} file(s)")
+        lines.append(f"- `{rel}` (imported by {len(callers)} file(s))")
         for sig in public:
             lines.append(f"    {sig}")
 
@@ -125,13 +125,13 @@ def volatile_suffix(repo, forecast, risks, notes=()):
         f"# Task: {forecast['task']}",
         "",
         f"Forecast confidence {forecast['confidence']}. These are predictions "
-        "from the repository's own structure, not instructions — if the work "
+        "from the repository's own structure, not instructions. If the work "
         "clearly belongs elsewhere, say so.",
         "",
         "## Start here",
     ]
     for f in forecast["files"]:
-        lines.append(f"- `{f['file']}` — {f['evidence'][0]}")
+        lines.append(f"- `{f['file']}`: {f['evidence'][0]}")
         for sym in f["symbols"][:4]:
             lines.append(f"    {sym['signature']}  (line {sym['line']})")
         if f["callers"]:
@@ -162,7 +162,7 @@ def volatile_suffix(repo, forecast, risks, notes=()):
             "worth checking, not as fact.",
         ]
         for note in notes:
-            lines.append(f"- `{note['file']}` — {note['agent']}: {note['note']}")
+            lines.append(f"- `{note['file']}` ({note['agent']}): {note['note']}")
 
     if forecast["unsupported_terms"]:
         lines += [
@@ -293,7 +293,7 @@ def brief(repo, forecasts, risks, exact=False, db=None, agent=None, store=None,
     if prefix_tokens < MIN_CACHEABLE_TOKENS:
         warnings.append(
             f"The prefix is {prefix_tokens} tokens even after widening it to "
-            f"{depth} file(s) — everything this repo has. That is under the "
+            f"{depth} file(s), which is everything this repo has. That is under the "
             f"~{MIN_CACHEABLE_TOKENS} minimum most models need before anything "
             "is cached, and a request under the floor succeeds at full price "
             "without saying so. The savings figures below do not apply here. "

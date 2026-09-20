@@ -435,7 +435,7 @@ def recommend(failures, overlap, contradictions):
         elif "Tests cover this" in failure["title"]:
             out.append("Run the tests that import this before merging.")
     for item in overlap:
-        out.append(f"Talk to {item['agent']} — they are in "
+        out.append(f"Talk to {item['agent']}, who is in "
                    f"{', '.join(item['shared_files'][:2])} as well.")
     if contradictions:
         out.append("Reread the commit message against the diff; they do not "
@@ -544,7 +544,7 @@ def interactions(analyses):
                 evidence.append(
                     "both touch "
                     + ", ".join(shared_contract[:3])
-                    + ", and one of them changes how it is stored — they are "
+                    + ", and one of them changes how it is stored, so they are "
                     "approaching the same field from different sides"
                 )
             a_kinds = {f["title"].split()[0] for f in a["potential_failures"]}

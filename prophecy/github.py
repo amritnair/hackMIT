@@ -19,10 +19,14 @@ class GitHubUnavailable(RuntimeError):
 
 
 def gh(repo, *args):
-    out = subprocess.run(
-        ["gh", *args, "--repo", slug(repo)] if slug(repo) else ["gh", *args],
-        capture_output=True, text=True, cwd=str(repo),
-    )
+    try:
+        out = subprocess.run(
+            ["gh", *args, "--repo", slug(repo)] if slug(repo) else ["gh", *args],
+            capture_output=True, text=True, cwd=str(repo),
+        )
+    except FileNotFoundError:
+        raise GitHubUnavailable(
+            "The GitHub CLI (gh) is not installed, so pull requests cannot be read.")
     if out.returncode:
         raise GitHubUnavailable(out.stderr.strip()[:300] or "gh failed")
     return out.stdout
@@ -103,7 +107,7 @@ def comment_body(number, risks, sha):
     if not mine:
         lines.append(
             "No overlap with any other open pull request. This is about files "
-            "and symbols, not behaviour — a clean report here is not a promise "
+            "and symbols, not behaviour, so a clean report here is not a promise "
             "that nothing breaks."
         )
         return "\n".join(lines)
@@ -112,7 +116,7 @@ def comment_body(number, risks, sha):
         others = [t for t in r["tasks"] if f"#{number}" not in t]
         lines.append(
             f"**{r['risk_level']}** · `{r['risk_type']}`"
-            + (f" — against {', '.join(others)}" if others else "")
+            + (f" · against {', '.join(others)}" if others else "")
         )
         for line in r["evidence"]:
             lines.append(f"- {line}")

@@ -233,7 +233,7 @@ def usage(db):
         "notes_pulled": sum(r["notes_pulled"] or 0 for r in per_agent),
         "per_agent": per_agent,
         "shared_files": shared,
-        "note": "Reuse is counted by identical prefix bytes on one commit — "
+        "note": "Reuse is counted by identical prefix bytes on one commit, "
                 "what a cache could serve, not confirmation that it did.",
     }
 
@@ -535,7 +535,7 @@ def insights(db):
     # figures come from replaying history, not from the handful of merges
     # somebody happened to run by hand.
     out["accuracy"] = (
-        f"{replayed} merge(s) replayed by backfill — run `prophecy backfill` "
+        f"{replayed} merge(s) replayed by backfill. Run `prophecy backfill` "
         "for the scored breakdown."
         if replayed else
         "no history replayed yet. `prophecy backfill` grades the forecast "

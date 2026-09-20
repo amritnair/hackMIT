@@ -1314,7 +1314,7 @@ SEED_SESSIONS = [
     {"agent": "sam", "tool": "Copilot",
      "task": "Pay out prizes automatically",
      "note": ("services/payouts.py",
-              "prepare() marks a winner uncontactable rather than raising — "
+              "prepare() marks a winner uncontactable rather than raising, so "
               "anything downstream has to check the flag")},
     # deliberately the same file grace is working in: one agent's finding
     # reaching another is the thing the context tab exists to show

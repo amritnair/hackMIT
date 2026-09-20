@@ -141,7 +141,7 @@ def _pair_risks(repo, a, b):
             score = 0.7
             kind = "regenerated_file_overlap"
             evidence.append(
-                f"{rel} is a lockfile, CI config or changelog — the kind of file "
+                f"{rel} is a lockfile, CI config or changelog, the kind of file "
                 "two branches collide in most often, and for the least "
                 "interesting reasons"
             )
@@ -253,7 +253,7 @@ def capsule(repo, forecast, found):
         "## Files you will probably touch",
     ]
     for f in forecast["files"]:
-        lines.append(f"- `{f['file']}` — {f['evidence'][0]}")
+        lines.append(f"- `{f['file']}`: {f['evidence'][0]}")
         for sym in f["symbols"][:3]:
             lines.append(f"  - `{sym['signature']}` (line {sym['line']})")
         if f["callers"]:
