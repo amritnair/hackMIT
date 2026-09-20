@@ -432,6 +432,7 @@
           day of building on top of it.</p>
         <p style="margin-top:22px">
           <button class="btn" id="enterApp">Open the workspace</button>
+          <button class="btn" id="pickProject" hidden>Choose a project</button>
           <a class="btn secondary small" style="margin-left:8px;text-decoration:none"
              href="https://github.com/amritnair/hackMIT" target="_blank" rel="noopener">
             amritnair/hackMIT</a></p>
@@ -819,6 +820,7 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
    field for anyone who knows the path, and lists what is on the machine for
    anyone who does not. Recently opened repos sort to the top. */
 let REPOS = [];
+let SERVED = null;
 
 function recents() {
   try { return JSON.parse(lsGet('recent', '[]')); }
@@ -832,6 +834,9 @@ function remember(path) {
 
 function fillRepoList() {
   const recent = recents();
+  if (SERVED && !REPOS.some(r => r.path === SERVED)) {
+    REPOS = [{ path: SERVED, name: base(SERVED) }, ...REPOS];
+  }
   const known = new Map(REPOS.map(r => [r.path, r.name]));
   const ordered = [
     ...recent.filter(p => p !== REPO).map(p => [p, known.get(p) || base(p)]),
@@ -846,6 +851,8 @@ function openRepo(path) {
   REPO = path.trim().replace(/\/$/, '');
   if (!REPO) return;
   $('#repoName').textContent = base(REPO);
+  setProjectState(true);
+  loadSetup();
   lsSet('repo', REPO);
   remember(REPO);
   fillRepoList();
@@ -861,6 +868,43 @@ $('#repoForm').onsubmit = e => {
 
 // the path is a detail, not a headline: the button shows the project, the
 // switcher only appears when someone asks for it
+function openPicker() {
+  const form = $('#repoForm');
+  form.hidden = false;
+  $('#projectBtn').setAttribute('aria-expanded', 'true');
+  $('#repoPath').value = '';
+  $('#repoPath').focus();
+}
+$('#pickProject').onclick = openPicker;
+
+function setProjectState(connected) {
+  $('#tabs').hidden = !connected;
+  $('#enterApp').hidden = !connected;
+  $('#pickProject').hidden = connected;
+  $('#projectBtn').hidden = false;
+  if (!connected) {
+    $('#repoName').textContent = 'no project yet';
+    // the steps describe a project; without one they should say so rather
+    // than spin
+    const gh = $('#github-body');
+    if (gh) gh.innerHTML = '<p>Pick a project above, or start a fresh one '
+      + 'below, and this fills in.</p>';
+    ['state1', 'state2', 'state3'].forEach(id => {
+      const el = $('#' + id);
+      if (el) { el.textContent = 'waiting for a project';
+                el.className = 'state todo'; }
+    });
+    ['step1', 'step2', 'step3'].forEach(id => {
+      const el = $('#' + id);
+      if (el) el.classList.remove('done');
+    });
+    document.querySelectorAll('main section').forEach(x =>
+      x.hidden = x.id !== 'setup');
+    const strip = $('#pulseStrip');
+    if (strip) strip.hidden = true;
+  }
+}
+
 $('#projectBtn').onclick = () => {
   const form = $('#repoForm');
   form.hidden = !form.hidden;
@@ -882,6 +926,7 @@ $('#repoPath').addEventListener('change', e => {
 });
 
 api('repos').then(d => { REPOS = d.repos || []; fillRepoList(); }).catch(() => {});
+setProjectState(false);
 
 /* ── the hero ────────────────────────────────────────────────
    It plays the thing the product does rather than describing it: three
@@ -1075,6 +1120,104 @@ function playCrew(done) {
   requestAnimationFrame(frame);
 }
 
+// Scene three: what the two scenes before it were worth. Real figures from
+// the open project when there is one, and the numbers from the story itself
+// when there is not — never invented either way.
+let IMPACT = null;
+
+function impactFigures() {
+  const d = IMPACT || {};
+  return [
+    { big: d.caught != null ? String(d.caught) : '1',
+      label: d.caught != null ? 'conflicts caught before a merge'
+                              : 'contract caught before it shipped',
+      note: d.caught != null ? 'replayed against this project'
+                             : 'three changes, one field' },
+    { big: d.reach != null ? String(d.reach) : '5',
+      label: 'files that would have needed fixing after',
+      note: 'everything importing the change' },
+    { big: d.tokens ? d.tokens.toLocaleString() : '1,825',
+      label: 'tokens not spent re-reading the codebase',
+      note: d.dollars ? `about $${d.dollars} at input prices`
+                      : 'the shared half, sent once' },
+    { big: d.findings != null ? String(d.findings) : '4',
+      label: 'findings handed to whoever came next',
+      note: 'nobody had to ask' },
+  ];
+}
+
+function buildImpact() {
+  const svg = document.getElementById('stage');
+  if (!svg) return null;
+  const f = impactFigures();
+  svg.innerHTML = `
+    ${f.map((x, i) => {
+      const col = i % 2, row = (i / 2) | 0;
+      const x0 = 8 + col * 186, y0 = 26 + row * 104;
+      return `<g class="fig" data-i="${i}" opacity="0"
+                 transform="translate(0 8)">
+        <rect x="${x0}" y="${y0}" width="176" height="92" rx="13"
+          fill="#1A1A24" stroke="#33333F"/>
+        <text class="figBig" data-i="${i}" x="${x0 + 16}" y="${y0 + 42}"
+          fill="#F5F3FF" font-size="27" font-weight="700"
+          letter-spacing="-1">${x.big}</text>
+        <text x="${x0 + 16}" y="${y0 + 62}" fill="#C9C9DA" font-size="9">
+          ${x.label.length > 34 ? x.label.slice(0, 33) + '…' : x.label}</text>
+        <text x="${x0 + 16}" y="${y0 + 77}" fill="#7A7A8C" font-size="8">
+          ${x.note}</text>
+      </g>`;
+    }).join('')}`;
+  return { svg, figs: [...svg.querySelectorAll('.fig')] };
+}
+
+function playImpact(done) {
+  const el = buildImpact();
+  const caption = document.getElementById('stageCaption');
+  if (!el) { done(); return; }
+  el.svg.style.opacity = '0';
+  caption.innerHTML = '<span>What that is worth, before any of it reached '
+    + 'production.</span>';
+  const SPAN = 3600, FADE = 700;
+  const t0 = performance.now();
+  const frame = (now) => {
+    const p = Math.min(1, (now - t0) / SPAN);
+    el.svg.style.opacity = Math.min(1, (now - t0) / 520).toFixed(3);
+    el.figs.forEach((g, i) => {
+      const local = Math.max(0, Math.min(1, (p * 1.5 - i * 0.16) / 0.5));
+      g.setAttribute('opacity', out(local));
+      g.setAttribute('transform',
+        `translate(0 ${(8 * (1 - out(local))).toFixed(2)})`);
+    });
+    if (now - t0 > SPAN + 1900) {
+      const k = Math.min(1, (now - t0 - SPAN - 1900) / FADE);
+      el.svg.style.opacity = (1 - ease(k)).toFixed(3);
+      if (k >= 1) { setTimeout(done, 240); return; }
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+
+function loadImpact() {
+  Promise.all([
+    api('usage').catch(() => null),
+    api('history').catch(() => null),
+  ]).then(([u, h]) => {
+    if (!u && !h) return;
+    const verdicts = (h && h.verdicts) || [];
+    const worst = verdicts.reduce((m, v) =>
+      !m || v.risk_score > m.risk_score ? v : m, null);
+    IMPACT = {
+      caught: verdicts.filter(v => v.risk_band === 'critical'
+        || v.risk_band === 'high').length || null,
+      reach: worst ? (worst.files || []).length : null,
+      tokens: u ? u.tokens_avoided : null,
+      dollars: u ? (u.dollars_avoided || 0).toFixed(2) : null,
+      findings: u ? u.notes_pulled : null,
+    };
+  }).catch(() => {});
+}
+
 function playStage() {
   const el = buildStage();
   const caption = document.getElementById('stageCaption');
@@ -1171,7 +1314,8 @@ function playStage() {
       if (now - t0 > span + hold) {
         if (phase === PHASES.length - 1) {
           // hand over to the other story rather than looping one forever
-          setTimeout(() => playCrew(() => playStage()), 260);
+          setTimeout(() => playCrew(
+            () => playImpact(() => playStage())), 260);
           return;
         }
         phase = (phase + 1) % PHASES.length;
@@ -1199,6 +1343,8 @@ playStage();
    GitHub first because it is the one that needs something outside this app,
    agents second because they are what makes the rest work. */
 function showApp(open) {
+  // nothing but Home is meaningful without a project to look at
+  if (open && !REPO) { openPicker(); return; }
   $('#tabs').hidden = !open;
   $('#setup').hidden = open;
   if (open) {
@@ -1230,6 +1376,7 @@ function countTo(el, target, suffix = '') {
 }
 
 function loadPulse() {
+  loadImpact();
   Promise.all([
     api('scan').catch(() => null),
     api('risk').catch(() => null),
@@ -1259,6 +1406,7 @@ function loadPulse() {
 }
 
 function loadSetup() {
+  if (!REPO) { setProjectState(false); return; }
   loadPulse();
   $('#setup').hidden = false;
   $('#tabs').hidden = false;
@@ -2354,14 +2502,16 @@ $('#runBackfill').onclick = () => {
 
 /* ── boot ─────────────────────────────────────────────────── */
 loadLive();
-loadUsage();
-loadPlan(false);
-setInterval(loadLive, 8000);
+setInterval(() => { if (REPO) loadLive(); }, 8000);
 api('scan').then(d => {
-  if (!REPO) { REPO = d.repo; lsSet('repo', REPO); }
-  $('#repoName').textContent = base(REPO) || 'choose a project';
+  // where the server was launched is a suggestion, not a choice somebody
+  // made; until they pick a project there is nothing to show but Home
+  if (d && d.repo) { SERVED = d.repo; fillRepoList(); }
+  setProjectState(Boolean(REPO));
+  if (!REPO) return;
+  $('#repoName').textContent = base(REPO);
   loadRepo();
   loadSetup();
   if (lsGet('setup')) showApp(true);
-}).catch(() => { loadRepo(); loadSetup(); });
+}).catch(() => setProjectState(false));
 </script>

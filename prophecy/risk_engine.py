@@ -566,11 +566,13 @@ def interactions(analyses):
                 "individual": [a["risk_score"], b["risk_score"]],
                 "combined_score": combined,
                 "combined_band": band(combined),
-                # worse together than apart — either the band moves, or the
-                # score moves far enough that treating them separately would
-                # have understated it. Band alone misses 83 and 1 becoming 97.
+                # Worse together than apart. Measured against the headroom
+                # left, not a fixed gap: once one side is already at 87 there
+                # are only ten points to move, and a flat threshold would call
+                # that calm. Either the band moves, or the pair closes a real
+                # share of the distance to the top of the scale.
                 "escalates": band(combined) != band(worst)
-                             or combined - worst >= 12,
+                             or combined - worst >= max(6, 0.35 * (97 - worst)),
                 "evidence": evidence,
             })
     return sorted(found, key=lambda i: -i["combined_score"])
