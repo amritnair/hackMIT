@@ -17,6 +17,7 @@ from . import store
 from .scan import scan
 
 PAGE = Path(__file__).parent / "dashboard.html"
+LOGO = Path(__file__).parent / "logo.png"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -31,6 +32,8 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         if url.path in ("/", "/index.html"):
             return self._send(200, "text/html", PAGE.read_bytes())
+        if url.path == "/logo.png":
+            return self._send(200, "image/png", LOGO.read_bytes())
         if not url.path.startswith("/api/"):
             return self._send(404, "text/plain", b"not found")
 

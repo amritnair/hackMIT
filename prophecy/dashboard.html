@@ -2,6 +2,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Prophecy</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -42,8 +43,7 @@
     display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
   .wordmark { font: 600 16px/1 var(--ui); letter-spacing: -.03em;
     display: flex; align-items: center; gap: 8px; }
-  .wordmark .mark { width: 17px; height: 17px; border-radius: 5px;
-    background: linear-gradient(140deg, var(--lavender) 20%, var(--accent) 55%, var(--cyan)); }
+  .wordmark .mark { width: 30px; height: auto; display: block; }
   .project { position: relative; }
   .project-btn {
     display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
@@ -448,7 +448,7 @@
 </style>
 
 <header>
-  <h1 class="wordmark"><i class="mark"></i>Prophecy</h1>
+  <h1 class="wordmark"><img class="mark" src="/logo.png" alt="">Prophecy</h1>
   <div class="project">
     <button type="button" class="project-btn" id="projectBtn"
             aria-haspopup="true" aria-expanded="false">
