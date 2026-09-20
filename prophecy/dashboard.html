@@ -240,7 +240,7 @@
 
   .headline-stat { background: var(--card); border: 1px solid var(--line);
     border-radius: 20px; padding: 30px 28px; margin: 20px 0 14px;
-    display: grid; gap: 24px; grid-template-columns: minmax(190px, 1.1fr) 1fr;
+    display: grid; gap: 28px; grid-template-columns: minmax(190px, 1fr) 1.2fr;
     align-items: center; }
   .headline-stat .money { font: 700 clamp(42px, 6.8vw, 70px)/1 var(--ui);
     letter-spacing: -.045em; }
@@ -250,15 +250,19 @@
     /* Each cell carries its own border rather than showing through a filled
        container, so a row that does not divide evenly leaves empty space
        instead of a lit empty box. */
-    display: grid; gap: 8px; background: transparent; border: 0;
-    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    display: grid; gap: 12px; background: transparent; border: 0;
+    /* Always two by two, so four boxes fill the space beside the headline
+       number instead of wrapping three and one. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr; align-self: stretch;
   }
-  .sub-stats div { background: var(--raised); padding: 13px 15px;
-    border: 1px solid var(--line); border-radius: 10px; }
-  .sub-stats b { display: block; font: 600 19px/1.2 var(--ui);
-    letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-  .sub-stats span { display: block; margin-top: 3px; font-size: 12.5px;
-    color: var(--text-3); }
+  .sub-stats div { background: var(--raised); padding: 22px 24px;
+    border: 1px solid var(--line); border-radius: 14px;
+    display: flex; flex-direction: column; justify-content: center; }
+  .sub-stats b { display: block; font: 600 clamp(28px, 3.2vw, 40px)/1.1 var(--ui);
+    letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+  .sub-stats span { display: block; margin-top: 8px; font-size: 14px;
+    line-height: 1.35; color: var(--text-3); }
 
   .tag { display: inline-flex; align-items: center; font: 500 11px/1 var(--ui);
     padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-2);
