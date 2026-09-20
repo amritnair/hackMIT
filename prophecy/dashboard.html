@@ -1498,8 +1498,9 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
       <h3>Connect your agents
         <span class="state todo" id="mcpState">no agents yet</span></h3>
       <div class="body">
-        <p>Paste this into Claude Code, Cursor, or any MCP client. They talk
-          to this Prophecy over HTTP, on this machine or another.</p>
+        <p>Add Prophecy to Cursor in one click, or paste the settings into
+          Claude Code or any other MCP client. They talk to this Prophecy
+          over HTTP, on this machine or another.</p>
         <p class="story">An agent writing code here does not have to read the
           tree to find its way in. It asks, over MCP, and gets the slice: the
           files this task is predicted to touch, the symbols in them and their
@@ -1536,9 +1537,10 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
                 delivered on the agent's next call</li>
             </ul></div>
         </div>
-        <p style="margin-top:14px">
-          <button class="btn small" data-copy="mcp">Copy the settings</button>
-          <span class="hint" id="agentSeen" style="margin-left:12px"></span></p>
+        <p style="margin-top:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+          <a class="btn small" id="addToCursor" hidden href="#">Add to Cursor</a>
+          <button class="btn small secondary" data-copy="mcp">Copy the settings</button>
+          <span class="hint" id="agentSeen"></span></p>
         <p class="hint" id="mcpUrlHint"></p>
         <details style="margin-top:14px">
           <summary>Show what gets pasted</summary>
@@ -5457,10 +5459,30 @@ function loadUsage() {
 $('#refreshLive').onclick = loadLive;
 if ($('#refreshUsage')) $('#refreshUsage').onclick = loadUsage;
 
+/* Cursor's one-click install: name + base64 of the server config object
+   (not the outer mcpServers wrapper). Opens Cursor's MCP install prompt.
+   Claude Code has no install deeplink; it still uses the CLI line below. */
+function cursorMcpLink(config) {
+  const servers = (config && config.mcpServers) || {};
+  const name = Object.keys(servers)[0];
+  if (!name) return '';
+  const body = JSON.stringify(servers[name]);
+  const b64 = btoa(unescape(encodeURIComponent(body)));
+  return `cursor://anysphere.cursor-deeplink/mcp/install?name=${
+    encodeURIComponent(name)}&config=${encodeURIComponent(b64)}`;
+}
+
 api('mcp_config').then(d => {
   window.__mcp = JSON.stringify(d.config, null, 2);
+  window.__mcpConfig = d.config;
   $('#mcpConfig').textContent = window.__mcp;
   $('#mcpConfig').className = '';
+  const add = $('#addToCursor');
+  const link = cursorMcpLink(d.config);
+  if (add && link) {
+    add.href = link;
+    add.hidden = false;
+  }
   const hint = $('#mcpUrlHint');
   if (hint && d.url) {
     hint.innerHTML = `Endpoint <code>${esc(d.url)}</code>. Claude Code:
