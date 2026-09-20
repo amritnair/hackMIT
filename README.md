@@ -26,11 +26,11 @@ in flight (5)
   █      0  priya          branch feat/judge-dashboard                low
 
 where they meet (4)
-     branch agent-a/require-email <-> branch agent-b/signup-redesign
-     alone 94 and 7, together 97 (critical)
-     - they do not touch the same files, but they meet at api/signup.py
-     - both touch email, and one of them changes how it is stored, so they
-       are approaching the same field from different sides
+  branch agent-a/require-email meets 3 others
+  !!   branch agent-b/signup-redesign
+       alone 88 and 1, together 97 (critical)
+       - different files, but both reach api/signup.py
+       - both work on email; one of them changes how it is stored
 ```
 
 That last pair is the part worth having. Neither change looks dangerous, they

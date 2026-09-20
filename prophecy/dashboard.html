@@ -362,6 +362,9 @@
     display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
     margin-bottom: 6px;
   }
+  .zoomers { display: flex; gap: 8px; align-items: center; margin-left: auto; }
+  .zoomers .btn { min-width: 30px; }
+  .zoomers .dim { font: 12px/1 var(--mono); min-width: 38px; text-align: center; }
   .map-controls .btn[aria-pressed="true"] {
     background: var(--text); color: var(--bg); border-color: var(--text);
   }
@@ -1519,6 +1522,13 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
           <button class="btn small secondary" data-filter="hot">Most depended on</button>
           <button class="btn small secondary" data-filter="contested">Contested</button>
           <button class="btn small secondary" data-filter="nosrc">Hide tests</button>
+          <span class="zoomers">
+            <button class="btn small secondary" id="zoomOut"
+                    aria-label="Zoom out">&minus;</button>
+            <span class="dim" id="zoomLevel">100%</span>
+            <button class="btn small secondary" id="zoomIn"
+                    aria-label="Zoom in">+</button>
+          </span>
         </div>
       </div>
       <div class="body flush"><svg id="graph" role="img"
@@ -1529,7 +1539,7 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <span><i class="plain"></i> source file</span>
         <span><i class="test"></i> test file</span>
         <span class="dim">click to focus · double-click to edit it · drag to
-          move</span>
+          move · scroll to zoom</span>
       </div>
     </div>
     
@@ -3175,7 +3185,47 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(
 /* ── graph ────────────────────────────────────────────────── */
 // ponytail: O(n²) repulsion, with n capped at 26. A quadtree would be correct
 // and pointless at this size.
-const G = { nodes: [], links: [], raf: null, drag: null };
+// k is the zoom factor and (cx, cy) the graph point held in the middle of
+// the view. The nodes never move for a zoom: the viewBox does, so the layout,
+// the focus rings and the hit areas all stay in the coordinates they were
+// laid out in.
+const G = { nodes: [], links: [], raf: null, drag: null, k: 1, cx: 0, cy: 0 };
+const ZOOM_MIN = 1, ZOOM_MAX = 5;
+
+function applyZoom() {
+  const svg = $('#graph');
+  if (!G.W) return;
+  const w = G.W / G.k, h = G.H / G.k;
+  // never scroll past the edge of the laid-out area
+  G.cx = Math.min(Math.max(G.cx, w / 2), G.W - w / 2);
+  G.cy = Math.min(Math.max(G.cy, h / 2), G.H - h / 2);
+  svg.setAttribute('viewBox',
+    `${G.cx - w / 2} ${G.cy - h / 2} ${w} ${h}`);
+  const read = $('#zoomLevel');
+  if (read) read.textContent = Math.round(G.k * 100) + '%';
+}
+
+/* Where a pointer event lands in graph coordinates. With a viewBox in play
+   the two are no longer the same, and drag would fling the node otherwise. */
+function graphPoint(e) {
+  const box = $('#graph').getBoundingClientRect();
+  return {
+    x: G.cx + ((e.clientX - box.left) / box.width - 0.5) * (G.W / G.k),
+    y: G.cy + ((e.clientY - box.top) / box.height - 0.5) * (G.H / G.k),
+  };
+}
+
+/* Zoom about a point, so whatever is under the cursor stays under it. */
+function zoomAbout(factor, e) {
+  const before = e ? graphPoint(e) : { x: G.cx, y: G.cy };
+  const box = $('#graph').getBoundingClientRect();
+  const fx = e ? (e.clientX - box.left) / box.width - 0.5 : 0;
+  const fy = e ? (e.clientY - box.top) / box.height - 0.5 : 0;
+  G.k = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, G.k * factor));
+  G.cx = before.x - fx * (G.W / G.k);
+  G.cy = before.y - fy * (G.H / G.k);
+  applyZoom();
+}
 
 function layout(graph) {
   const svg = $('#graph');
@@ -3193,6 +3243,8 @@ function layout(graph) {
     .map(e => ({ s: index[e.from], t: index[e.to] }));
   G.W = W; G.H = H;
   G.focus = null;
+  G.k = 1; G.cx = W / 2; G.cy = H / 2;
+  applyZoom();
   run(220);
   mapSummary();
 }
@@ -3983,21 +4035,43 @@ function toggleFocus(id) {
 /* drag a node; the rest of the graph reacts */
 $('#graph').addEventListener('pointerdown', e => {
   const g = e.target.closest('.node');
-  if (!g) return;
+  if (!g) {
+    // zoomed in, the canvas itself is worth dragging
+    if (G.k > 1) {
+      G.pan = { x: e.clientX, y: e.clientY, moved: false };
+      $('#graph').classList.add('dragging');
+      $('#graph').setPointerCapture(e.pointerId);
+    }
+    return;
+  }
   G.drag = G.nodes.find(n => n.id === g.dataset.id);
   G.moved = false;
   $('#graph').classList.add('dragging');
   $('#graph').setPointerCapture(e.pointerId);
 });
 $('#graph').addEventListener('pointermove', e => {
+  if (G.pan) {
+    const box = $('#graph').getBoundingClientRect();
+    G.cx -= (e.clientX - G.pan.x) * (G.W / G.k) / box.width;
+    G.cy -= (e.clientY - G.pan.y) * (G.H / G.k) / box.height;
+    G.pan = { x: e.clientX, y: e.clientY, moved: true };
+    applyZoom();
+    return;
+  }
   if (!G.drag) return;
-  const box = $('#graph').getBoundingClientRect();
-  G.drag.x = e.clientX - box.left;
-  G.drag.y = e.clientY - box.top;
+  const at = graphPoint(e);
+  G.drag.x = at.x;
+  G.drag.y = at.y;
   G.moved = true;
   run(40);
 });
 $('#graph').addEventListener('pointerup', e => {
+  if (G.pan) {
+    const dragged = G.pan.moved;
+    G.pan = null;
+    $('#graph').classList.remove('dragging');
+    if (dragged) return;   // a pan is not a click on the background
+  }
   if (G.drag && !G.moved) {
     toggleFocus(G.drag.id);
   } else if (!G.drag && !e.target.closest('.node')) {
@@ -4013,6 +4087,14 @@ $('#graph').addEventListener('dblclick', e => {
   const g = e.target.closest('.node');
   if (g) openEditor(g.dataset.id);
 });
+$('#graph').addEventListener('wheel', e => {
+  if (!G.W) return;
+  e.preventDefault();
+  zoomAbout(Math.exp(-e.deltaY * 0.002), e);
+}, { passive: false });
+if ($('#zoomIn')) $('#zoomIn').onclick = () => zoomAbout(1.35, null);
+if ($('#zoomOut')) $('#zoomOut').onclick = () => zoomAbout(1 / 1.35, null);
+// re-settling puts the view back to the whole picture as well
 $('#reflow').onclick = () => layout(window.__graph);
 document.addEventListener('click', e => {
   const f = e.target.closest('[data-filter]');
@@ -4515,19 +4597,49 @@ function renderRisk(d) {
        branch here matches the base.</p>`;
 
   $('#meetPanel').hidden = !meets.length;
-  $('#meetList').innerHTML = meets.map(i => `<div class="risk ${
-    i.combined_band === 'critical' || i.combined_band === 'high' ? 'high'
-      : i.combined_band === 'medium' ? 'medium' : ''}">
-    <div style="padding:14px 20px 14px 23px">
-      <div class="headline"><b>${i.combined_score}</b> ${esc(i.combined_band)}
-        together ${i.escalates
-          ? '<span class="tag" style="color:var(--bad)">worse than apart</span>'
-          : ''}</div>
-      <div class="between" style="margin:3px 0 6px">
-        ${i.between.map(esc).join('  ·  ')}: on their own
-        ${i.individual.join(' and ')}</div>
-      <ul>${i.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>
-    </div></div>`).join('');
+  // One branch colliding with three others is one story told three times.
+  // The server groups the pairs around it; each row underneath then says
+  // only what is different about that collision.
+  const groups = d.meet_groups
+    || [{ hub: null, pairs: meets.map((_, n) => n) }];
+  $('#meetList').innerHTML = groups.map(g => {
+    const pairs = g.pairs.map(n => meets[n]).filter(Boolean);
+    if (!pairs.length) return '';
+    if (!g.hub) return pairs.map(i => `<div class="risk ${meetClass(i)}">
+      <div style="padding:14px 20px 14px 23px">${meetBody(i, null)}</div>
+      </div>`).join('');
+    const worst = pairs.reduce((a, b) =>
+      b.combined_score > a.combined_score ? b : a);
+    return `<div class="risk ${meetClass(worst)}">
+      <div style="padding:14px 20px 4px 23px">
+        <div class="headline">${esc(plainTask(g.hub))}</div>
+        <div class="between" style="margin:3px 0 0">runs into
+          ${plural(pairs.length, 'other change')}</div>
+      </div>
+      ${pairs.map(i => `<div style="padding:12px 20px 14px 23px">
+        ${meetBody(i, g.hub)}</div>`).join('')}
+      </div>`;
+  }).join('');
+}
+
+const meetClass = i => i.combined_band === 'critical'
+  || i.combined_band === 'high' ? 'high'
+  : i.combined_band === 'medium' ? 'medium' : '';
+
+/* Inside a group the shared branch is already named above, so the row names
+   the other side only. On its own it names both. */
+function meetBody(i, hub) {
+  const other = i.between.filter(b => b !== hub);
+  const who = hub
+    ? `with ${other.map(b => esc(plainTask(b))).join('  ·  ')}, on their own`
+    : `${i.between.map(b => esc(plainTask(b))).join('  ·  ')}: on their own`;
+  return `<div class="headline"><b>${i.combined_score}</b>
+      ${esc(i.combined_band)} together ${i.escalates
+        ? '<span class="tag" style="color:var(--bad)">worse than apart</span>'
+        : ''}</div>
+    <div class="between" style="margin:3px 0 6px">${who}
+      ${i.individual.join(' and ')}</div>
+    <ul>${i.evidence.map(e => `<li>${esc(e)}</li>`).join('')}</ul>`;
 }
 
 function loadRisk() {

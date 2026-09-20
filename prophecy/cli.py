@@ -13,7 +13,7 @@ from .agent import brief, observations, request_skeleton
 from .create import new_project
 from .demo import build as build_demo, seed as seed_demo
 from .history import commits, preview_restore, restore
-from .risk_engine import (analyze_change, interactions,
+from .risk_engine import (analyze_change, interactions, meet_groups,
                           repository_risk)
 from .mcp import queue_risk_warning
 from .work import in_flight
@@ -814,16 +814,26 @@ def cmd_risk(repo, args, db):
                   f"{a['risk_band']}")
         if found:
             print(f"\nwhere they meet ({len(found)})")
-            for i in found:
-                arrow = "!!" if i["escalates"] else "  "
-                print(f"  {arrow} {' <-> '.join(i['between'])}")
-                print(f"     alone {i['individual'][0]} and {i['individual'][1]}, "
-                      f"together {i['combined_score']} ({i['combined_band']})")
-                for line in i["evidence"]:
-                    print(f"     - {line}")
+            for group in meet_groups(found):
+                hub = group["hub"]
+                if hub:
+                    print(f"  {hub} meets {len(group['pairs'])} others")
+                pad = "  " if hub else ""
+                for n in group["pairs"]:
+                    i = found[n]
+                    arrow = "!!" if i["escalates"] else "  "
+                    other = [b for b in i["between"] if b != hub]
+                    print(f"  {arrow} {pad}"
+                          f"{' <-> '.join(other if hub else i['between'])}")
+                    print(f"     {pad}alone {i['individual'][0]} and "
+                          f"{i['individual'][1]}, together "
+                          f"{i['combined_score']} ({i['combined_band']})")
+                    for line in i["evidence"]:
+                        print(f"     {pad}- {line}")
         else:
             print("\nnothing in flight meets anything else.")
-    return {"repository": overall, "changes": analyses, "interactions": found}
+    return {"repository": overall, "changes": analyses, "interactions": found,
+            "meet_groups": meet_groups(found)}
 
 
 def cmd_check(repo, args, db):

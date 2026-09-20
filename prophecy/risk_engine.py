@@ -538,25 +538,28 @@ def interactions(analyses):
             if shared_reach and not shared_files:
                 combined += 12
                 evidence.append(
-                    "they do not touch the same files, but they meet at "
+                    "different files, but both reach "
                     + ", ".join(shared_reach[:3])
                 )
             if shared_contract:
                 combined += 14
                 evidence.append(
-                    "both touch "
+                    "both work on "
                     + ", ".join(shared_contract[:3])
-                    + ", and one of them changes how it is stored, so they are "
-                    "approaching the same field from different sides"
+                    + "; one of them changes how it is stored"
                 )
             a_kinds = {f["title"].split()[0] for f in a["potential_failures"]}
             b_kinds = {f["title"].split()[0] for f in b["potential_failures"]}
             if "Stored" in a_kinds and "Stored" not in b_kinds and shared_reach:
                 combined += 10
-                evidence.append(
-                    "one side changes what is stored while the other changes "
-                    "code that reads it"
-                )
+                # the contract line above already says one side changes
+                # storage; saying it twice in one row is how a reader learns
+                # to skim the list
+                if not shared_contract:
+                    evidence.append(
+                        "one side changes what is stored, the other changes "
+                        "code that reads it"
+                    )
 
             # 100 would claim certainty the evidence does not support
             combined = min(combined, 97)
@@ -580,6 +583,37 @@ def interactions(analyses):
                 "evidence": evidence,
             })
     return sorted(found, key=lambda i: -i["combined_score"])
+
+
+def meet_groups(found):
+    """Group the pairs around whichever change keeps showing up.
+
+    One branch colliding with three others is one story told three times.
+    Grouped, the branch is named once and each row underneath says only what
+    is different about that collision. Returns indices into `found` so
+    callers can render the pairs themselves.
+    """
+    left = list(range(len(found)))
+    groups = []
+    while left:
+        count = {}
+        for i in left:
+            for label in found[i]["between"]:
+                count[label] = count.get(label, 0) + 1
+        # ties break towards whichever change is already listed first, which
+        # is the worst-scoring one
+        first = {}
+        for i in left:
+            for label in found[i]["between"]:
+                first.setdefault(label, i)
+        hub = min(count, key=lambda k: (-count[k], first[k]))
+        if count[hub] < 2:
+            groups.append({"hub": None, "pairs": left})
+            break
+        mine = [i for i in left if hub in found[i]["between"]]
+        groups.append({"hub": hub, "pairs": mine})
+        left = [i for i in left if i not in mine]
+    return groups
 
 
 def repository_risk(analyses, found_interactions):

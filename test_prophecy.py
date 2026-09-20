@@ -596,6 +596,22 @@ def check_risk_engine():
         # they meet without editing the same file, which is the whole point
         pair = next((i for i in found if not i["shared_files"]), None)
         assert pair and pair["meeting_points"], found
+        # one row, one reason: the contract line already says one side
+        # changes storage, so nothing repeats it
+        for i in found:
+            assert len(set(i["evidence"])) == len(i["evidence"]), i
+            stored = [e for e in i["evidence"] if "how it is stored" in e
+                      or "what is stored" in e]
+            assert len(stored) <= 1, i["evidence"]
+
+        # a is in every pair, so it is named once with the others under it
+        groups = risk_engine.meet_groups(found)
+        assert [g["hub"] for g in groups].count("A") == 1, groups
+        hub = next(g for g in groups if g["hub"] == "A")
+        assert len(hub["pairs"]) >= 2, groups
+        # every pair lands in exactly one group, and none is lost
+        flat = [n for g in groups for n in g["pairs"]]
+        assert sorted(flat) == list(range(len(found))), groups
 
         overall = risk_engine.repository_risk([a, b, c], found)
         assert overall["band"] == "critical", overall
