@@ -451,6 +451,57 @@ def _render_analysis(a):
     return "\n".join(lines)
 
 
+# High and critical are the bands a person should not have to notice and click
+# through. The agent still cannot be pushed — the profile waits for its next
+# call — but nobody has to press Send.
+WARN_AT = frozenset({"high", "critical"})
+
+
+def should_warn(analysis, meets=None):
+    if (analysis.get("risk_band") or "") in WARN_AT:
+        return True
+    return any((m.get("combined_band") or "") in WARN_AT for m in (meets or []))
+
+
+def queue_risk_warning(db, repo, analysis, meets=None, sent_by="auto", force=False):
+    """Put this profile in the attributed agent's inbox, if it is serious.
+
+    `force` is the dashboard button: a person can send a medium profile by
+    hand. Automatic warnings only fire for high and critical, including when
+    two quieter changes become critical together.
+    """
+    agent = analysis.get("agent")
+    if not agent:
+        return None
+    label = analysis.get("label") or ""
+    mine = [m for m in (meets or []) if label in (m.get("between") or [])]
+    if not force and not should_warn(analysis, mine):
+        return None
+    target = label.split()[-1]
+    if not target:
+        return None
+    body = _render_analysis(analysis)
+    if mine:
+        body += "\n\nTogether with other work in flight:"
+        for i in mine:
+            others = [b for b in i["between"] if b != label]
+            body += (f"\n- with {', '.join(others)}: {i['combined_score']}/100 "
+                     f"({i['combined_band']}) combined, against "
+                     f"{analysis['risk_score']} alone"
+                     + (" — worse together than apart" if i.get("escalates")
+                        else ""))
+            for line in (i.get("evidence") or [])[:3]:
+                body += f"\n    {line}"
+    subject = (f"Risk profile for {target} — {analysis['risk_score']}/100 "
+               f"({analysis['risk_band']})")
+    store.queue_message(db, repo["sha"], agent, subject, body, sent_by=sent_by)
+    store.log(db, repo["sha"], "notified", agent,
+              ("warned automatically" if sent_by == "auto"
+               else "sent the risk profile")
+              + f" for {target} ({analysis['risk_score']}/100)")
+    return agent
+
+
 def serve(repo_path=".", stdin=None, stdout=None):
     """Read JSON-RPC lines, write JSON-RPC lines. Notifications get no reply."""
     stdin = stdin or sys.stdin

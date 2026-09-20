@@ -71,6 +71,10 @@
   nav button[aria-selected="true"] { color: var(--text); background: rgba(139,92,246,.22);
     box-shadow: inset 0 0 0 1px rgba(139,92,246,.45); }
   main { max-width: 1060px; margin: 0 auto; padding: 0 22px 120px; }
+  main.wide { max-width: 1280px; }
+  .mcp-frame { display: block; width: 100%; height: min(78vh, 820px);
+    border: 1px solid var(--line); border-radius: 16px; background: #0A0A0C;
+    margin: 8px 0 0; }
     /* every display rule below this would otherwise outrank the
      hidden attribute, which is how hidden elements kept showing */
   section[hidden], [hidden] { display: none !important; }
@@ -504,9 +508,8 @@
     .ed-tree, .ed-side { display: none; }
   }
 
-  /* the same loop on the landing page, where it is the pitch rather than the
-     reference */
-  .mcp-band { display: grid; gap: 1px; margin: 26px 0 0;
+  /* the same loop, on the MCP tab, under the walkthrough */
+  .mcp-band { display: grid; gap: 1px; margin: 28px 0 0;
     background: var(--line); border: 1px solid var(--line);
     border-radius: 16px; overflow: hidden;
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
@@ -590,6 +593,7 @@
   </div>
   <nav id="tabs" hidden>
     <button data-tab="setup" aria-selected="true">Home</button>
+    <button data-tab="mcp">MCP</button>
     <button data-tab="changes">Risk</button>
     <button data-tab="team">Crew</button>
     <button data-tab="context">Context</button>
@@ -609,8 +613,8 @@
         <p class="lede">You and your agents are changing the same codebase at
           the same time. Prophecy checks the work against your collaborators
           before any of it ships — so you find the collision now, not after a
-          day of building on top of it. Your coding agents connect over MCP and
-          ask before they commit.</p>
+          day of building on top of it. Plug your coding agent in on the
+          <button class="chip" data-tab-jump="mcp">MCP</button> tab.</p>
         <div class="hero-actions">
           <button class="btn" id="enterApp">Open the workspace</button>
           <button class="btn" id="pickProject" hidden>Choose a project</button>
@@ -625,21 +629,6 @@
           <span>Three people change the same project in the same week.</span>
         </div>
       </div>
-    </div>
-
-    <!-- the loop, stated once, in the order it actually happens -->
-    <div class="mcp-band">
-      <div><i>01</i><b>The agent asks first</b>
-        <p>Before it commits, a coding agent calls Prophecy over MCP: what does
-          this change reach, and who else is in here right now?</p></div>
-      <div><i>02</i><b>It gets consequences, not a lint</b>
-        <p>A score with its range and confidence, the callers that would break,
-          and the other work in flight it is about to run into — read off this
-          project's real dependency graph.</p></div>
-      <div><i>03</i><b>You answer its agent</b>
-        <p>Send the risk profile of somebody's change straight to the agent
-          writing it. It arrives on that agent's next call, in the same words
-          Prophecy would have given it.</p></div>
     </div>
 
     <div class="pulse-strip" id="pulseStrip" hidden>
@@ -659,63 +648,13 @@
 
       <div class="step" id="step2">
         <i class="n">2</i>
-        <h3>Connect your agents</h3>
-        <span class="state todo" id="state2">no agents yet</span>
-        <div class="body">
-          <p>Paste one block of settings into your coding agent. After that,
-            every agent that opens this project checks in on its own.</p>
-          <p class="story">This is the part that matters. An agent writing code
-            here does not have to guess who else is in the codebase — it asks,
-            over MCP, and gets an answer built from this project's real
-            dependency graph. And it works both ways: when you send an agent the
-            risk profile of what it is doing, that reading is waiting for it the
-            next time it asks anything.</p>
-          <div class="mcp-loop">
-            <div><b>The agent asks</b>
-              <ul>
-                <li><code>join_repo_session</code> — who else is here, and what
-                  they have already worked out</li>
-                <li><code>analyze_change</code> — what this change would break,
-                  before committing it</li>
-                <li><code>check_overlap</code> — whether these files are
-                  somebody else's files too</li>
-                <li><code>get_change_interactions</code> — what this change
-                  looks like next to everything else in flight</li>
-                <li><code>share_finding</code> — hands something back for the
-                  next agent that goes there</li>
-              </ul></div>
-            <div><b>Prophecy answers</b>
-              <ul>
-                <li>a risk score with its range and confidence, not a verdict</li>
-                <li>the files and callers that would actually be hit</li>
-                <li>the other work it is about to collide with, by name</li>
-                <li>anything you sent from
-                  <button class="chip" data-tab-jump="changes">Changes</button>,
-                  delivered on the agent's next call</li>
-              </ul></div>
-          </div>
-          <p style="margin-top:14px">
-            <button class="btn small" data-copy="mcp">Copy the settings</button>
-            <span class="hint" id="agentSeen" style="margin-left:12px"></span></p>
-          <details style="margin-top:14px">
-            <summary>Show what gets pasted</summary>
-            <pre id="mcpConfig" class="empty">—</pre>
-            <p class="hint">Eight tools in total, including
-              <code>get_repository_risk</code>,
-              <code>get_dependency_context</code> and
-              <code>leave_repo_session</code>. Nothing leaves this machine:
-              the agent talks to a local process reading a local repository.</p>
-          </details>
-        </div>
-      </div>
-
-      <div class="step" id="step3">
-        <i class="n">3</i>
         <h3>Add your team</h3>
-        <span class="state todo" id="state3">optional</span>
+        <span class="state todo" id="state2">optional</span>
         <div class="body">
           <p>Link people to their GitHub handle, so branches and pull requests
-            are attributed to a person instead of a username.</p>
+            are attributed to a person instead of a username. Coding agents
+            plug in on the
+            <button class="chip" data-tab-jump="mcp">MCP</button> tab.</p>
           <div class="row" style="margin-top:14px">
             <input class="field" id="personName" placeholder="Name" style="flex:1 1 150px">
             <input class="field" id="personHandle" placeholder="github handle" style="flex:1 1 150px">
@@ -743,6 +682,534 @@
         <label class="toggle" style="margin:2px 0 0"><input type="checkbox" id="newPublic">
           make the GitHub repo public</label>
         <div id="newOut"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="mcp" hidden>
+    <div class="hero" style="padding:42px 0 12px">
+      <p class="eyebrow">What an agent actually sees</p>
+      <h2 class="title">MCP</h2>
+      <p class="lede">See how it works.</p>
+    </div>
+
+    <iframe id="mcpDemo" class="mcp-frame"
+            title="Ada's Claude Code talking to Prophecy"></iframe>
+    <textarea id="mcpDemoSrc" hidden><!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ada's Claude Code · Prophecy MCP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cc-bg: #141413; --cc-panel: #1F1E1D; --cc-raised: #2A2928;
+    --cc-line: #3A3938; --cc-text: #F4F3EE; --cc-dim: #A8A29E; --cc-mute: #78716C;
+    --claude: #D97757; --claude-2: #E8A087;
+    --ok: #6B9F6B; --warn: #D4A017; --bad: #E07070;
+    --pr-bg: #0E0E14; --pr-card: #17171F; --pr-line: #2A2A36;
+    --pr-text: #F5F3FF; --pr-dim: #A3A3B5; --pr-mute: #6E6E82;
+    --pr-accent: #8B5CF6; --pr-cyan: #67E8F9;
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0A0A0C; color: var(--cc-text);
+    font: 14.5px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--claude); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  .shell { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+  .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; background: #0A0A0C; border-bottom: 1px solid #222; }
+  .top .hint { color: #8A8580; font-size: 13px; }
+  .grow { flex: 1; }
+  .btn { border: 0; border-radius: 8px; padding: 7px 14px; cursor: pointer;
+    font: 500 13px var(--sans); background: var(--claude); color: #1A120E; }
+  .btn.ghost { background: #1A1A1C; color: #E7E5E4; border: 1px solid #333; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .count { font: 500 12px var(--mono); color: #8A8580; }
+
+  .split { display: grid; grid-template-columns: minmax(380px, 1.2fr) minmax(320px, .8fr);
+    min-height: 0; flex: 1; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+
+  /* ── Claude Code window ── */
+  .cc { display: flex; flex-direction: column; min-height: 0; min-height: 56vh;
+    background: var(--cc-bg); border-right: 1px solid #000; }
+  .cc-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+    background: var(--cc-panel); border-bottom: 1px solid var(--cc-line); }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; display: block; }
+  .dots i:nth-child(1) { background: #FF5F57; }
+  .dots i:nth-child(2) { background: #FEBC2E; }
+  .dots i:nth-child(3) { background: #28C840; }
+  .cc-title { font: 500 12.5px var(--mono); color: var(--cc-dim); }
+  .mcp-pill { margin-left: auto; display: flex; align-items: center; gap: 7px;
+    font: 500 11.5px var(--mono); color: var(--ok); background: #1A241A;
+    border: 1px solid #2A3A2A; border-radius: 999px; padding: 3px 10px; }
+  .mcp-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 0 3px rgba(107,159,107,.2); }
+  .mcp-pill.off { color: var(--cc-mute); background: var(--cc-raised); border-color: var(--cc-line); }
+  .mcp-pill.off .dot { background: var(--cc-mute); box-shadow: none; }
+
+  .chat { flex: 1; overflow: auto; padding: 18px 22px 12px; }
+  .turn { max-width: 720px; margin: 0 auto 18px; }
+  .user { background: var(--cc-raised); border: 1px solid var(--cc-line);
+    border-radius: 12px; padding: 11px 14px; }
+  .user .who { font: 500 11px var(--mono); color: var(--claude); margin-bottom: 4px; }
+  .asst .who { font: 500 11px var(--mono); color: var(--claude-2); margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px; }
+  .spark { width: 14px; height: 14px; }
+  .asst p { margin: 0 0 8px; color: var(--cc-text); }
+  .tool { margin: 10px 0; border: 1px solid var(--cc-line); border-radius: 10px;
+    background: #191817; overflow: hidden; }
+  .tool .head { padding: 8px 12px; font: 500 12.5px var(--mono); color: var(--cc-dim);
+    display: flex; gap: 8px; align-items: center; }
+  .tool .head b { color: var(--cc-text); font-weight: 500; }
+  .tool .body { padding: 0 12px 10px 32px; font: 12px/1.45 var(--mono); color: var(--cc-mute);
+    white-space: pre-wrap; }
+  .tool.live .head { color: var(--claude); }
+  .inbox { margin: 10px 0; border-left: 3px solid var(--warn); background: #2A2418;
+    border-radius: 0 10px 10px 0; padding: 10px 12px; }
+  .inbox .tag { font: 500 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase;
+    color: var(--warn); margin-bottom: 4px; }
+  .prompt { margin: 0 22px 16px; border: 1px solid var(--cc-line); border-radius: 12px;
+    padding: 10px 14px; color: var(--cc-mute); font: 13.5px var(--sans);
+    display: flex; align-items: center; gap: 10px; }
+  .prompt span { color: var(--claude); font: 500 16px var(--mono); }
+  .status { display: flex; gap: 16px; flex-wrap: wrap; padding: 7px 14px;
+    border-top: 1px solid var(--cc-line); background: var(--cc-panel);
+    font: 11.5px var(--mono); color: var(--cc-mute); }
+  .status b { color: var(--cc-dim); font-weight: 500; }
+
+  /* ── Explainer (Prophecy) ── */
+  .ex { background: var(--pr-bg); color: var(--pr-text); overflow: auto;
+    padding: 18px 18px 24px; border-left: 1px solid #1A1A24; }
+  .ex .kicker { font: 500 11px var(--mono); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--pr-cyan); margin: 0 0 8px; }
+  .ex h2 { font-size: 22px; letter-spacing: -.03em; margin: 0 0 10px; font-weight: 600; }
+  .ex p { margin: 0 0 12px; color: var(--pr-dim); font-size: 14.5px; line-height: 1.55; }
+  .ex p b { color: var(--pr-text); font-weight: 600; }
+  .pipe { background: var(--pr-card); border: 1px solid var(--pr-line); border-radius: 12px;
+    padding: 12px 14px; margin: 14px 0; font: 11.5px/1.45 var(--mono); color: var(--pr-dim); }
+  .pipe .dir { font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--pr-cyan); margin-bottom: 4px; }
+  .pipe.back .dir { color: var(--pr-accent); }
+  .cards { display: grid; gap: 8px; margin-top: 12px; }
+  .card { background: var(--pr-card); border: 1px solid var(--pr-line); border-radius: 12px;
+    padding: 12px 14px; }
+  .card .l { font: 500 11px var(--mono); color: var(--pr-mute); letter-spacing: .06em;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .card .v { font-size: 20px; letter-spacing: -.03em; }
+  .card small { display: block; color: var(--pr-mute); font-size: 12px; margin-top: 3px; }
+  .meter { height: 8px; border-radius: 99px; background: #22222C; overflow: hidden; margin: 8px 0 2px; }
+  .meter i { display: block; height: 100%; background: var(--pr-accent); width: 0; transition: width .45s; }
+  .thermo { height: 10px; border-radius: 99px; background: #22222C; overflow: hidden; margin: 8px 0; }
+  .thermo i { display: block; height: 100%; width: 0; transition: width .45s;
+    background: linear-gradient(90deg, #6B9F6B, #D4A017, #E07070); }
+  .note { font-size: 13.5px; color: var(--pr-dim); background: #1A1A26; border-radius: 8px;
+    padding: 8px 10px; margin-top: 8px; border: 1px solid var(--pr-line); }
+  .note em { font-style: normal; color: var(--pr-cyan); font: 500 11px var(--mono); }
+  .why { margin: 12px 0 0; padding: 0; list-style: none; }
+  .why li { position: relative; padding: 6px 0 6px 18px; color: var(--pr-dim); font-size: 13.5px; }
+  .why li:before { content: ""; position: absolute; left: 0; top: 13px; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--pr-accent); }
+
+  .foot { padding: 8px 16px; border-top: 1px solid #222; color: #7A7570;
+    font-size: 12px; background: #0A0A0C; }
+</style>
+
+<div class="shell">
+  <div class="top">
+    <span class="count" id="stepN">0 / 0</span>
+    <span class="hint" id="topHint">This is Ada’s Claude Code. Press Play or Step. Space also steps.</span>
+    <div class="grow"></div>
+    <button class="btn ghost" id="reset">Start over</button>
+    <button class="btn ghost" id="back">Back</button>
+    <button class="btn ghost" id="next">Step</button>
+    <button class="btn" id="play">Play</button>
+  </div>
+
+  <div class="split">
+    <section class="cc" aria-label="Claude Code">
+      <div class="cc-bar">
+        <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+        <span class="cc-title">~/prophecy-demo</span>
+        <span class="mcp-pill off" id="mcpPill"><i class="dot"></i> MCP · prophecy</span>
+      </div>
+      <div class="chat" id="chat"></div>
+      <div class="prompt"><span>&gt;</span> <span id="promptGhost">Ask Claude to write code…</span></div>
+      <div class="status">
+        <span>claude-opus-4.6</span>
+        <span>folder <b>prophecy-demo</b></span>
+        <span id="stMcp">mcp <b>off</b></span>
+        <span>Ada’s Claude Code</span>
+      </div>
+    </section>
+
+    <aside class="ex" aria-label="What's happening">
+      <div class="kicker" id="kicker">Look over here</div>
+      <h2 id="title">You’re Ada. This is your Claude Code.</h2>
+      <p id="said">The left side is exactly what a programmer sees. The green pill at the top will turn on when Claude Code plugs into Prophecy. Press <b>Play</b> and we’ll go one beat at a time, in plain English.</p>
+      <div class="pipe" id="pipe" hidden></div>
+      <div class="cards">
+        <div class="card">
+          <div class="l">Tokens — the cost of reading</div>
+          <div class="v" id="tokSaved">$0.00 saved</div>
+          <div class="meter" id="tokMeter"><i></i></div>
+          <small id="tokBlurb">Nobody has asked Prophecy anything yet. Each agent that reads the repo by itself pays the full price.</small>
+        </div>
+        <div class="card">
+          <div class="l">Risk — would this break something?</div>
+          <div class="v" id="riskV">not scored yet</div>
+          <div class="thermo"><i id="riskBar"></i></div>
+          <small id="riskBlurb">Prophecy has not looked at Ada’s change yet.</small>
+        </div>
+        <div class="card">
+          <div class="l">Shared notes — what one agent told the next</div>
+          <div id="notes"><small>Nothing pinned on a file yet.</small></div>
+        </div>
+      </div>
+      <ul class="why" id="why"></ul>
+    </aside>
+  </div>
+  <div class="foot">A simulation. Prophecy is a local MCP server — Claude Code talks to it over stdio, on this machine. Nothing here is a live model call.</div>
+</div>
+
+<script>
+const PREFIX = 1067, ADA_TASK = 2136, GRACE_TASK = 1856, LINUS_TASK = 1863, BASELINE = 6725;
+
+const STEPS = [
+  {
+    kicker: "The plug",
+    title: "Claude Code is connected to Prophecy.",
+    said: "See the pill in the title bar? That is an <b>MCP connection</b>. MCP is just a plug. Claude Code can now ask Prophecy questions the same way it asks to read a file. The questions travel on a local wire called stdio. Nothing leaves this computer.",
+    mcp: true,
+    pipe: { dir: "Claude Code → Prophecy", text: 'initialize\n{ "clientInfo": { "name": "claude-code" } }' },
+    why: ["MCP = a plug so a coding agent can use extra tools.", "Prophecy is one of those tools, running on Ada’s laptop.", "The handshake is how Claude Code says “I’m Claude Code, Ada is using me.”"],
+  },
+  {
+    kicker: "Ada types",
+    title: "Ada asks her Claude to change signup.",
+    said: "This is the whole point of view: a real person, talking to Claude Code, in a real project. Claude does not dive into the files yet. Because Prophecy is plugged in, it can ask “what would this hit?” first.",
+    user: "Make email required during signup. Don’t break anyone else.",
+    prompt: "Make email required during signup. Don’t break anyone else.",
+    claude: "I’ll check with Prophecy before I edit. It can tell me who else is in this code, and what a change to the user would reach.",
+  },
+  {
+    kicker: "The first briefing",
+    title: "Claude pays once to learn the repo.",
+    said: "Prophecy sends back two piles of text. The first pile is a <b>map of the project</b> — 1,067 tokens. That map is the same for every agent on this commit, so it gets cached. Think of it as buying a street map. The second pile is Ada’s own job, which is unique, so it is not cached.",
+    tool: {
+      name: "prophecy — join_repo_session",
+      args: "agent: ada · task: Make email required",
+      result: "Map of prophecy-demo (1,067 tokens) — saved to cache.\nYour job sits after the map, so changing it is free for the cache.\nLikely files: app/models.py, api/signup.py\n15 other files import models.py.",
+    },
+    claude: "Prophecy says models.py is the center of this. Fifteen files import it. I’ll start there.",
+    pipe: { dir: "Claude Code → Prophecy", text: "tools/call  join_repo_session\n{ agent: \"ada\", task: \"Make email required\" }" },
+    pipe2: { dir: "Prophecy → Claude Code", text: "briefing\nprefix 1,067 tokens  (cache WRITE × 1.25)\ntask 2,136 tokens" },
+    tokens: { naive: BASELINE + ADA_TASK, billed: PREFIX * 1.25 + ADA_TASK, blurb: "Ada just paid to write the shared map into cache (a little extra the first time). The next agent will read that map at one tenth the price.", pct: 35 },
+    why: ["A token is a chunk of text the model is charged for.", "The shared map is identical for Ada, Grace, and Linus — so it belongs in the cache.", "Ada’s actual task is different, so it goes after the map, where it cannot spoil the cache."],
+  },
+  {
+    kicker: "A note on a file",
+    title: "Claude learns something, and hands it over.",
+    said: "Claude noticed that every caller of create_user skips email today. That took work to see. Instead of leaving it in this chat — where Grace will never find it — Claude tells Prophecy. Prophecy pins the note on <b>app/models.py</b>. The next agent that goes there gets it for free.",
+    tool: {
+      name: "prophecy — share_finding",
+      args: "file: app/models.py",
+      result: "Recorded. The next agent sent to this file is told.",
+    },
+    claude: "I’ll keep going, but Prophecy now knows: you cannot drop the email default without fixing every caller.",
+    pipe: { dir: "Claude Code → Prophecy", text: "tools/call  share_finding\n{ file: \"app/models.py\",\n  finding: \"every caller omits email today\" }" },
+    note: { who: "Ada’s Claude Code", file: "app/models.py", text: "Every caller of create_user omits email today. Dropping the default will break them." },
+    why: ["This is shared context. Not a group chat. A fact, stuck to a file.", "Grace will not re-do Ada’s reading. She will be handed the note.", "That is the second saving: tokens not spent re-discovering the same thing."],
+  },
+  {
+    kicker: "Someone else sits down",
+    title: "Grace’s Cursor just opened the same project.",
+    said: "Grace is a teammate. Her Cursor is a <b>different program</b>. It does not share memory with Ada’s Claude Code. The only thing they share is Prophecy, sitting on this machine, holding the map and the notes.",
+    other: "Grace’s Cursor connected to the same Prophecy (MCP, a second process).",
+    pipe: { dir: "Grace’s Cursor → Prophecy", text: "initialize  { clientInfo: { name: \"cursor\" } }\ntools/call  join_repo_session" },
+    pipe2: { dir: "Prophecy → Grace’s Cursor", text: "same map — CACHE HIT × 0.1\nnote from Ada already in the briefing" },
+    tokens: { naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK), billed: (PREFIX * 1.25 + ADA_TASK) + (PREFIX * 0.1 + GRACE_TASK), blurb: "Grace did not buy the map. She photocopied Ada’s, at 1/10th the price. She also got Ada’s note, so she did not spend tokens hunting for it.", pct: 62 },
+    why: ["Two coding agents. Two MCP plugs. One Prophecy.", "Cache hit = the bytes of the map matched, so the model was not charged full price again.", "Ada’s finding travelled with the briefing. That is context sharing."],
+  },
+  {
+    kicker: "Is anyone else here?",
+    title: "Claude asks mid-work, not only at the start.",
+    said: "This is why MCP beats a one-time cheat sheet. Grace sat down <b>after</b> Ada started. Ada’s Claude can ask again: “is anyone in my files right now?” Prophecy looks at live sessions, branches, and pull requests.",
+    tool: {
+      name: "prophecy — check_overlap",
+      args: "files: api/signup.py",
+      result: "Yes. Grace’s Cursor is redesigning signup.\nBoth of you reach create_user.",
+    },
+    claude: "Grace is in signup at the same time. I’ll get a proper risk score before I commit.",
+    pipe: { dir: "Claude Code → Prophecy", text: "tools/call  check_overlap\n{ agent: \"ada\", files: [\"api/signup.py\"] }" },
+    why: ["A CLI briefing is stale the moment a teammate joins.", "MCP lets Claude ask again, any time.", "Overlap here is not “same filename” only — both changes reach create_user."],
+  },
+  {
+    kicker: "How risk is scored",
+    title: "Prophecy does not look for bugs. It looks for blast radius.",
+    said: "Claude is about to commit. It asks <b>analyze_change</b>. Prophecy walks the real dependency graph: which files import this, which functions changed shape, who else is in flight. Then it gives a score with a range, not a yes/no.",
+    tool: {
+      name: "prophecy — analyze_change",
+      args: "head: agent-a/require-email",
+      result: "84 / 100  critical   (range 71–93, 78% sure)\nBlast radius: 15 files import models.py.\ncreate_user no longer accepts a missing email.\nHappening at the same time: Grace on signup.",
+    },
+    claude: "Eighty-four. That’s high because I’m changing a function fifteen files call, and Grace is rewriting the code that builds a user. I should not commit this as if I were alone.",
+    pipe: { dir: "Claude Code → Prophecy", text: "tools/call  analyze_change\n{ head: \"agent-a/require-email\",\n  intent: \"Make email required\" }" },
+    risk: { score: 84, band: "critical", blurb: "84 out of 100. High because a popular function is changing shape, and a teammate is in the same blast radius. This is not “Ada wrote a bug.” It is “this commit has consequences.”" },
+    why: [
+      "Score = how far the change reaches + whether someone else is in that reach.",
+      "Range (71–93) is honesty: Prophecy is not 100% sure, and it says so.",
+      "Together with Grace it would read even worse — one changing what is stored, the other changing who writes it.",
+    ],
+  },
+  {
+    kicker: "The warning, no click",
+    title: "The score was high enough. Prophecy warned Claude on its own.",
+    said: "Ada did not press a button. Nobody on a dashboard had to click “Send this to Ada’s Claude Code.” Eighty-four is past the line (high and critical). Prophecy dropped the same words into Ada’s inbox. They arrived on this call, at the top, under <b>For you, from your team</b>.",
+    inbox: { title: "For you, from your team", body: "Risk profile for require-email — 84/100 (critical).\n15 files import models.py. Combined with Grace’s Cursor: worse than either alone.\nSent automatically because the score was high enough." },
+    claude: "Got it — that’s the same score, sent as a warning so I can’t miss it. I’ll coordinate with Grace before this lands.",
+    pipe: { dir: "Prophecy → Claude Code", text: "## For you, from your team\n(queued automatically at 84/100)\n…then the answer to analyze_change" },
+    why: ["An agent cannot be poked. It only reads when it already asked something.", "So the warning rides along on the next MCP call.", "High and critical do not wait for a human to notice the red card."],
+  },
+  {
+    kicker: "Linus too",
+    title: "A third agent, same map, same notes.",
+    said: "Linus’s Codex joins. Third plug, same Prophecy. He also gets the cheap photocopy of the map, and Ada’s note on models.py. If every agent had read the repo from scratch, you would have paid three full readings. You paid one, plus each person’s own job.",
+    other: "Linus’s Codex joined. Cache hit. Ada’s note delivered.",
+    tokens: {
+      naive: (BASELINE + ADA_TASK) + (BASELINE + GRACE_TASK) + (BASELINE + LINUS_TASK),
+      billed: (PREFIX * 1.25 + ADA_TASK) + (PREFIX * 0.1 + GRACE_TASK) + (PREFIX * 0.1 + LINUS_TASK),
+      blurb: "Three agents. One paid map. Two cheap rereads. Notes passed along so nobody re-learns create_user. That is the token story.",
+      pct: 88,
+    },
+    why: ["Naive cost = every agent reads the whole project, every time.", "Actual cost = map once, then tiny cache reads, plus each task.", "The leftover is tokens you did not spend — the number on Prophecy’s Context tab."],
+  },
+  {
+    kicker: "What you saw",
+    title: "Three simple things.",
+    said: "Left side: a programmer’s Claude Code, talking to Prophecy through MCP like any other tool. Right side: what that was really doing. The map is paid once. Notes stick to files. Risk is “who else does this hit,” scored before a commit. When the score is high, the warning shows up in Claude by itself.",
+    claude: "I’ll wait for Grace before I commit the email change. Prophecy will keep watching this file.",
+    why: [
+      "MCP connection — Claude Code plugged into a local Prophecy process.",
+      "Tokens saved — shared map cached; later agents pay 1/10th; findings are not rediscovered.",
+      "Context shared — a note on a file, handed to the next agent that goes there.",
+      "Risk — blast radius + teammates in that radius, with a range, not a vibe.",
+    ],
+  },
+];
+
+let i = -1, playing = false, mcpOn = false;
+const notes = [];
+const $ = id => document.getElementById(id);
+
+function spark() {
+  return `<svg class="spark" viewBox="0 0 16 16" aria-hidden="true"><path fill="#D97757" d="M8 1.2 9.2 6 14 7.2 9.2 8.4 8 13.2 6.8 8.4 2 7.2 6.8 6z"/></svg>`;
+}
+
+function addUser(text) {
+  const el = document.createElement("div");
+  el.className = "turn user";
+  el.innerHTML = `<div class="who">Ada</div>${esc(text)}`;
+  $("chat").appendChild(el);
+}
+function addClaude(text) {
+  const el = document.createElement("div");
+  el.className = "turn asst";
+  el.innerHTML = `<div class="who">${spark()} Claude</div><p>${esc(text)}</p>`;
+  $("chat").appendChild(el);
+}
+function addTool(t) {
+  const el = document.createElement("div");
+  el.className = "turn asst";
+  el.innerHTML = `<div class="tool live"><div class="head">⏺ <b>${esc(t.name)}</b></div>
+    <div class="body">${esc(t.args)}\n\n${esc(t.result)}</div></div>`;
+  $("chat").appendChild(el);
+}
+function addInbox(m) {
+  const el = document.createElement("div");
+  el.className = "turn asst";
+  el.innerHTML = `<div class="inbox"><div class="tag">${esc(m.title)}</div>${esc(m.body)}</div>`;
+  $("chat").appendChild(el);
+}
+function addOther(text) {
+  const el = document.createElement("div");
+  el.className = "turn asst";
+  el.innerHTML = `<div class="who" style="color:var(--cc-dim)">system</div>
+    <p style="color:var(--cc-dim)">${esc(text)}</p>`;
+  $("chat").appendChild(el);
+}
+function esc(s) {
+  return String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+}
+
+function setMcp(on) {
+  mcpOn = on;
+  $("mcpPill").classList.toggle("off", !on);
+  $("stMcp").innerHTML = on ? 'mcp <b>prophecy</b>' : 'mcp <b>off</b>';
+}
+
+function money(n) { return "$" + n.toFixed(2); }
+function dollars(tokens) { return tokens / 1e6 * 5; }
+
+function apply(step) {
+  $("kicker").textContent = step.kicker;
+  $("title").textContent = step.title;
+  $("said").innerHTML = step.said;
+  if (step.mcp) setMcp(true);
+  if (step.user) { addUser(step.user); $("promptGhost").textContent = ""; }
+  if (step.other) addOther(step.other);
+  if (step.tool) addTool(step.tool);
+  if (step.inbox) addInbox(step.inbox);
+  if (step.claude) addClaude(step.claude);
+  $("chat").scrollTop = $("chat").scrollHeight;
+
+  const pipe = $("pipe");
+  if (step.pipe) {
+    pipe.hidden = false;
+    pipe.className = "pipe";
+    pipe.innerHTML = `<div class="dir">${step.pipe.dir}</div>${esc(step.pipe.text)}`
+      + (step.pipe2 ? `<div class="dir" style="margin-top:10px;color:var(--pr-accent)">${step.pipe2.dir}</div>${esc(step.pipe2.text)}` : "");
+  }
+
+  if (step.tokens) {
+    const saved = step.tokens.naive - step.tokens.billed;
+    $("tokSaved").textContent = money(dollars(saved)) + " saved";
+    $("tokBlurb").textContent = step.tokens.blurb
+      + `  (${Math.round(step.tokens.naive).toLocaleString()} tokens if each agent read the repo · ${Math.round(step.tokens.billed).toLocaleString()} actually billed)`;
+    $("tokMeter").querySelector("i").style.width = step.tokens.pct + "%";
+  }
+  if (step.risk) {
+    $("riskV").textContent = step.risk.score + " / 100  " + step.risk.band;
+    $("riskBar").style.width = step.risk.score + "%";
+    $("riskBlurb").textContent = step.risk.blurb;
+  }
+  if (step.note) {
+    notes.push(step.note);
+    $("notes").innerHTML = notes.map(n =>
+      `<div class="note"><em>${esc(n.who)} → ${esc(n.file)}</em><br>${esc(n.text)}</div>`).join("");
+  }
+  $("why").innerHTML = (step.why || []).map(w => `<li>${w}</li>`).join("");
+  $("stepN").textContent = `${i + 1} / ${STEPS.length}`;
+}
+
+function reset() {
+  i = -1; playing = false; notes.length = 0; setMcp(false);
+  $("chat").innerHTML = "";
+  $("promptGhost").textContent = "Ask Claude to write code…";
+  $("pipe").hidden = true;
+  $("tokSaved").textContent = "$0.00 saved";
+  $("tokBlurb").textContent = "Nobody has asked Prophecy anything yet.";
+  $("tokMeter").querySelector("i").style.width = "0";
+  $("riskV").textContent = "not scored yet";
+  $("riskBar").style.width = "0";
+  $("riskBlurb").textContent = "Prophecy has not looked at Ada’s change yet.";
+  $("notes").innerHTML = "<small>Nothing pinned on a file yet.</small>";
+  $("why").innerHTML = "";
+  $("kicker").textContent = "Look over here";
+  $("title").textContent = "You’re Ada. This is your Claude Code.";
+  $("said").innerHTML = "The left side is exactly what a programmer sees. The green pill at the top will turn on when Claude Code plugs into Prophecy. Press <b>Play</b> and we’ll go one beat at a time, in plain English.";
+  $("stepN").textContent = `0 / ${STEPS.length}`;
+  $("play").textContent = "Play";
+}
+
+function next() {
+  if (i >= STEPS.length - 1) { playing = false; $("play").textContent = "Play"; return false; }
+  i += 1; apply(STEPS[i]); return true;
+}
+
+$("next").onclick = () => { playing = false; $("play").textContent = "Play"; next(); };
+$("back").onclick = () => {
+  playing = false; $("play").textContent = "Play";
+  const t = i - 1; reset();
+  for (let k = 0; k <= t; k++) { i = k; apply(STEPS[k]); }
+};
+$("reset").onclick = reset;
+$("play").onclick = () => {
+  if (playing) { playing = false; $("play").textContent = "Play"; return; }
+  playing = true; $("play").textContent = "Pause";
+  if (i < 0) next();
+  const tick = () => { if (!playing) return; if (!next()) return; setTimeout(tick, 3200); };
+  setTimeout(tick, 3200);
+};
+document.addEventListener("keydown", e => {
+  if (/input|textarea/i.test((e.target || {}).tagName || "")) return;
+  if (e.key === " " || e.key === "ArrowRight") { e.preventDefault(); playing = false; $("play").textContent = "Play"; next(); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); $("back").click(); }
+});
+$("stepN").textContent = `0 / ${STEPS.length}`;
+</script>
+</textarea>
+
+    <div class="mcp-band">
+      <div><i>01</i><b>The agent asks first</b>
+        <p>Before it commits, a coding agent calls Prophecy over MCP: what does
+          this change reach, and who else is in here right now?</p></div>
+      <div><i>02</i><b>It gets consequences, not a lint</b>
+        <p>A score with its range and confidence, the callers that would break,
+          and the other work in flight it is about to run into — read off this
+          project's real dependency graph.</p></div>
+      <div><i>03</i><b>You answer its agent</b>
+        <p>Send the risk profile of somebody's change straight to the agent
+          writing it. It arrives on that agent's next call, in the same words
+          Prophecy would have given it.</p></div>
+    </div>
+
+    <div class="card" id="mcpConnect" style="margin-top:28px">
+      <h3>Connect your agents
+        <span class="state todo" id="mcpState">no agents yet</span></h3>
+      <div class="body">
+        <p>Paste one block of settings into your coding agent. After that,
+          every agent that opens this project checks in on its own.</p>
+        <p class="story">An agent writing code here does not have to guess who
+          else is in the codebase — it asks, over MCP, and gets an answer built
+          from this project's real dependency graph. And it works both ways:
+          when you send an agent the risk profile of what it is doing, that
+          reading is waiting for it the next time it asks anything.</p>
+        <div class="mcp-loop">
+          <div><b>The agent asks</b>
+            <ul>
+              <li><code>join_repo_session</code> — who else is here, and what
+                they have already worked out</li>
+              <li><code>analyze_change</code> — what this change would break,
+                before committing it</li>
+              <li><code>check_overlap</code> — whether these files are
+                somebody else's files too</li>
+              <li><code>get_change_interactions</code> — what this change
+                looks like next to everything else in flight</li>
+              <li><code>share_finding</code> — hands something back for the
+                next agent that goes there</li>
+            </ul></div>
+          <div><b>Prophecy answers</b>
+            <ul>
+              <li>a risk score with its range and confidence, not a verdict</li>
+              <li>the files and callers that would actually be hit</li>
+              <li>the other work it is about to collide with, by name</li>
+              <li>anything you sent from
+                <button class="chip" data-tab-jump="changes">Risk</button>,
+                delivered on the agent's next call</li>
+            </ul></div>
+        </div>
+        <p style="margin-top:14px">
+          <button class="btn small" data-copy="mcp">Copy the settings</button>
+          <span class="hint" id="agentSeen" style="margin-left:12px"></span></p>
+        <details style="margin-top:14px">
+          <summary>Show what gets pasted</summary>
+          <pre id="mcpConfig" class="empty">—</pre>
+          <p class="hint">Eight tools in total, including
+            <code>get_repository_risk</code>,
+            <code>get_dependency_context</code> and
+            <code>leave_repo_session</code>. Nothing leaves this machine:
+            the agent talks to a local process reading a local repository.</p>
+        </details>
       </div>
     </div>
   </section>
@@ -1185,15 +1652,30 @@ const showBanner = m => {
 const hideBanner = () => { $('#banner').hidden = true; };
 
 /* ── tabs ─────────────────────────────────────────────────── */
-document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+function selectTab(tab) {
   document.querySelectorAll('nav button').forEach(x =>
-    x.setAttribute('aria-selected', String(x === b)));
+    x.setAttribute('aria-selected', String(x.dataset.tab === tab)));
   document.querySelectorAll('main section').forEach(s =>
-    s.hidden = s.id !== b.dataset.tab);
+    s.hidden = s.id !== tab);
+  const main = document.querySelector('main');
+  if (main) main.classList.toggle('wide', tab === 'mcp');
+  if (tab === 'mcp') {
+    const frame = $('#mcpDemo');
+    const src = $('#mcpDemoSrc');
+    if (frame && !frame.dataset.loaded) {
+      frame.dataset.loaded = '1';
+      if (src) frame.srcdoc = src.value;
+    }
+  }
+}
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  selectTab(b.dataset.tab);
   if (b.dataset.tab === 'history') { loadInsights(); loadRecord(); }
   if (b.dataset.tab === 'team') { loadLive(); loadPlan(false); loadRoster(); }
   if (b.dataset.tab === 'context') { loadUsage(); loadSharing(); }
   if (b.dataset.tab === 'setup') loadSetup();
+  if (b.dataset.tab === 'mcp' && REPO) loadSetup();
   if (b.dataset.tab === 'changes') { loadRisk(); checkGitHub(); loadAgentLoop(); }
 });
 
@@ -1290,17 +1772,16 @@ function setProjectState(connected) {
     const gh = $('#github-body');
     if (gh) gh.innerHTML = '<p>Pick a project above, or start a fresh one '
       + 'below, and this fills in.</p>';
-    ['state1', 'state2', 'state3'].forEach(id => {
+    ['state1', 'state2', 'mcpState'].forEach(id => {
       const el = $('#' + id);
       if (el) { el.textContent = 'waiting for a project';
                 el.className = 'state todo'; }
     });
-    ['step1', 'step2', 'step3'].forEach(id => {
+    ['step1', 'step2'].forEach(id => {
       const el = $('#' + id);
       if (el) el.classList.remove('done');
     });
-    document.querySelectorAll('main section').forEach(x =>
-      x.hidden = x.id !== 'setup');
+    selectTab('setup');
     const strip = $('#pulseStrip');
     if (strip) strip.hidden = true;
   }
@@ -1814,20 +2295,18 @@ function playStage() {
 playStage();
 
 /* ── setup, which comes before anything else ─────────────────
-   GitHub first because it is the one that needs something outside this app,
-   agents second because they are what makes the rest work. */
+   GitHub first because it is the one that needs something outside this app.
+   Agents live on the MCP tab. */
 function showApp(open) {
   // nothing but Home is meaningful without a project to look at
   if (open && !REPO) { openPicker(); return; }
   $('#tabs').hidden = !open;
-  $('#setup').hidden = open;
   if (open) {
-    document.querySelectorAll('nav button').forEach(x =>
-      x.setAttribute('aria-selected', String(x.dataset.tab === 'changes')));
-    document.querySelectorAll('main section').forEach(s =>
-      s.hidden = s.id !== 'changes');
+    selectTab('changes');
     loadRisk(); checkGitHub(); loadAgentLoop();
     loadLive(); loadPlan(false); loadRoster();
+  } else {
+    selectTab('setup');
   }
 }
 
@@ -1882,12 +2361,7 @@ function loadPulse() {
 function loadSetup() {
   if (!REPO) { setProjectState(false); return; }
   loadPulse();
-  $('#setup').hidden = false;
   $('#tabs').hidden = false;
-  document.querySelectorAll('main section').forEach(s => s.hidden = s.id !== 'setup');
-  // this is Home, so the nav has to say so rather than keep the last tab lit
-  document.querySelectorAll('nav button').forEach(x =>
-    x.setAttribute('aria-selected', String(x.dataset.tab === 'setup')));
   api('setup').then(d => {
     const gh = $('#github-body');
     if (d.github) {
@@ -1916,24 +2390,28 @@ function loadSetup() {
         <p class="hint">Or start a fresh project below and it is done for you.</p>`;
     }
 
+    const mcp = $('#mcpState');
+    const seen = $('#agentSeen');
     if (d.agents) {
-      $('#step2').classList.add('done');
-      $('#state2').textContent = d.live ? `${d.live} working now` : 'connected';
-      $('#state2').className = 'state ok';
-      $('#agentSeen').textContent = d.live
+      if (mcp) {
+        mcp.textContent = d.live ? `${d.live} working now` : 'connected';
+        mcp.className = 'state ok';
+      }
+      if (seen) seen.textContent = d.live
         ? `${d.live} agent${d.live === 1 ? '' : 's'} in the project right now.`
         : 'Agents have connected here before.';
     } else {
-      $('#step2').classList.remove('done');
-      $('#state2').textContent = 'no agents yet';
-      $('#state2').className = 'state todo';
-      $('#agentSeen').textContent = 'Nothing has checked in yet.';
+      if (mcp) {
+        mcp.textContent = 'no agents yet';
+        mcp.className = 'state todo';
+      }
+      if (seen) seen.textContent = 'Nothing has checked in yet.';
     }
 
-    $('#step3').classList.toggle('done', d.people > 0);
-    $('#state3').textContent = d.people
+    $('#step2').classList.toggle('done', d.people > 0);
+    $('#state2').textContent = d.people
       ? `${d.people} on the project` : 'optional';
-    $('#state3').className = d.people ? 'state ok' : 'state todo';
+    $('#state2').className = d.people ? 'state ok' : 'state todo';
     loadPeople();
   }).catch(() => {
     $('#github-body').innerHTML = '<p class="empty">Pick a project first.</p>';
@@ -3364,9 +3842,9 @@ function loadLive() {
         <td>${esc(x.task || '\u2014')}</td>
         <td class="dim">${esc((x.joined_at || '').slice(5))}</td></tr>`).join('')}
       </tbody></table>`
-      : `<p class="empty">Nobody is connected yet. Once you paste the settings
-         below into a coding agent, anyone working on this project shows up
-         here with what they are doing.</p>`)
+      : `<p class="empty">Nobody is connected yet. Paste the settings on the
+         <button class="chip" data-tab-jump="mcp">MCP</button> tab into a coding
+         agent, and anyone working on this project shows up here.</p>`)
       + (events.length ? `<h4 class="hint" style="font-weight:600;color:var(--text-2)" style="margin:18px 0 8px">feed</h4>
         <div class="feed">${events.map(e => `<div class="feed-row ${esc(e.kind)}">
           <span class="mark">${FEED_ICON[e.kind] || '\u00B7'}</span>
@@ -3611,21 +4089,39 @@ function loadAgentLoop() {
           <span class="when dim">${esc((e.at || '').slice(11, 16))}</span>
         </div>`).join('')}</div>` : ''}
       ${live.length || events.length ? '' : `<p class="hint" style="margin-top:14px">
-        Nothing has connected yet. The settings block on
-        <button class="chip" data-tab-jump="setup">Home</button> is the whole
-        setup — paste it into a coding agent and it checks in on its own.</p>`}`;
+        Nothing has connected yet. Paste the settings on the
+        <button class="chip" data-tab-jump="mcp">MCP</button> tab into a coding
+        agent and it checks in on its own.</p>`}`;
   }).catch(() => {
     out.innerHTML = '<p class="empty">No agent activity for this project yet.</p>';
   });
 }
 
 document.addEventListener('click', e => {
+  const copy = e.target.closest('[data-copy]');
+  if (copy) {
+    const key = copy.dataset.copy;
+    const text = key === 'mcp' ? window.__mcp
+      : key === 'prefix' ? ($('#briefPrefix') && $('#briefPrefix').textContent)
+      : '';
+    if (text && text !== '—') {
+      navigator.clipboard.writeText(text).then(() => {
+        const was = copy.textContent;
+        copy.textContent = 'Copied';
+        setTimeout(() => { copy.textContent = was; }, 1400);
+      });
+    }
+    return;
+  }
   const jump = e.target.closest('[data-tab-jump]');
   if (jump) {
     const tab = jump.dataset.tabJump;
     if (tab === 'setup') { showApp(false); loadSetup(); return; }
     const btn = document.querySelector(`nav button[data-tab="${tab}"]`);
-    if (btn) btn.click();
+    if (btn) {
+      $('#tabs').hidden = false;
+      btn.click();
+    }
   }
 });
 $('#refreshLoop').onclick = loadAgentLoop;

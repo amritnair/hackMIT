@@ -18,6 +18,7 @@ from .scan import scan
 
 PAGE = Path(__file__).parent / "dashboard.html"
 LOGO = Path(__file__).parent / "logo.png"
+DEMO = Path(__file__).parent / "mcp-demo.html"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -34,6 +35,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, "text/html", PAGE.read_bytes())
         if url.path == "/logo.png":
             return self._send(200, "image/png", LOGO.read_bytes())
+        if url.path == "/mcp-demo.html":
+            return self._send(200, "text/html", DEMO.read_bytes())
         if not url.path.startswith("/api/"):
             return self._send(404, "text/plain", b"not found")
 

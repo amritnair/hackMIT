@@ -14,6 +14,7 @@ from .demo import build as build_demo, seed as seed_demo
 from .history import commits, preview_restore, restore
 from .risk_engine import (analyze_change, interactions,
                           repository_risk)
+from .mcp import queue_risk_warning
 from .work import in_flight
 from .backfill import replay, report
 from .branches import as_forecast, branches
@@ -763,6 +764,8 @@ def cmd_risk(repo, args, db):
     overall = repository_risk(analyses, found)
     for a in analyses:
         store.save_verdict(db, repo["sha"], a)
+        mine = [i for i in found if a["label"] in i["between"]]
+        a["auto_warned"] = bool(queue_risk_warning(db, repo, a, mine))
 
     if not args.json:
         print(f"repository risk {overall['score']}/100 — {overall['band'].upper()}")
