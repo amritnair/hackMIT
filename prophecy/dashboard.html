@@ -452,16 +452,13 @@
           <button class="btn" id="pickProject" hidden>Choose a project</button>
           <button class="btn secondary" id="trySample" hidden>Try the demo
             project</button>
-          <a class="btn secondary small" style="text-decoration:none"
-             href="https://github.com/amritnair/hackMIT" target="_blank" rel="noopener">
-            amritnair/hackMIT</a>
         </div>
       </div>
       <div class="branch-viz">
         <svg id="stage" viewBox="0 0 380 240" fill="none"
              role="img" aria-label="Three concurrent changes meeting at one field"></svg>
         <div class="branch-caption" id="stageCaption">
-          <span>Three people, three reasonable changes.</span>
+          <span>Three people change the same project in the same week.</span>
         </div>
       </div>
     </div>
@@ -529,7 +526,6 @@
           <input class="field" id="newPath" style="flex:2 1 250px"
                  placeholder="~/code/my-project">
           <input class="field" id="newGithub" style="flex:1 1 170px"
-                 value="amritnair/hackMIT"
                  placeholder="owner/name on GitHub (optional)">
           <button class="btn small secondary" id="createRepo">Create</button>
         </div>
@@ -807,15 +803,14 @@ const esc = s => String(s).replace(/[<>&"]/g, c =>
   ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const base = n => n.split('/').pop();
 
-let REPO = new URLSearchParams(location.search).get('repo')
-  || localStorage.getItem('prophecy.repo')
-  || localStorage.getItem('prophecy.repo') || '';
+/* A project is only ever opened because somebody asked for it in this visit —
+   from the URL, the picker, or the demo button. What was open last time is
+   remembered as a suggestion in the switcher, never reopened on its own. */
+let REPO = new URLSearchParams(location.search).get('repo') || '';
 let CONTESTED = new Set();
 
 function lsGet(key, fallback = null) {
-  return localStorage.getItem('prophecy.' + key)
-    || localStorage.getItem('prophecy.' + key)
-    || fallback;
+  return localStorage.getItem('prophecy.' + key) || fallback;
 }
 function lsSet(key, value) {
   try { localStorage.setItem('prophecy.' + key, value); } catch {}
@@ -829,8 +824,8 @@ function api(cmd, params = {}) {
   const quiet = cmd === 'pr' || cmd === 'sample';
   return fetch(`/api/${cmd}?${q}`).then(r => r.json()).then(d => {
     if (d && d.error) {
-      // a project with no GitHub remote is an ordinary state; the card that
-      // asked already explains it
+      // A project with no GitHub remote is an ordinary state that the card
+      // which asked already explains, so polling endpoints stay silent.
       if (!quiet) showBanner(d.error);
       throw new Error(d.error);
     }
@@ -838,7 +833,19 @@ function api(cmd, params = {}) {
     return d;
   });
 }
-const showBanner = m => { $('#banner').textContent = m; $('#banner').hidden = false; };
+
+/* Nothing that reads as a crash ever reaches the banner. "see server log" is a
+   note to whoever is running the process, not something a person using the
+   page can act on, so it goes to the console and the banner stays down —
+   enforced here rather than at each call site, because every earlier flash
+   came from a call site that forgot. */
+const INTERNAL = /server log|traceback|\binternal\b|\bexception\b/i;
+const showBanner = m => {
+  const text = String(m ?? '').trim();
+  if (!text || INTERNAL.test(text)) { console.warn('prophecy:', text); return; }
+  $('#banner').textContent = text;
+  $('#banner').hidden = false;
+};
 const hideBanner = () => { $('#banner').hidden = true; };
 
 /* ── tabs ─────────────────────────────────────────────────── */
@@ -892,7 +899,6 @@ function openRepo(path) {
   $('#repoName').textContent = base(REPO);
   setProjectState(true);
   loadSetup();
-  lsSet('repo', REPO);
   remember(REPO);
   fillRepoList();
   loadRepo();
@@ -992,33 +998,47 @@ setProjectState(false);
    changes that each look fine, converging on one stored field, and the
    number that only appears once you look at them together. */
 const CAST = [
-  { who: 'ada', what: 'make email required', y: 42, score: 83, hot: true },
-  { who: 'grace', what: 'redesign signup', y: 112, score: 13, hot: false },
-  { who: 'linus', what: 'tidy the user table', y: 182, score: 9, hot: false },
+  { who: 'Ada', what: 'make email required', y: 42, score: 83, hot: true },
+  { who: 'Grace', what: 'redesign signup', y: 112, score: 13, hot: false },
+  { who: 'Linus', what: 'tidy the user table', y: 182, score: 9, hot: false },
 ];
 const AGENTS = [
-  { who: 'ada', x: 58, y: 54 },
-  { who: 'grace', x: 58, y: 186 },
-  { who: 'linus', x: 300, y: 186 },
+  { who: 'Ada', x: 58, y: 54 },
+  { who: 'Grace', x: 58, y: 186 },
+  { who: 'Linus', x: 300, y: 186 },
 ];
+// One sentence per beat, written to be read in the time the beat is on screen.
 const SCENE2 = [
-  'ada, grace and linus each point an agent at the same repository.',
-  'Alone, all three read the same codebase from scratch — and ada and '
-    + 'grace work out the same thing about models.py twice.',
-  'Through Prophecy they share one background, sent once and cached.',
-  'ada works it out; linus is handed it before he starts. Nobody paid to '
-    + 'learn it twice.',
+  'Ada, Grace and Linus each point an agent at the same project.',
+  'Alone, every agent reads the whole codebase, and two of them work out the '
+    + 'same thing about models.py.',
+  'With Prophecy they share one briefing instead, sent once and cached.',
+  'So when Ada\u2019s agent works something out, Linus\u2019s agent is told '
+    + 'before it starts.',
 ];
 
 const BEATS = [
-  'Three people. Three reasonable changes.',
-  'Each one looks harmless on its own.',
-  'None of them touch the same file — but all three reach users.email.',
-  'Together: 97, critical. You would have found this in production.',
+  'Three people change the same project in the same week.',
+  'Reviewed one at a time, every change looks safe.',
+  'No two of them touch the same file, yet all three reach users.email.',
+  'Together they score as critical \u2014 the kind of thing you normally find '
+    + 'in production.',
 ];
 
 const ease = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 const out = (x) => 1 - Math.pow(1 - x, 3);
+
+/* One caption writer for all three scenes, so a beat never swaps text without
+   the fade that tells you it changed. */
+function sayCaption(text) {
+  const caption = document.getElementById('stageCaption');
+  if (!caption) return;
+  caption.innerHTML = `<span>${text}</span>`;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  caption.firstChild.animate(
+    [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1 }],
+    { duration: 520, easing: 'ease-out' });
+}
 
 function buildStage() {
   const svg = document.getElementById('stage');
@@ -1139,13 +1159,12 @@ function buildCrew() {
 
 function playCrew(done) {
   const el = buildCrew();
-  const caption = document.getElementById('stageCaption');
   if (!el) { done(); return; }
   el.svg.style.opacity = '0';
-  const say = (i) => { caption.innerHTML = `<span>${SCENE2[i]}</span>`; };
+  const say = (i) => sayCaption(SCENE2[i]);
   // longer than scene one: this story has more to take in per beat, and the
   // handoff at the end is the whole point of it
-  const PH = [2000, 2600, 2300, 3400, 700];
+  const PH = [3500, 5400, 3600, 4900, 1000];
   let phase = 0, t0 = performance.now(), shown = -1;
 
   const frame = (now) => {
@@ -1189,7 +1208,7 @@ function playCrew(done) {
     if (phase === 4) el.svg.style.opacity = (1 - ease(p)).toFixed(3);
 
     if (p >= 1) {
-      const hold = phase === 3 ? 1800 : phase === 4 ? 0 : 420;
+      const hold = phase === 3 ? 2600 : phase === 4 ? 0 : 620;
       if (now - t0 > PH[phase] + hold) {
         phase += 1; t0 = now;
         if (phase >= PH.length) { setTimeout(done, 260); return; }
@@ -1293,24 +1312,27 @@ function buildImpact() {
 
 function playImpact(done) {
   const el = buildImpact();
-  const caption = document.getElementById('stageCaption');
   if (!el) { done(); return; }
   el.svg.style.opacity = '0';
-  caption.innerHTML = '<span>What that is worth across a team, before any of '
-    + 'it reaches production.</span>';
-  const SPAN = 3600, FADE = 700;
+  sayCaption('What that is worth across a team, before any of it reaches '
+    + 'production.');
+  // the cards land over SPAN, sit still for HOLD so the figures can be read,
+  // then fade from full — starting the fade clock before the hold is over is
+  // what made this scene snap dark mid-sentence
+  const SPAN = 5200, HOLD = 3200, FADE = 950;
   const t0 = performance.now();
   const frame = (now) => {
-    const p = Math.min(1, (now - t0) / SPAN);
-    el.svg.style.opacity = Math.min(1, (now - t0) / 520).toFixed(3);
+    const elapsed = now - t0;
+    const p = Math.min(1, elapsed / SPAN);
+    el.svg.style.opacity = Math.min(1, elapsed / 520).toFixed(3);
     el.figs.forEach((g, i) => {
       const local = Math.max(0, Math.min(1, (p * 1.5 - i * 0.16) / 0.5));
       g.setAttribute('opacity', out(local));
       g.setAttribute('transform',
         `translate(0 ${(8 * (1 - out(local))).toFixed(2)})`);
     });
-    if (now - t0 > SPAN + 1900) {
-      const k = Math.min(1, (now - t0 - SPAN - 1900) / FADE);
+    if (elapsed > SPAN + HOLD) {
+      const k = Math.min(1, (elapsed - SPAN - HOLD) / FADE);
       el.svg.style.opacity = (1 - ease(k)).toFixed(3);
       if (k >= 1) { setTimeout(done, 240); return; }
     }
@@ -1341,15 +1363,9 @@ function loadImpact() {
 
 function playStage() {
   const el = buildStage();
-  const caption = document.getElementById('stageCaption');
-  if (!el || !caption) return;
+  if (!el) return;
   el.svg.style.opacity = '0';
-  const say = (i) => {
-    caption.innerHTML = `<span>${BEATS[i]}</span>`;
-    caption.firstChild.animate(
-      [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1 }],
-      { duration: 420, easing: 'ease-out' });
-  };
+  const say = (i) => sayCaption(BEATS[i]);
 
   const settle = () => {
     el.rows.forEach(r => { r.setAttribute('opacity', 1);
@@ -1372,7 +1388,8 @@ function playStage() {
   // one timeline, four beats, each phase eased rather than snapped
   // the last phase is a fade, so the loop does not snap back to an empty
   // frame — which reads as the page breaking rather than the story repeating
-  const PHASES = [1500, 1200, 2000, 2600, 600];
+  // each beat is at least as long as its caption takes to read
+  const PHASES = [3050, 2800, 4100, 4300, 1000];
   let phase = 0, t0 = performance.now(), shown = -1;
 
   const frame = (now) => {
@@ -1431,7 +1448,7 @@ function playStage() {
     }
 
     if (p >= 1) {
-      const hold = phase === 3 ? 1700 : phase === 4 ? 0 : 180;
+      const hold = phase === 3 ? 2500 : phase === 4 ? 0 : 440;
       if (now - t0 > span + hold) {
         if (phase === PHASES.length - 1) {
           // hand over to the other story rather than looping one forever
@@ -1554,7 +1571,7 @@ function loadSetup() {
         'This project is not connected to GitHub yet.')}</p>
         <table style="margin-top:12px"><tbody>
         <tr><td>Point it at GitHub</td><td class="dim mono">git remote add origin
-          git@github.com:amritnair/hackMIT.git</td></tr>
+          git@github.com:you/repo.git</td></tr>
         <tr><td>Sign in to the GitHub CLI</td><td class="dim mono">brew install gh
           &amp;&amp; gh auth login</td></tr></tbody></table>
         <p class="hint">Or start a fresh project below and it is done for you.</p>`;

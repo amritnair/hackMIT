@@ -39,8 +39,12 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._call(url.path[5:], query)
         except Exception:
             traceback.print_exc()
-            return self._send(500, "application/json",
-                              json.dumps({"error": "see server log"}).encode())
+            # the page never shows this; it is for whoever is running it
+            return self._send(500, "application/json", json.dumps({
+                "error": "internal",
+                "detail": "prophecy hit an error handling that request; "
+                          "the traceback is in the terminal running it",
+            }).encode())
         return self._send(200, "application/json",
                           json.dumps(payload, default=str).encode())
 
