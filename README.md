@@ -13,15 +13,23 @@ before it commits.
 
 ## live demo
 
-Public dashboard (HackMIT judging tunnel; laptop must be awake):
+**https://amritnair.github.io/hackMIT/**
 
-- Dashboard: https://tablets-hide-matter-putting.trycloudflare.com/
-- MCP: https://tablets-hide-matter-putting.trycloudflare.com/mcp
+That address is permanent and forwards to whichever machine is serving the
+demo. The engine shells out to git against a real checkout, so there is
+always a machine behind it rather than a static host; if the page says the
+demo is asleep, that laptop is closed.
+
+- Dashboard, direct: https://seasons-avenue-vanilla-matrix.trycloudflare.com/
+- MCP endpoint: https://seasons-avenue-vanilla-matrix.trycloudflare.com/mcp
 - Demo app on GitHub: https://github.com/amritnair/prophecy-demo
 
 ```
-claude mcp add --transport http prophecy https://tablets-hide-matter-putting.trycloudflare.com/mcp
+claude mcp add --transport http prophecy https://seasons-avenue-vanilla-matrix.trycloudflare.com/mcp
 ```
+
+MCP is a POST endpoint, so it takes the direct address rather than the
+forwarding one.
 
 ```
 $ prophecy risk
