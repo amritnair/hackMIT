@@ -15,12 +15,12 @@ before it commits.
 
 Public dashboard (HackMIT judging tunnel; laptop must be awake):
 
-- Dashboard: https://bay-way-driving-unlock.trycloudflare.com/
-- MCP: https://bay-way-driving-unlock.trycloudflare.com/mcp
+- Dashboard: https://tablets-hide-matter-putting.trycloudflare.com/
+- MCP: https://tablets-hide-matter-putting.trycloudflare.com/mcp
 - Demo app on GitHub: https://github.com/amritnair/prophecy-demo
 
 ```
-claude mcp add --transport http prophecy https://bay-way-driving-unlock.trycloudflare.com/mcp
+claude mcp add --transport http prophecy https://tablets-hide-matter-putting.trycloudflare.com/mcp
 ```
 
 ```
