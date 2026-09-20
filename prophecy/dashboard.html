@@ -74,6 +74,7 @@
   section[hidden], [hidden] { display: none; }
 
   .btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    white-space: nowrap;
     font: 500 14px/1 var(--ui); padding: 12px 22px; border-radius: 999px;
     border: 1px solid transparent;
     /* the gradient is painted to the border box but positioned to the padding
@@ -92,6 +93,10 @@
   .btn.small { font-size: 13px; padding: 8px 16px; }
 
   .hero { padding: 72px 0 26px; position: relative; }
+  .hero-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+    margin-top: 24px;
+  }
   /* a slow drift behind the hero, so the page is not dead on arrival */
   .hero::before {
     content: ""; position: absolute; inset: -80px -120px 0;
@@ -221,12 +226,12 @@
   .state.todo { color: var(--text-3); }
 
   .card { background: var(--card); border: 1px solid var(--line);
-    border-radius: 16px; margin: 14px 0; overflow: hidden; }
+    border-radius: 16px; margin: 20px 0; overflow: hidden; }
   .card > h3 { font: 600 14px/1 var(--ui); letter-spacing: -.01em;
-    color: var(--text); margin: 0; padding: 16px 20px;
+    color: var(--text); margin: 0; padding: 18px 24px;
     border-bottom: 1px solid var(--line); display: flex; gap: 12px;
     align-items: center; justify-content: space-between; }
-  .card .body { padding: 18px 20px; }
+  .card .body { padding: 24px; }
   .card .body.flush { padding: 0; }
   .hint { color: var(--text-3); font-size: 13.5px; margin: 10px 0 0; }
   .hint:first-child { margin-top: 0; }
@@ -263,7 +268,7 @@
 
   .risk { border-top: 1px solid var(--line); }
   .risk:first-child { border-top: 0; }
-  .risk > summary { padding: 14px 20px; cursor: pointer; display: grid;
+  .risk > summary { padding: 17px 24px; cursor: pointer; display: grid;
     gap: 3px 14px; grid-template-columns: 3px 1fr auto; align-items: baseline;
     list-style: none; }
   .risk > summary::-webkit-details-marker { display: none; }
@@ -277,7 +282,7 @@
   .risk.medium .headline b { color: var(--warn); }
   .risk .meta { font: 12px/1 var(--mono); color: var(--text-3); white-space: nowrap; }
   .risk .between { grid-column: 2; font-size: 13.5px; color: var(--text-2); }
-  .risk .detail { padding: 0 20px 16px 37px; }
+  .risk .detail { padding: 0 24px 20px 41px; }
   .risk ul { margin: 0 0 12px; padding-left: 16px; }
   .risk li { font: 12.5px/1.65 var(--mono); color: var(--text-2); }
   .risk .rec { border-left: 2px solid var(--accent); padding: 5px 0 5px 12px;
@@ -290,8 +295,8 @@
 
   table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
   th { font: 500 12px/1 var(--ui); color: var(--text-3); text-align: left;
-    padding: 0 14px 9px 0; border-bottom: 1px solid var(--line); font-weight: 500; }
-  td { padding: 9px 14px 9px 0; border-bottom: 1px solid var(--line);
+    padding: 0 18px 12px 0; border-bottom: 1px solid var(--line); font-weight: 500; }
+  td { padding: 13px 18px 13px 0; border-bottom: 1px solid var(--line);
     vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
   td.num { text-align: right; font-variant-numeric: tabular-nums;
@@ -430,12 +435,13 @@
           the same time. Prophecy checks the work against your collaborators
           before any of it ships — so you find the collision now, not after a
           day of building on top of it.</p>
-        <p style="margin-top:22px">
+        <div class="hero-actions">
           <button class="btn" id="enterApp">Open the workspace</button>
           <button class="btn" id="pickProject" hidden>Choose a project</button>
-          <a class="btn secondary small" style="margin-left:8px;text-decoration:none"
+          <a class="btn secondary small" style="text-decoration:none"
              href="https://github.com/amritnair/hackMIT" target="_blank" rel="noopener">
-            amritnair/hackMIT</a></p>
+            amritnair/hackMIT</a>
+        </div>
       </div>
       <div class="branch-viz">
         <svg id="stage" viewBox="0 0 380 240" fill="none"
@@ -1146,6 +1152,24 @@ function impactFigures() {
   ];
 }
 
+function wrap(text, width) {
+  // SVG text does not wrap, and cutting a label mid-sentence loses the point
+  // of the label; break on words and let the card grow instead
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    if ((line + ' ' + word).trim().length > width && line) {
+      lines.push(line.trim());
+      line = word;
+    } else {
+      line = (line + ' ' + word).trim();
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
 function buildImpact() {
   const svg = document.getElementById('stage');
   if (!svg) return null;
@@ -1153,18 +1177,20 @@ function buildImpact() {
   svg.innerHTML = `
     ${f.map((x, i) => {
       const col = i % 2, row = (i / 2) | 0;
-      const x0 = 8 + col * 186, y0 = 26 + row * 104;
+      const x0 = 8 + col * 186, y0 = 12 + row * 112;
       return `<g class="fig" data-i="${i}" opacity="0"
                  transform="translate(0 8)">
-        <rect x="${x0}" y="${y0}" width="176" height="92" rx="13"
+        <rect x="${x0}" y="${y0}" width="176" height="102" rx="13"
           fill="#1A1A24" stroke="#33333F"/>
         <text class="figBig" data-i="${i}" x="${x0 + 16}" y="${y0 + 42}"
           fill="#F5F3FF" font-size="27" font-weight="700"
           letter-spacing="-1">${x.big}</text>
-        <text x="${x0 + 16}" y="${y0 + 62}" fill="#C9C9DA" font-size="9">
-          ${x.label.length > 34 ? x.label.slice(0, 33) + '…' : x.label}</text>
-        <text x="${x0 + 16}" y="${y0 + 77}" fill="#7A7A8C" font-size="8">
-          ${x.note}</text>
+        ${wrap(x.label, 30).map((line, n) =>
+          `<text x="${x0 + 16}" y="${y0 + 58 + n * 12}" fill="#C9C9DA"
+            font-size="9">${line}</text>`).join('')}
+        ${wrap(x.note, 34).map((line, n) =>
+          `<text x="${x0 + 16}" y="${y0 + 58 + wrap(x.label, 30).length * 12
+            + n * 11}" fill="#7A7A8C" font-size="8">${line}</text>`).join('')}
       </g>`;
     }).join('')}`;
   return { svg, figs: [...svg.querySelectorAll('.fig')] };
@@ -2394,21 +2420,22 @@ function loadRecord() {
         </div></div>`).join('')
       : `<p class="empty" style="padding:18px">Nothing analyzed yet.</p>`;
 
-    $('#commitList').innerHTML = log.length ? `<table style="margin:0 20px">
+    $('#commitList').innerHTML = log.length ? `<table style="margin:0 24px;width:calc(100% - 48px)">
       <thead><tr><th>commit</th><th>who</th><th>what</th><th>files</th>
         <th></th></tr></thead>
       <tbody>${log.slice(0, 20).map(c => `<tr>
         <td class="mono dim">${esc(c.short)}</td>
         <td>${esc(c.author)}<div class="dim" style="font-size:12px">${esc(c.when)}</div></td>
         <td>${esc(c.subject)}</td>
-        <td class="dim">${c.files.slice(0, 2).map(f =>
+        <td class="dim" style="line-height:2.1">${c.files.slice(0, 2).map(f =>
           `<button class="chip" data-file="${esc(f)}">${esc(f)}</button>`).join(' ')}
           ${c.files.length > 2 ? `<span class="dim"> +${c.files.length - 2}</span>` : ''}</td>
         <td><button class="btn small secondary" data-restore="${esc(c.sha)}"
-          >Put this back</button></td></tr>`).join('')}</tbody></table>
-      <p class="hint" style="padding:0 20px 16px">Restoring writes the old
-        files into your working tree and stops there — no commit, no history
-        rewrite, no push. <code>git checkout -- .</code> undoes it.</p>`
+          >Revert</button></td></tr>`).join('')}</tbody></table>
+      <p class="hint" style="padding:6px 24px 20px">Reverting writes those files
+        back into your working tree and stops there — no commit, no history
+        rewrite, no push, so you read the diff before deciding.
+        <code>git checkout -- .</code> undoes it.</p>`
       : `<p class="empty" style="padding:18px">No history here yet.</p>`;
   }).catch(() => {});
 }
@@ -2427,16 +2454,16 @@ document.addEventListener('click', e => {
     if (!stat) { showBanner('Your tree already matches that version.'); return; }
     const dirty = (p.uncommitted || []).length;
     const ok = confirm(
-      `Put back ${sha.slice(0, 10)}?\n\n${stat}\n\n` +
+      `Revert to ${sha.slice(0, 10)}?\n\n${stat}\n\n` +
       (dirty ? `${dirty} file(s) have uncommitted changes — commit or stash `
              + 'them first.\n\n' : '') +
-      'This writes the old files into your working tree and stops. Nothing is '
-      + 'committed or pushed, and git checkout -- . undoes it.');
+      'This writes those files back into your working tree and stops. Nothing '
+      + 'is committed or pushed, and git checkout -- . undoes it.');
     if (!ok) return;
     api('restore', { sha }).then(r => {
       if (r.error) { showBanner(r.error); return; }
       hideBanner();
-      showBanner(`Restored from ${sha.slice(0, 10)}. ${r.changed.length} `
+      showBanner(`Reverted to ${sha.slice(0, 10)}. ${r.changed.length} `
         + 'file(s) now differ in your working tree — read the diff before '
         + 'committing.');
       loadRecord();
