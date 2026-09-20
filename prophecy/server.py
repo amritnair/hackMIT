@@ -66,6 +66,8 @@ class Handler(BaseHTTPRequestHandler):
                 query.get("github", [None])[0] or None,
                 query.get("private", ["1"])[0] != "0",
             )
+        if name == "sample":
+            return _sample_project()
         if name == "repos":
             return {"repos": _discover_repos()}
         if name == "mcp_config":
@@ -122,6 +124,27 @@ class Handler(BaseHTTPRequestHandler):
 
 
 SKIP = {"node_modules", "venv", ".venv", "vendor", "Library", "Applications"}
+
+
+def _sample_project():
+    """Build the demo project on demand, or hand back the one already there.
+
+    Somewhere stable rather than a temp directory, so the link a person keeps
+    open still works tomorrow.
+    """
+    from .demo import build, seed
+    home = Path.home() / "prophecy-demo"
+    if home.exists() and (home / ".git").exists():
+        return {"path": str(home), "existed": True}
+    built = build(home)
+    if built.get("error"):
+        return built
+    try:
+        seed(built["path"])
+    except Exception:
+        pass  # the project is still worth opening without its seeded history
+    return {"path": built["path"], "existed": False,
+            "branches": built.get("branches", [])}
 
 
 def _setup_state(path):

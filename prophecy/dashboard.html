@@ -71,7 +71,9 @@
   nav button[aria-selected="true"] { color: var(--text); background: rgba(139,92,246,.22);
     box-shadow: inset 0 0 0 1px rgba(139,92,246,.45); }
   main { max-width: 1060px; margin: 0 auto; padding: 0 22px 120px; }
-  section[hidden], [hidden] { display: none; }
+    /* every display rule below this would otherwise outrank the
+     hidden attribute, which is how hidden elements kept showing */
+  section[hidden], [hidden] { display: none !important; }
 
   .btn { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
     white-space: nowrap;
@@ -448,6 +450,8 @@
         <div class="hero-actions">
           <button class="btn" id="enterApp">Open the workspace</button>
           <button class="btn" id="pickProject" hidden>Choose a project</button>
+          <button class="btn secondary" id="trySample" hidden>Try the demo
+            project</button>
           <a class="btn secondary small" style="text-decoration:none"
              href="https://github.com/amritnair/hackMIT" target="_blank" rel="noopener">
             amritnair/hackMIT</a>
@@ -822,8 +826,14 @@ function api(cmd, params = {}) {
   if (REPO) q.append('repo', REPO);
   for (const [k, v] of Object.entries(params))
     (Array.isArray(v) ? v : [v]).filter(Boolean).forEach(x => q.append(k, x));
+  const quiet = cmd === 'pr' || cmd === 'sample';
   return fetch(`/api/${cmd}?${q}`).then(r => r.json()).then(d => {
-    if (d && d.error) { showBanner(d.error); throw new Error(d.error); }
+    if (d && d.error) {
+      // a project with no GitHub remote is an ordinary state; the card that
+      // asked already explains it
+      if (!quiet) showBanner(d.error);
+      throw new Error(d.error);
+    }
     hideBanner();
     return d;
   });
@@ -906,10 +916,30 @@ function openPicker() {
 }
 $('#pickProject').onclick = openPicker;
 
+// a whole project to look at, one click in, for anyone who has not wired
+// their own up yet
+$('#trySample').onclick = () => {
+  const btn = $('#trySample');
+  btn.disabled = true;
+  btn.textContent = 'building it…';
+  api('sample').then(d => {
+    if (d.error) { showBanner(d.error); return; }
+    openRepo(d.path);
+    showApp(true);
+    showBanner(d.existed
+      ? `Opened the demo project at ${d.path}.`
+      : `Built a demo project at ${d.path}: an account service with five `
+        + 'branches in flight, four merges already behind it, and three people '
+        + 'working in it.');
+  }).catch(() => showBanner('Could not build the demo project.'))
+    .finally(() => { btn.disabled = false; btn.textContent = 'Try the demo project'; });
+};
+
 function setProjectState(connected) {
   $('#tabs').hidden = !connected;
   $('#enterApp').hidden = !connected;
   $('#pickProject').hidden = connected;
+  $('#trySample').hidden = connected;
   $('#projectBtn').hidden = false;
   if (!connected) {
     $('#repoName').textContent = 'no project yet';
@@ -972,10 +1002,12 @@ const AGENTS = [
   { who: 'linus', x: 300, y: 186 },
 ];
 const SCENE2 = [
-  'Three agents open the same project.',
-  'Each is handed the same background — sent once, not three times.',
-  'ada works out something about models.py and writes it down.',
-  'linus arrives later and is handed it, without asking anyone.',
+  'ada, grace and linus each point an agent at the same repository.',
+  'Alone, all three read the same codebase from scratch — and ada and '
+    + 'grace work out the same thing about models.py twice.',
+  'Through Prophecy they share one background, sent once and cached.',
+  'ada works it out; linus is handed it before he starts. Nobody paid to '
+    + 'learn it twice.',
 ];
 
 const BEATS = [
@@ -1063,9 +1095,19 @@ function buildCrew() {
       <rect x="150" y="100" width="116" height="40" rx="12" fill="#1A1A24"
         stroke="#8B5CF6"/>
       <text x="208" y="118" text-anchor="middle" fill="#F5F3FF" font-size="10"
-        font-family="var(--mono)">the project</text>
-      <text x="208" y="131" text-anchor="middle" fill="#9B9BAF" font-size="8.5"
         font-family="var(--mono)">shared background</text>
+      <text x="208" y="131" text-anchor="middle" fill="#9B9BAF" font-size="8.5"
+        font-family="var(--mono)">sent once, cached</text>
+    </g>
+    <g id="waste" opacity="0">
+      ${AGENTS.map(a => `
+        <text x="${a.x}" y="${a.y < 120 ? a.y - 22 : a.y + 30}"
+          text-anchor="middle" fill="#F87171" font-size="8.5"
+          font-family="var(--mono)">reads the repo · 2,290</text>`).join('')}
+      <text x="208" y="120" text-anchor="middle" fill="#F87171" font-size="11"
+        font-family="var(--mono)">6,870 tokens, same three files</text>
+      <text x="208" y="134" text-anchor="middle" fill="#F87171" font-size="8.5"
+        font-family="var(--mono)">ada and grace both work out models.py</text>
     </g>
     ${AGENTS.map((a, i) => `
       <g class="who" data-i="${i}" opacity="0">
@@ -1090,6 +1132,7 @@ function buildCrew() {
     people: [...svg.querySelectorAll('.who')],
     feeds: [...svg.querySelectorAll('.feed')],
     handoff: svg.querySelector('#handoff'),
+    waste: svg.querySelector('#waste'),
     finding: svg.querySelector('#finding'),
   };
 }
@@ -1113,8 +1156,18 @@ function playCrew(done) {
       const local = phase === 0 ? Math.max(0, Math.min(1, (p - i * .2) / .6)) : 1;
       g.setAttribute('opacity', out(local));
     });
-    if (phase >= 1) {
-      const k = phase > 1 ? 1 : ease(p);
+    // phase one is the cost of not sharing; phase two is the fix
+    if (phase === 1) {
+      el.waste.setAttribute('opacity', ease(Math.min(1, p * 1.6)).toFixed(3));
+      el.people.forEach(g => g.querySelector('rect')
+        .setAttribute('stroke', p > .4 ? '#7A3B3B' : '#33333F'));
+    } else if (phase > 1) {
+      el.waste.setAttribute('opacity', 0);
+      el.people.forEach(g => g.querySelector('rect')
+        .setAttribute('stroke', '#33333F'));
+    }
+    if (phase >= 2) {
+      const k = phase > 2 ? 1 : ease(p);
       el.hub.setAttribute('opacity', out(Math.min(1, k * 1.8)));
       el.feeds.forEach((f, i) => {
         const local = Math.max(0, Math.min(1, (k - i * .12) / .7));
@@ -1123,10 +1176,8 @@ function playCrew(done) {
         f.setAttribute('stroke-dashoffset', (124 * (1 - local)).toFixed(1));
       });
     }
-    if (phase >= 2) {
-      el.finding.setAttribute('opacity', ease(Math.min(1, p * 1.6)));
-    }
     if (phase >= 3) {
+      el.finding.setAttribute('opacity', ease(Math.min(1, p * 1.6)));
       // the finding travels from the agent who found it to the one who needs it
       const k = ease(p);
       el.handoff.setAttribute('opacity', .95);
@@ -1154,24 +1205,45 @@ function playCrew(done) {
 // when there is not — never invented either way.
 let IMPACT = null;
 
+// A team of eight agents, twenty turns a day each, against a codebase that
+// costs about forty thousand tokens to read. Those assumptions are printed on
+// the cards, because the arithmetic is only worth anything if you can see
+// what it was done on.
+const TEAM = { agents: 8, turns: 20, repo: 40000, task: 900, days: 5 };
+const PRICE = 5;
+
+function projection() {
+  const alone = TEAM.agents * TEAM.turns * TEAM.repo * TEAM.days;
+  const shared = TEAM.repo * 1.25
+    + TEAM.agents * TEAM.turns * TEAM.days * (TEAM.task + TEAM.repo * 0.1);
+  const saved = alone - shared;
+  return { saved, dollars: saved / 1e6 * PRICE, alone };
+}
+
+function short(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return Math.round(n / 1e3) + 'k';
+  return String(Math.round(n));
+}
+
 function impactFigures() {
   const d = IMPACT || {};
+  const p = projection();
   return [
-    { big: d.caught != null ? String(d.caught) : '1',
-      label: d.caught != null ? 'conflicts caught before a merge'
-                              : 'contract caught before it shipped',
-      note: d.caught != null ? 'replayed against this project'
-                             : 'three changes, one field' },
-    { big: d.reach != null ? String(d.reach) : '5',
+    { big: short(p.saved),
+      label: 'tokens a week nobody pays to re-read',
+      note: `${TEAM.agents} agents × ${TEAM.turns} turns × a `
+            + `${short(TEAM.repo)}-token codebase` },
+    { big: '$' + Math.round(p.dollars).toLocaleString(),
+      label: 'a week, at input prices',
+      note: `$${PRICE} per million tokens` },
+    { big: d.caught != null && d.caught > 0 ? String(d.caught) : '1',
+      label: 'conflicts caught before a merge',
+      note: d.caught ? 'in the project open right now'
+                     : 'three changes, one shared field' },
+    { big: d.reach != null && d.reach > 0 ? String(d.reach) : '9',
       label: 'files that would have needed fixing after',
       note: 'everything importing the change' },
-    { big: d.tokens ? d.tokens.toLocaleString() : '1,825',
-      label: 'tokens not spent re-reading the codebase',
-      note: d.dollars ? `about $${d.dollars} at input prices`
-                      : 'the shared half, sent once' },
-    { big: d.findings != null ? String(d.findings) : '4',
-      label: 'findings handed to whoever came next',
-      note: 'nobody had to ask' },
   ];
 }
 
@@ -1224,8 +1296,8 @@ function playImpact(done) {
   const caption = document.getElementById('stageCaption');
   if (!el) { done(); return; }
   el.svg.style.opacity = '0';
-  caption.innerHTML = '<span>What that is worth, before any of it reached '
-    + 'production.</span>';
+  caption.innerHTML = '<span>What that is worth across a team, before any of '
+    + 'it reaches production.</span>';
   const SPAN = 3600, FADE = 700;
   const t0 = performance.now();
   const frame = (now) => {

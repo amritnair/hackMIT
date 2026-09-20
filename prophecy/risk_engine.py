@@ -585,7 +585,9 @@ def repository_risk(analyses, found_interactions):
                 "note": "Nothing is in flight."}
     top = max(a["risk_score"] for a in analyses)
     escalating = [i for i in found_interactions if i["escalates"]]
-    score = min(100, top + 6 * len(escalating))
+    # 100 out of 100 claims a certainty nothing here has; individual scores
+    # are capped the same way
+    score = min(97, top + 6 * len(escalating))
     drivers = [
         f"{a['label']} is {a['risk_band']} on its own"
         for a in sorted(analyses, key=lambda a: -a["risk_score"])[:3]
