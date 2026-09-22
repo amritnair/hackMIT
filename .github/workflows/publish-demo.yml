@@ -57,6 +57,12 @@ jobs:
       - name: Record every answer
         run: python3 tools/export_static.py /tmp/prophecy-demo
 
+      # The published site has no server to fail loudly, so a broken export
+      # looks fine and is wrong. This runs before the commit: a bad export
+      # leaves the last good one in place.
+      - name: Check the export before publishing it
+        run: python3 tools/check_export.py
+
       - name: Publish if anything moved
         run: |
           git config user.name "github-actions[bot]"
