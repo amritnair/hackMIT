@@ -111,6 +111,7 @@ def main():
         check_mcp_http(root)
 
     check_risk_engine()
+    check_clone_urls()
 
     print("ok")
 
@@ -547,6 +548,27 @@ def check_branches(root, repo):
     assert store.insights(db)["merges_replayed"] == 1
 
 
+
+
+def check_clone_urls():
+    """What the clone endpoint will and will not fetch.
+
+    This one takes a URL from whoever is looking at the page and hands it to
+    git, so the refusals matter more than the acceptances: a local path, a
+    file URL or git's ext:: transport are all ways to make it do something
+    other than fetch a repository.
+    """
+    from prophecy.clone import normalise
+
+    assert normalise("pallets/flask") == "https://github.com/pallets/flask"
+    assert normalise("github.com/pallets/flask") == "https://github.com/pallets/flask"
+    assert normalise("https://gitlab.com/a/b.git") == "https://gitlab.com/a/b.git"
+    assert normalise("git@github.com:a/b.git") == "git@github.com:a/b.git"
+
+    for hostile in ("/etc", "file:///etc/passwd", "../../etc/passwd",
+                    "ext::sh -c whoami", "https://host/a b", "",
+                    "  ", "./local/path"):
+        assert normalise(hostile) is None, hostile
 
 
 def check_risk_engine():

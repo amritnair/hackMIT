@@ -56,7 +56,28 @@ FULL_VERSION = """
   Editing, commits, your own repositories and MCP need Prophecy running on a
   machine with a checkout.
   Run one and the MCP tab here will connect your own agent to it.
-  <code>docker run -p 8000:8000 ghcr.io/amritnair/prophecy</code>
+  <code id="runCmd">docker run -p 8000:8000 ghcr.io/amritnair/prophecy</code>
+  <button type="button" class="copyRun" onclick="
+    var cmd = document.getElementById('runCmd'), btn = this;
+    var done = function (label) {
+      btn.textContent = label;
+      setTimeout(function () { btn.textContent = 'Copy'; }, 1800);
+    };
+    var select = function () {
+      // clipboard access can be refused, and telling somebody to press
+      // Cmd-C with nothing selected is no help at all
+      var range = document.createRange();
+      range.selectNodeContents(cmd);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      done('Selected, press Cmd-C');
+    };
+    try {
+      navigator.clipboard.writeText(cmd.textContent)
+        .then(function () { done('Copied'); }, select);
+    } catch (e) { select(); }
+  ">Copy</button>
   <a href="%s">Or open it in a browser</a>, free, on GitHub's hours.
   <button type="button" onclick="this.parentNode.remove()"
           aria-label="Dismiss">&times;</button>
@@ -81,6 +102,12 @@ FULL_VERSION = """
     color: var(--text-3, #6f747c); font-size: 16px; cursor: pointer;
     line-height: 1;
   }
+  #fullVersion .copyRun {
+    position: static; margin: 6px 0 2px; padding: 4px 11px; font-size: 11.5px;
+    border: 1px solid var(--line, #22272f); border-radius: 6px;
+    background: var(--bg, #07090d); color: var(--text-2, #9aa4b2);
+  }
+  #fullVersion .copyRun:hover { color: var(--text, #e8ecf2); }
   @media (max-width: 640px) { #fullVersion { display: none; } }
 </style>
 """ % CODESPACE

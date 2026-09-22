@@ -30,5 +30,7 @@ RUN git config --global user.email "demo@prophecy.local" \
 RUN prophecy demo /demo
 
 ENV PROPHECY_REPO=/demo
+# where repositories fetched by URL land; mount a volume here to keep them
+ENV PROPHECY_WORKSPACE=/repos
 EXPOSE 8000
 CMD ["sh", "-c", "prophecy -C ${PROPHECY_REPO} serve --port 8000 --open"]

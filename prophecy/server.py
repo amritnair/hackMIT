@@ -111,6 +111,11 @@ class Handler(BaseHTTPRequestHandler):
         from . import workspace
         if self.public:
             return {"error": "This instance is read-only."}
+        if name == "clone":
+            # not about a repo we already have, so it is handled before the
+            # path check the others need
+            from .clone import clone
+            return clone(body.get("url", ""))
         path = (body.get("repo") or self.repo_path or "").strip()
         problem = _not_a_repo(path)
         if problem:
