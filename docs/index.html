@@ -4495,9 +4495,13 @@ function writeHero(branches, risks, baseName) {
     sub.textContent = top.recommendation;
   } else if (branches.length) {
     sub.dataset.base = baseName;
-    line.innerHTML = 'No two branches are touching the same file.';
-    sub.textContent = 'Nothing to coordinate yet. Forecast a task on the next '
-      + 'tab to see what the next piece of work would collide with.';
+    // This only knows about files two branches both edit. The collisions
+    // worth having are the ones with no file in common, and they are on the
+    // Risk tab, so claiming "nothing to coordinate" here contradicts it.
+    line.innerHTML = 'No two branches edit the same file.';
+    sub.textContent = 'Which is not the same as nothing to coordinate: '
+      + 'changes meet through what they import and what they store. Risk '
+      + 'has those.';
   } else {
     line.innerHTML = 'One branch, nothing to collide with.';
     sub.textContent = 'Forecast a task to see where work would land, or point '
@@ -5737,7 +5741,7 @@ api('scan').then(d => {
         .then(function () { done('Copied'); }, select);
     } catch (e) { select(); }
   ">Copy</button>
-  <a href="https://codespaces.new/amritnair/hackMIT?quickstart=1">Or open it in a browser</a>, free, on GitHub's hours.
+  <a href="https://codespaces.new/amritnair/prophecy?quickstart=1">Or open it in a browser</a>, free, on GitHub's hours.
   <button type="button" onclick="this.parentNode.remove()"
           aria-label="Dismiss">&times;</button>
 </div>
