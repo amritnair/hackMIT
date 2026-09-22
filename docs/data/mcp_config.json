@@ -1,1 +1,1 @@
-{"config": {"mcpServers": {"prophecy": {"type": "http", "url": "http://127.0.0.1:63634/mcp"}}}, "url": "http://127.0.0.1:63634/mcp", "repo": "/Users/amritarajnair/prophecy-demo"}
+{"config": {"mcpServers": {"prophecy": {"type": "http", "url": "http://127.0.0.1:43035/mcp"}}}, "url": "http://127.0.0.1:43035/mcp", "repo": "/tmp/prophecy-demo"}
