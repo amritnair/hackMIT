@@ -879,7 +879,7 @@
     </button>
     <form class="repo" id="repoForm" hidden>
       <input id="repoPath" spellcheck="false" autocomplete="off"
-             aria-label="Project" placeholder="search your projects"
+             aria-label="Project" placeholder="a project, or paste a repo URL"
              aria-autocomplete="list" aria-controls="repoHits">
       <button type="submit">open</button>
       <div id="repoHits" class="repo-hits" hidden role="listbox"></div>
@@ -2142,13 +2142,47 @@ function openRepo(path) {
   loadRepo();
 }
 
+/* A URL is not a path, and typing one is the clearest way somebody can say
+   "use my own code". The instance fetches it rather than asking them to work
+   out a bind mount first. */
+const LOOKS_LIKE_A_URL = /^(https?:\/\/|git@|ssh:\/\/|github\.com\/|gitlab\.com\/|bitbucket\.org\/)/;
+
+function cloneAndOpen(url) {
+  const field = $('#repoPath');
+  const was = field.placeholder;
+  field.disabled = true;
+  field.placeholder = 'fetching that repository...';
+  showBanner('Fetching ' + url + '. A large repository takes a moment.');
+  apiPost('clone', { url }).then(d => {
+    hideBanner();
+    field.value = '';
+    // it is a project on this machine now, so it goes in the list
+    if (!REPOS.some(r => r.path === d.path))
+      REPOS.unshift({ path: d.path, name: d.name });
+    openRepo(d.path);
+    if (d.branches > 1)
+      showBanner(`Opened ${d.name}: ${plural(d.branches, 'branch', 'branches')} to look at.`);
+  }).catch(() => {
+    /* apiPost already said why */
+  }).finally(() => {
+    field.disabled = false;
+    field.placeholder = was;
+  });
+}
+
 $('#repoForm').onsubmit = e => {
   e.preventDefault();
   const typed = $('#repoPath').value.trim();
+  // a project already here wins over anything that merely looks like a URL:
+  // "owner/repo" is a plausible directory name too
   const exact = repoChoices().find(([p, n]) => p === typed || n === typed);
   if (exact) { openRepo(exact[0]); return; }
   const hits = document.querySelectorAll('#repoHits [data-pick]');
   if (hits.length === 1) { openRepo(hits[0].dataset.pick); return; }
+  if (LOOKS_LIKE_A_URL.test(typed) || /^[\w.-]+\/[\w.-]+$/.test(typed)) {
+    cloneAndOpen(typed);
+    return;
+  }
   openRepo(typed);
 };
 
@@ -5681,7 +5715,28 @@ api('scan').then(d => {
   Editing, commits, your own repositories and MCP need Prophecy running on a
   machine with a checkout.
   Run one and the MCP tab here will connect your own agent to it.
-  <code>docker run -p 8000:8000 ghcr.io/amritnair/prophecy</code>
+  <code id="runCmd">docker run -p 8000:8000 ghcr.io/amritnair/prophecy</code>
+  <button type="button" class="copyRun" onclick="
+    var cmd = document.getElementById('runCmd'), btn = this;
+    var done = function (label) {
+      btn.textContent = label;
+      setTimeout(function () { btn.textContent = 'Copy'; }, 1800);
+    };
+    var select = function () {
+      // clipboard access can be refused, and telling somebody to press
+      // Cmd-C with nothing selected is no help at all
+      var range = document.createRange();
+      range.selectNodeContents(cmd);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      done('Selected, press Cmd-C');
+    };
+    try {
+      navigator.clipboard.writeText(cmd.textContent)
+        .then(function () { done('Copied'); }, select);
+    } catch (e) { select(); }
+  ">Copy</button>
   <a href="https://codespaces.new/amritnair/hackMIT?quickstart=1">Or open it in a browser</a>, free, on GitHub's hours.
   <button type="button" onclick="this.parentNode.remove()"
           aria-label="Dismiss">&times;</button>
@@ -5706,5 +5761,11 @@ api('scan').then(d => {
     color: var(--text-3, #6f747c); font-size: 16px; cursor: pointer;
     line-height: 1;
   }
+  #fullVersion .copyRun {
+    position: static; margin: 6px 0 2px; padding: 4px 11px; font-size: 11.5px;
+    border: 1px solid var(--line, #22272f); border-radius: 6px;
+    background: var(--bg, #07090d); color: var(--text-2, #9aa4b2);
+  }
+  #fullVersion .copyRun:hover { color: var(--text, #e8ecf2); }
   @media (max-width: 640px) { #fullVersion { display: none; } }
 </style>
