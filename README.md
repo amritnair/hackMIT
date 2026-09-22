@@ -42,12 +42,29 @@ there.
 docker run -p 8000:8000 ghcr.io/amritnair/prophecy
 ```
 
-Mount your own repository instead of the demo with
-`-v /path/to/repo:/repo -e PROPHECY_REPO=/repo`.
+Then open http://127.0.0.1:8000. It starts on the demo project. To look at
+your own code, paste its URL into the project picker — `owner/project` is
+enough — and it will be fetched and opened, with every branch that is in
+flight rather than only the default one.
 
-Then open http://127.0.0.1:8000, go to the MCP tab, and connect whatever you
-code with: it prints the settings to copy, a one-click install for Cursor,
-and the line for Claude Code.
+Repositories fetched that way land in `/repos` inside the container, which
+goes away when the container does. Keep them:
+
+```
+docker run -p 8000:8000 -v ~/prophecy-repos:/repos ghcr.io/amritnair/prophecy
+```
+
+A repository already on your disk can be mounted directly instead, which is
+the better way round when you want Prophecy watching code you are editing:
+
+```
+docker run -p 8000:8000 -v /path/to/repo:/repo -e PROPHECY_REPO=/repo \
+  ghcr.io/amritnair/prophecy
+```
+
+Then go to the MCP tab and connect whatever you code with: it prints the
+settings to copy, a one-click install for Cursor, and the line for Claude
+Code.
 
 ```
 claude mcp add --transport http prophecy http://127.0.0.1:8000/mcp
