@@ -92,6 +92,16 @@ def main(repo):
         grab(cmd)
         print(f"  {cmd}")
 
+    # The export ran on an ephemeral port, and handing a reader
+    # 127.0.0.1:41337 as their MCP endpoint is worse than saying nothing.
+    # What they would actually get from `prophecy serve` is port 8000.
+    local = "http://127.0.0.1:8000/mcp"
+    (DATA / "mcp_config.json").write_text(json.dumps({
+        "config": {"mcpServers": {"prophecy": {"type": "http", "url": local}}},
+        "url": local,
+        "repo": repo,
+    }))
+
     # One per branch, so clicking a change on the Risk tab still opens.
     risk = json.loads((DATA / "risk.json").read_text())
     for change in risk.get("changes", []):
