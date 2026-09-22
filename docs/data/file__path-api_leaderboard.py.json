@@ -1,0 +1,1 @@
+{"path": "api/leaderboard.py", "lines": 8, "symbols": [{"name": "leaderboard", "kind": "function", "line": 5, "signature": "leaderboard(conn, limit=..., ttl=...)", "doc": ""}], "imports": ["app.db", "app.scoring"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

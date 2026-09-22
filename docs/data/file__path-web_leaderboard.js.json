@@ -1,0 +1,1 @@
+{"path": "web/leaderboard.js", "lines": 6, "symbols": [{"name": "loadBoard", "kind": "function", "line": 2, "signature": "export function loadBoard", "doc": ""}], "imports": ["./client.js"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

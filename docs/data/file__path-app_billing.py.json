@@ -1,0 +1,1 @@
+{"path": "app/billing.py", "lines": 7, "symbols": [{"name": "charge", "kind": "function", "line": 4, "signature": "charge(user, cents)", "doc": "Charge a user. Needs a contactable address for the receipt."}], "imports": ["app.models"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

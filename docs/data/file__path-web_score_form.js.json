@@ -1,0 +1,1 @@
+{"path": "web/score_form.js", "lines": 10, "symbols": [{"name": "saveScore", "kind": "function", "line": 2, "signature": "export function saveScore", "doc": ""}, {"name": "reopenScore", "kind": "function", "line": 6, "signature": "export function reopenScore", "doc": ""}], "imports": ["./client.js"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

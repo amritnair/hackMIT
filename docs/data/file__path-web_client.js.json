@@ -1,0 +1,1 @@
+{"path": "web/client.js", "lines": 4, "symbols": [{"name": "post", "kind": "function", "line": 1, "signature": "export function post", "doc": ""}], "imports": [], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

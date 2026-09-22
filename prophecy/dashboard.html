@@ -1958,12 +1958,44 @@ function agentLabel(agent, tool) {
   return kit ? `${capital(agent)}'s ${kit}` : capital(agent);
 }
 
+/* The published copy has no engine behind it: every answer was recorded by
+   tools/export_static.py and written to a file. This has to produce the same
+   name for a request that the exporter did, so the two stay in step. */
+function staticKey(cmd, params) {
+  const parts = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '' &&
+                       !(Array.isArray(v) && !v.length))
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([k, v]) => `${k}-${Array.isArray(v) ? v.join('_') : v}`);
+  return (parts.length ? `${cmd}__${parts.join('__')}` : cmd)
+    .replace(/[^A-Za-z0-9._-]/g, '_');
+}
+
 function api(cmd, params = {}) {
   const q = new URLSearchParams();
   if (REPO) q.append('repo', REPO);
   for (const [k, v] of Object.entries(params))
     (Array.isArray(v) ? v : [v]).filter(Boolean).forEach(x => q.append(k, x));
   const quiet = cmd === 'pr' || cmd === 'sample';
+
+  if (window.PROPHECY_STATIC) {
+    return fetch(`data/${staticKey(cmd, params)}.json`).then(r => {
+      // Anything that needs a live repository was never recorded, and
+      // saying so plainly beats a spinner that never resolves.
+      if (!r.ok) throw new Error('not recorded');
+      return r.json();
+    }).then(d => {
+      if (d && d.error) { if (!quiet) showBanner(d.error); throw new Error(d.error); }
+      hideBanner();
+      return d;
+    }).catch(err => {
+      if (!quiet && err.message === 'not recorded') {
+        showBanner('This is the published demo, which answers from recorded '
+                   + 'results. That one needs a running Prophecy.');
+      }
+      throw err;
+    });
+  }
   return fetch(`/api/${cmd}?${q}`).then(r => r.json()).then(d => {
     if (d && d.error) {
       // A project with no GitHub remote is an ordinary state that the card
@@ -1980,6 +2012,11 @@ function api(cmd, params = {}) {
    are the things worth being loud about when they fail: a save or a commit that
    quietly did nothing is worse than an error. */
 function apiPost(cmd, body = {}) {
+  if (window.PROPHECY_STATIC) {
+    showBanner('The published demo is read-only. Editing, committing and '
+               + 'reverting need Prophecy running on a machine with the repo.');
+    return Promise.reject(new Error('read-only'));
+  }
   return fetch(`/api/${cmd}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -5626,6 +5663,10 @@ api('scan').then(d => {
   // made; until they pick a project there is nothing to show but Home
   if (d && d.repo) { SERVED = d.repo; fillRepoList(); }
   setProjectState(Boolean(REPO));
+  // The published copy has one project baked in and no picker worth
+  // showing, so it opens on it rather than asking.
+  if (!REPO && window.PROPHECY_STATIC && window.PROPHECY_REPO)
+    return openRepo(window.PROPHECY_REPO);
   if (!REPO) return;
   $('#repoName').textContent = base(REPO);
   loadRepo();

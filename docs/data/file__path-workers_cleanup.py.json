@@ -1,0 +1,1 @@
+{"path": "workers/cleanup.py", "lines": 17, "symbols": [{"name": "stale", "kind": "function", "line": 7, "signature": "stale(rows, now=...)", "doc": ""}, {"name": "run", "kind": "function", "line": 11, "signature": "run(url)", "doc": ""}], "imports": ["app.db", "app.sessions"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

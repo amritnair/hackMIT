@@ -1,0 +1,1 @@
+{"path": "web/team_form.js", "lines": 10, "symbols": [{"name": "createTeam", "kind": "function", "line": 2, "signature": "export function createTeam", "doc": ""}, {"name": "addMember", "kind": "function", "line": 6, "signature": "export function addMember", "doc": ""}], "imports": ["./client.js"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

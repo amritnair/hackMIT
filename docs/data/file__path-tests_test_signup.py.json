@@ -1,0 +1,1 @@
+{"path": "tests/test_signup.py", "lines": 7, "symbols": [{"name": "test_signup_without_email", "kind": "function", "line": 4, "signature": "test_signup_without_email()", "doc": ""}], "imports": ["api.signup"], "callers": [], "is_test": true, "is_schema": false, "is_regenerated": false}

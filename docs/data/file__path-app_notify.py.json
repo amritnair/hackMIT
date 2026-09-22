@@ -1,0 +1,1 @@
+{"path": "app/notify.py", "lines": 8, "symbols": [{"name": "send_welcome", "kind": "function", "line": 4, "signature": "send_welcome(user)", "doc": ""}], "imports": ["app.models"], "callers": ["services/payouts.py", "workers/digest.py", "workers/emailer.py"], "is_test": false, "is_schema": false, "is_regenerated": false}

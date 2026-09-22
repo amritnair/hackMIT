@@ -1,0 +1,1 @@
+{"path": "tests/test_scoring.py", "lines": 6, "symbols": [{"name": "test_rank_orders_by_total", "kind": "function", "line": 4, "signature": "test_rank_orders_by_total()", "doc": ""}], "imports": ["app.scoring"], "callers": [], "is_test": true, "is_schema": false, "is_regenerated": false}

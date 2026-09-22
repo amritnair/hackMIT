@@ -1,0 +1,1 @@
+{"path": "workers/emailer.py", "lines": 10, "symbols": [{"name": "run", "kind": "function", "line": 5, "signature": "run(queue, retries=...)", "doc": "Drain the outbound queue."}], "imports": ["app.models", "app.notify"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

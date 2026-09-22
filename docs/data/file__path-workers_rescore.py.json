@@ -1,0 +1,1 @@
+{"path": "workers/rescore.py", "lines": 9, "symbols": [{"name": "rescore_all", "kind": "function", "line": 5, "signature": "rescore_all(url, rubric)", "doc": "Recompute every score after a rubric change."}], "imports": ["app.db", "app.scoring"], "callers": ["app/validators.py"], "is_test": false, "is_schema": false, "is_regenerated": false}

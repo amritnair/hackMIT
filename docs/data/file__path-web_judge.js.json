@@ -1,0 +1,1 @@
+{"path": "web/judge.js", "lines": 10, "symbols": [{"name": "loadQueue", "kind": "function", "line": 2, "signature": "export function loadQueue", "doc": ""}, {"name": "submitScore", "kind": "function", "line": 6, "signature": "export function submitScore", "doc": ""}], "imports": ["./client.js"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

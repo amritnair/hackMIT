@@ -1,0 +1,1 @@
+{"path": "web/signup_form.js", "lines": 6, "symbols": [{"name": "submitSignup", "kind": "function", "line": 2, "signature": "export function submitSignup", "doc": ""}], "imports": ["./client.js"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

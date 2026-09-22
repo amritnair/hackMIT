@@ -1,0 +1,1 @@
+{"path": "tests/test_models.py", "lines": 7, "symbols": [{"name": "test_create_user_email_optional", "kind": "function", "line": 4, "signature": "test_create_user_email_optional()", "doc": ""}], "imports": ["app.models"], "callers": [], "is_test": true, "is_schema": false, "is_regenerated": false}

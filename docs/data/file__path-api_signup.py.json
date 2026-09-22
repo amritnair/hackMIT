@@ -1,0 +1,1 @@
+{"path": "api/signup.py", "lines": 10, "symbols": [{"name": "signup", "kind": "function", "line": 5, "signature": "signup(request)", "doc": "Create an account from whatever the signup form posted."}], "imports": ["app.auth", "app.models"], "callers": ["tests/test_signup.py"], "is_test": false, "is_schema": false, "is_regenerated": false}

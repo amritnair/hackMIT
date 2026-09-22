@@ -1,0 +1,1 @@
+{"path": "web/admin.js", "lines": 10, "symbols": [{"name": "saveRubric", "kind": "function", "line": 2, "signature": "export function saveRubric", "doc": ""}, {"name": "disqualify", "kind": "function", "line": 6, "signature": "export function disqualify", "doc": ""}], "imports": ["./client.js"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

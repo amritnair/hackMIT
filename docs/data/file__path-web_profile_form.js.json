@@ -1,0 +1,1 @@
+{"path": "web/profile_form.js", "lines": 6, "symbols": [{"name": "saveProfile", "kind": "function", "line": 2, "signature": "export function saveProfile", "doc": ""}], "imports": ["./client.js"], "callers": [], "is_test": false, "is_schema": false, "is_regenerated": false}

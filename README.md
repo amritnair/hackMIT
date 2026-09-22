@@ -15,21 +15,29 @@ before it commits.
 
 **https://amritnair.github.io/hackMIT/**
 
-That address is permanent and forwards to whichever machine is serving the
-demo. The engine shells out to git against a real checkout, so there is
-always a machine behind it rather than a static host; if the page says the
-demo is asleep, that laptop is closed.
+The engine shells out to git against a real checkout, so it cannot run on a
+static host. What it can do is answer every question once and write the
+answers down: `tools/export_static.py` runs the real server, records its
+responses, and bakes them next to the page. That link is the result — the
+whole dashboard, reading files instead of an API, free and always up.
 
-- Dashboard, direct: https://1bbac51078d023.lhr.life/
-- MCP endpoint: https://1bbac51078d023.lhr.life/mcp
+Everything that reads works: the risk view, the map, who is in what, the
+context slices, the ledger. What needs a live repository does not, and says
+so when you try: editing files, committing, reverting, connecting your own
+project, and MCP, which is a POST endpoint with no static equivalent.
+
+For those, run it yourself — it is one command and no dependencies:
+
+```
+pip install -e .
+prophecy demo /tmp/demo --serve
+```
+
+Or put it on a box permanently with `tools/deploy.sh`, which installs a
+systemd service, gets TLS through Caddy, and runs with `serve --public` so
+the API stays pinned to one repository and refuses writes.
+
 - Demo app on GitHub: https://github.com/amritnair/prophecy-demo
-
-```
-claude mcp add --transport http prophecy https://1bbac51078d023.lhr.life/mcp
-```
-
-MCP is a POST endpoint, so it takes the direct address rather than the
-forwarding one.
 
 ```
 $ prophecy risk
