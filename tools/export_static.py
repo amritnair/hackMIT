@@ -55,8 +55,9 @@ FULL_VERSION = """
   <strong>You are reading recorded results.</strong>
   Editing, commits, your own repositories and MCP need Prophecy running on a
   machine with a checkout.
-  <a href="%s">Open the full version in a browser</a>, free, on GitHub's
-  hours &mdash; or <code>pip install -e . &amp;&amp; prophecy demo /tmp/demo --serve</code>
+  Run one and the MCP tab here will connect your own agent to it.
+  <code>docker run -p 8000:8000 ghcr.io/amritnair/prophecy</code>
+  <a href="%s">Or open it in a browser</a>, free, on GitHub's hours.
   <button type="button" onclick="this.parentNode.remove()"
           aria-label="Dismiss">&times;</button>
 </div>

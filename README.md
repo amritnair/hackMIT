@@ -36,14 +36,34 @@ there.
 
 [cs]: https://codespaces.new/amritnair/hackMIT?quickstart=1
 
-**With Docker.** One command, no Python on your machine:
+**With Docker.** One command, nothing cloned and nothing installed:
 
 ```
-docker build -t prophecy . && docker run -p 8000:8000 prophecy
+docker run -p 8000:8000 ghcr.io/amritnair/prophecy
 ```
 
 Mount your own repository instead of the demo with
 `-v /path/to/repo:/repo -e PROPHECY_REPO=/repo`.
+
+Then open http://127.0.0.1:8000, go to the MCP tab, and connect whatever you
+code with: it prints the settings to copy, a one-click install for Cursor,
+and the line for Claude Code.
+
+```
+claude mcp add --transport http prophecy http://127.0.0.1:8000/mcp
+```
+
+**For a team, one instance is the point.** Sessions, findings and warnings
+are shared through it, so an agent only knows what another agent is doing if
+they are pointed at the same place. One person runs it and the rest connect
+to that host instead of their own:
+
+```
+claude mcp add --transport http prophecy http://<that-machine>:8000/mcp
+```
+
+It binds on every interface, so a laptop on the same network is enough.
+`tools/deploy.sh` is the version that survives the laptop closing.
 
 **Locally.** Python 3.10 or newer, no dependencies:
 

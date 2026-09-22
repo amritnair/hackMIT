@@ -1,0 +1,55 @@
+name: Publish the image
+
+# So that running Prophecy is one paste rather than a clone and a build:
+#
+#   docker run -p 8000:8000 ghcr.io/amritnair/prophecy
+#
+# That is the missing half of the published site. The page can already hand
+# somebody their MCP settings, a one-click Cursor install and the Claude Code
+# line; all of it points at an instance they have to be running.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'prophecy/**'
+      - 'Dockerfile'
+      - 'pyproject.toml'
+      - '.github/workflows/publish-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-image
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # arm64 as well as amd64: half the people who try this are on an
+      # Apple laptop, and an amd64-only image makes them wait on emulation
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/prophecy:latest
+            ghcr.io/${{ github.repository_owner }}/prophecy:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
