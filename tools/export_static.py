@@ -46,7 +46,7 @@ PLAIN = [
 ]
 
 
-CODESPACE = "https://codespaces.new/amritnair/hackMIT?quickstart=1"
+CODESPACE = "https://codespaces.new/amritnair/prophecy?quickstart=1"
 
 # Appended to the published page only. The local dashboard has an engine
 # behind it and needs none of this.
@@ -206,7 +206,7 @@ def main(repo):
     # Half the product needs a checkout and a process. Saying so once, in a
     # corner, beats a reader concluding the editor is broken.
     page += FULL_VERSION
-    # Pages serves this from /hackMIT/, where an absolute asset path is a 404
+    # Pages serves this from /prophecy/, where an absolute asset path is a 404
     page = page.replace('="/logo.png"', '="logo.png"')
     (DOCS / "index.html").write_text(page)
     for asset in ("logo.png",):

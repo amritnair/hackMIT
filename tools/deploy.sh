@@ -19,7 +19,7 @@ DOMAIN=${1:-}
 APP=/opt/prophecy
 DEMO=/srv/prophecy-demo
 PORT=8000
-CODE_REPO=https://github.com/amritnair/hackMIT.git
+CODE_REPO=https://github.com/amritnair/prophecy.git
 DEMO_REPO=https://github.com/amritnair/prophecy-demo.git
 
 say() { printf '\n== %s\n' "$*"; }

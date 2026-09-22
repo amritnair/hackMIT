@@ -50,7 +50,7 @@ check("window.PROPHECY_STATIC = true" in page,
 check(re.search(r'window\.PROPHECY_REPO = "[^"]+"', page or ""),
       "no project is baked in, so the page opens empty")
 check('="/logo.png"' not in page,
-      "the logo path is absolute and 404s under /hackMIT/")
+      "the logo path is absolute and 404s under /prophecy/")
 
 risk = load("risk")
 check(len(risk.get("changes", [])) >= 5,

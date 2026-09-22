@@ -13,7 +13,7 @@ before it commits.
 
 ## live demo
 
-**https://amritnair.github.io/hackMIT/**
+**https://amritnair.github.io/prophecy/**
 
 The engine shells out to git against a real checkout, so it cannot run on a
 static host. What it can do is answer every question once and write the
@@ -34,7 +34,7 @@ starts on port 8000 with the demo project built and five branches in flight.
 Free on GitHub's hours, and you can point it at any repository you clone in
 there.
 
-[cs]: https://codespaces.new/amritnair/hackMIT?quickstart=1
+[cs]: https://codespaces.new/amritnair/prophecy?quickstart=1
 
 **With Docker.** One command, nothing cloned and nothing installed:
 
