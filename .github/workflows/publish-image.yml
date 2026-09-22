@@ -63,7 +63,13 @@ jobs:
           done
 
           echo "--- the dashboard"
-          curl -fsS -o /dev/null -w 'page %{http_code}\n' http://127.0.0.1:8000/
+          # -L because the container is started with --open, so / redirects
+          # to the repository it was built around. Following it is the point:
+          # this asserts a page, not a redirect.
+          code=$(curl -fsSL -o /tmp/page.html -w '%{http_code}' http://127.0.0.1:8000/)
+          echo "page $code"
+          test "$code" = "200"
+          grep -q "Prophecy" /tmp/page.html
 
           echo "--- the demo project it ships with"
           curl -fsS http://127.0.0.1:8000/api/risk > /tmp/risk.json
