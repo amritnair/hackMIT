@@ -1,0 +1,59 @@
+name: Publish the demo
+
+# The published dashboard reads recorded answers, so it goes stale the moment
+# the engine changes. This rebuilds the demo project, re-runs the export and
+# commits the result, so the site cannot silently disagree with the code.
+
+on:
+  push:
+    branches: [main]
+    # docs/** is deliberately absent: this workflow writes there, and listing
+    # it would make every run trigger the next one.
+    paths:
+      - 'prophecy/**'
+      - 'tools/export_static.py'
+      - '.github/workflows/publish-demo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-demo
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Build the demo project
+        run: |
+          # `prophecy demo` makes commits, and a runner has no git identity
+          git config --global user.email "demo@prophecy.local"
+          git config --global user.name "Prophecy demo"
+          git config --global init.defaultBranch main
+          prophecy demo /tmp/prophecy-demo
+
+      - name: Record every answer
+        run: python3 tools/export_static.py /tmp/prophecy-demo
+
+      - name: Publish if anything moved
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          if git diff --cached --quiet; then
+            echo "the recorded answers are unchanged"
+            exit 0
+          fi
+          git commit -m "Refresh the published demo"
+          git push
