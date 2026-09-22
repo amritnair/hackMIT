@@ -43,7 +43,62 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      # Built for this runner only, so it can actually be started and asked
+      # questions before anyone is told to pull it.
+      - name: Build it for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: prophecy:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run it and use it
+        run: |
+          docker run -d --name prophecy-test -p 8000:8000 prophecy:test
+          for _ in $(seq 1 30); do
+            curl -fsS -o /dev/null http://127.0.0.1:8000/ && break
+            sleep 2
+          done
+
+          echo "--- the dashboard"
+          curl -fsS -o /dev/null -w 'page %{http_code}\n' http://127.0.0.1:8000/
+
+          echo "--- the demo project it ships with"
+          curl -fsS http://127.0.0.1:8000/api/risk > /tmp/risk.json
+          python3 -c "
+          import json
+          d = json.load(open('/tmp/risk.json'))
+          assert len(d['changes']) == 5, d['changes']
+          assert d['interactions'], 'no interactions'
+          print('risk', d['repository']['score'], 'across', len(d['changes']), 'changes')
+          "
+
+          echo "--- MCP, the way an agent would"
+          curl -fsS -X POST -H 'content-type: application/json' \
+            -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}' \
+            http://127.0.0.1:8000/mcp > /tmp/tools.json
+          python3 -c "
+          import json
+          t = json.load(open('/tmp/tools.json'))['result']['tools']
+          assert len(t) == 8, [x['name'] for x in t]
+          print('mcp tools:', ', '.join(x['name'] for x in t))
+          "
+
+          echo "--- writing, which is the half the published site cannot do"
+          curl -fsS -X POST -H 'content-type: application/json' \
+            -d '{\"path\":\"app/models.py\",\"content\":\"# written through the API\\n\"}' \
+            http://127.0.0.1:8000/api/save | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          assert d.get('saved') == 'app/models.py', d
+          print('saved', d['saved'])
+          "
+          docker rm -f prophecy-test
+
+      - name: Publish it
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
