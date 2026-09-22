@@ -25,8 +25,11 @@ DEMO = Path(__file__).parent / "mcp-demo.html"
 
 
 class Handler(BaseHTTPRequestHandler):
-    def __init__(self, *args, repo=".", **kwargs):
+    def __init__(self, *args, repo=".", public=False, **kwargs):
         self.repo_path = repo
+        # Served to strangers: the repo is fixed and nothing writes. Every
+        # endpoint here otherwise acts as the person who started the server.
+        self.public = public
         super().__init__(*args, **kwargs)
 
     def log_message(self, *args):
@@ -92,6 +95,8 @@ class Handler(BaseHTTPRequestHandler):
     def _write(self, name, body):
         """The endpoints that change the repository rather than read it."""
         from . import workspace
+        if self.public:
+            return {"error": "This instance is read-only."}
         path = (body.get("repo") or self.repo_path or "").strip()
         problem = _not_a_repo(path)
         if problem:
@@ -111,7 +116,10 @@ class Handler(BaseHTTPRequestHandler):
         # The dashboard can point at any repo on this machine. The server is
         # bound to localhost and acts as the person running it, so the check
         # here is for a useful error message, not for isolation.
-        path = (query.get("repo", [""])[0] or self.repo_path).strip()
+        # A public instance answers for its own repository and nothing else;
+        # the parameter is how you would otherwise read any repo on the host.
+        path = (self.repo_path if self.public
+                else (query.get("repo", [""])[0] or self.repo_path)).strip()
         problem = _not_a_repo(path)
         if problem:
             return {"error": problem}
@@ -529,15 +537,18 @@ def _lan_ip():
         sock.close()
 
 
-def serve(repo_path, port, host="0.0.0.0"):
+def serve(repo_path, port, host="0.0.0.0", public=False):
     from .mcp import Server
     # Threaded, because browsers hold idle speculative connections open and a
     # single-threaded server would sit waiting on one instead of answering.
-    httpd = ThreadingHTTPServer((host, port), partial(Handler, repo=repo_path))
+    httpd = ThreadingHTTPServer(
+        (host, port), partial(Handler, repo=repo_path, public=public))
     httpd.daemon_threads = True
     httpd.mcp = Server(repo_path)
     httpd.mcp_session = str(uuid.uuid4())
     lan = _lan_ip()
+    if public:
+        print(f"public mode: pinned to {repo_path}, writes refused")
     print(f"prophecy dashboard  http://127.0.0.1:{port}")
     print(f"MCP for agents      http://{lan}:{port}/mcp")
     print(f"                    claude mcp add --transport http prophecy "

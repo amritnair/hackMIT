@@ -1,0 +1,26 @@
+[Unit]
+Description=Prophecy dashboard and MCP endpoint
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# --public pins the server to this one repository and refuses every endpoint
+# that writes. Without it, any visitor can point the API at another repo on
+# this machine and commit to it.
+ExecStart=/opt/prophecy/.venv/bin/prophecy -C /srv/prophecy-demo serve --port 8000 --public
+WorkingDirectory=/opt/prophecy
+Restart=always
+RestartSec=3
+User=prophecy
+Group=prophecy
+
+# It reads git repositories and answers questions about them. It has no
+# business anywhere else on the filesystem.
+ReadWritePaths=/srv/prophecy-demo
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
