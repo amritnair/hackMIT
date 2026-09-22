@@ -165,6 +165,10 @@ def build_parser():
 
     serve = sub.add_parser("serve", help="dashboard and MCP on the network")
     serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--open", dest="open_served", action="store_true",
+                       help=("Open the repository this was started for, "
+                             "instead of asking which project to use. For "
+                             "containers and single-repo installs."))
     serve.add_argument("--public", action="store_true", help=(
         "Serve to strangers. Pins the server to this one repository and "
         "refuses every endpoint that writes, because the default assumes "
@@ -226,7 +230,8 @@ def main(argv=None):
         return serve_mcp(args.repo)
     if args.cmd == "serve":
         from .server import serve
-        return serve(args.repo, args.port, public=args.public)
+        return serve(args.repo, args.port, public=args.public,
+                     open_served=args.open_served)
 
     repo = scan(args.repo)
     db = store.connect(args.repo)

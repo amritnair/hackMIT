@@ -14,7 +14,7 @@ from argparse import Namespace
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 from . import store
 from .scan import scan
@@ -25,8 +25,11 @@ DEMO = Path(__file__).parent / "mcp-demo.html"
 
 
 class Handler(BaseHTTPRequestHandler):
-    def __init__(self, *args, repo=".", public=False, **kwargs):
+    def __init__(self, *args, repo=".", public=False, open_served=False,
+                 **kwargs):
         self.repo_path = repo
+        # open the repository it was started for, instead of asking
+        self.open_served = open_served
         # Served to strangers: the repo is fixed and nothing writes. Every
         # endpoint here otherwise acts as the person who started the server.
         self.public = public
@@ -38,6 +41,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url = urlparse(self.path)
         if url.path in ("/", "/index.html"):
+            # Started for one repository and told to open it: the page reads
+            # ?repo= on load, so saying so in the URL is the whole change.
+            # Container and one-box installs want this; a dashboard on your
+            # laptop does not, because which repo you meant is a real choice.
+            if self.open_served and not url.query:
+                target = "/?repo=" + quote(self.repo_path)
+                self.send_response(302)
+                self.send_header("Location", target)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             return self._send(200, "text/html", PAGE.read_bytes())
         if url.path == "/logo.png":
             return self._send(200, "image/png", LOGO.read_bytes())
@@ -537,12 +551,14 @@ def _lan_ip():
         sock.close()
 
 
-def serve(repo_path, port, host="0.0.0.0", public=False):
+def serve(repo_path, port, host="0.0.0.0", public=False, open_served=False):
     from .mcp import Server
     # Threaded, because browsers hold idle speculative connections open and a
     # single-threaded server would sit waiting on one instead of answering.
     httpd = ThreadingHTTPServer(
-        (host, port), partial(Handler, repo=repo_path, public=public))
+        (host, port),
+        partial(Handler, repo=repo_path, public=public,
+                open_served=open_served))
     httpd.daemon_threads = True
     httpd.mcp = Server(repo_path)
     httpd.mcp_session = str(uuid.uuid4())

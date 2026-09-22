@@ -31,4 +31,4 @@ RUN prophecy demo /demo
 
 ENV PROPHECY_REPO=/demo
 EXPOSE 8000
-CMD ["sh", "-c", "prophecy -C ${PROPHECY_REPO} serve --port 8000"]
+CMD ["sh", "-c", "prophecy -C ${PROPHECY_REPO} serve --port 8000 --open"]
