@@ -46,6 +46,45 @@ PLAIN = [
 ]
 
 
+CODESPACE = "https://codespaces.new/amritnair/hackMIT?quickstart=1"
+
+# Appended to the published page only. The local dashboard has an engine
+# behind it and needs none of this.
+FULL_VERSION = """
+<div id="fullVersion">
+  <strong>You are reading recorded results.</strong>
+  Editing, commits, your own repositories and MCP need Prophecy running on a
+  machine with a checkout.
+  <a href="%s">Open the full version in a browser</a>, free, on GitHub's
+  hours &mdash; or <code>pip install -e . &amp;&amp; prophecy demo /tmp/demo --serve</code>
+  <button type="button" onclick="this.parentNode.remove()"
+          aria-label="Dismiss">&times;</button>
+</div>
+<style>
+  #fullVersion {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40; max-width: 370px;
+    padding: 13px 34px 13px 15px; border: 1px solid var(--line, #22272f);
+    border-radius: 10px; background: var(--raised, #11151b);
+    color: var(--text-2, #9aa4b2);
+    font: 12.5px/1.6 var(--ui, ui-sans-serif, system-ui, sans-serif);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  }
+  #fullVersion strong { color: var(--text, #e8ecf2); font-weight: 600; }
+  #fullVersion a { color: var(--accent, #7DBBFF); }
+  #fullVersion code {
+    display: block; margin-top: 7px; font-size: 11.5px;
+    color: var(--text-3, #6f747c); word-break: break-all;
+  }
+  #fullVersion button {
+    position: absolute; top: 7px; right: 9px; border: 0; background: none;
+    color: var(--text-3, #6f747c); font-size: 16px; cursor: pointer;
+    line-height: 1;
+  }
+  @media (max-width: 640px) { #fullVersion { display: none; } }
+</style>
+""" % CODESPACE
+
+
 def key(cmd, params=None):
     """The filename a request maps to. Mirrored exactly in dashboard.html."""
     parts = []
@@ -136,6 +175,9 @@ def main(repo):
     doctype = "<!doctype html>\n"
     assert page.startswith(doctype), "dashboard.html does not start with a doctype"
     page = doctype + boot + page[len(doctype):]
+    # Half the product needs a checkout and a process. Saying so once, in a
+    # corner, beats a reader concluding the editor is broken.
+    page += FULL_VERSION
     # Pages serves this from /hackMIT/, where an absolute asset path is a 404
     page = page.replace('="/logo.png"', '="logo.png"')
     (DOCS / "index.html").write_text(page)

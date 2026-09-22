@@ -2,3 +2,4 @@
 .prophecy/
 .venv/
 __pycache__/
+prophecy.egg-info/

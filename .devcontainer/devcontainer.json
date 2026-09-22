@@ -1,0 +1,25 @@
+{
+  "name": "Prophecy",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+
+  // Everything the published site cannot do needs a machine with a checkout
+  // on it. This is that machine, in a browser tab, on GitHub's free hours:
+  // the editor, commits, reverts, your own repositories, and MCP over a
+  // forwarded port all work here.
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postAttachCommand": "bash .devcontainer/serve.sh",
+
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Prophecy",
+      "onAutoForward": "openPreview"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python"]
+    }
+  }
+}

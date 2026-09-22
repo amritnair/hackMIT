@@ -26,7 +26,26 @@ context slices, the ledger. What needs a live repository does not, and says
 so when you try: editing files, committing, reverting, connecting your own
 project, and MCP, which is a POST endpoint with no static equivalent.
 
-For those, run it yourself — it is one command and no dependencies:
+For those you need a machine with a checkout on it. Three ways, none of
+which cost anything:
+
+**In a browser, nothing installed.** [Open a codespace][cs] and the dashboard
+starts on port 8000 with the demo project built and five branches in flight.
+Free on GitHub's hours, and you can point it at any repository you clone in
+there.
+
+[cs]: https://codespaces.new/amritnair/hackMIT?quickstart=1
+
+**With Docker.** One command, no Python on your machine:
+
+```
+docker build -t prophecy . && docker run -p 8000:8000 prophecy
+```
+
+Mount your own repository instead of the demo with
+`-v /path/to/repo:/repo -e PROPHECY_REPO=/repo`.
+
+**Locally.** Python 3.10 or newer, no dependencies:
 
 ```
 pip install -e .
