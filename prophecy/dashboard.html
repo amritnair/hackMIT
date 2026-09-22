@@ -593,6 +593,22 @@
   #graph .node.lit text { fill: var(--text); }
   #graph .node.match text { fill: var(--text); font-weight: 600; }
   #graph .node.match .ring { stroke: var(--accent); }
+  .who { margin-left: auto; display: flex; gap: 9px; align-items: center;
+    font: 12.5px/1 var(--ui); color: var(--text-3); }
+  .who[hidden] { display: none !important; }
+  .who .role { padding: 2px 7px; border: 1px solid var(--line);
+    border-radius: 99px; font: 11px/1.4 var(--mono); }
+  .who a { color: var(--text-3); text-decoration: none; }
+  .who a:hover { color: var(--text); }
+  /* what this is for, in the four shapes people recognise */
+  .prevents { list-style: none; margin: 20px 0 0; padding: 0;
+    display: grid; gap: 9px; max-width: 54ch; }
+  .prevents li { position: relative; padding-left: 19px;
+    font: 14px/1.6 var(--ui); color: var(--text-2); }
+  .prevents li::before { content: ""; position: absolute; left: 0; top: 8px;
+    width: 7px; height: 7px; border-radius: 2px; background: var(--bad); }
+  .prevents li:last-child::before { background: var(--accent); }
+  .prevents b { color: var(--text); font-weight: 600; }
   .map-controls {
     display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
     margin-bottom: 6px;
@@ -868,6 +884,10 @@
 
 <header>
   <h1 class="wordmark"><img class="mark" src="/logo.png" alt="">Prophecy</h1>
+  <div class="who" id="who" hidden>
+    <span id="whoName"></span><span class="role" id="whoRole"></span>
+    <a href="/auth/logout">Sign out</a>
+  </div>
   <div class="project">
     <button type="button" class="project-btn" id="projectBtn"
             aria-haspopup="true" aria-expanded="false">
@@ -908,6 +928,18 @@
           before any of it ships, so you find the collision now, not after a
           day of building on top of it. Plug your coding agent in on the
           <button class="chip" data-tab-jump="mcp">MCP</button> tab.</p>
+        <ul class="prevents">
+          <li><b>Splash damage.</b> A change lands and something nobody
+            touched stops working, because fifteen files imported it.</li>
+          <li><b>Merges that break quietly.</b> Two branches with no file in
+            common, no conflict, and a signup flow that is broken after both
+            land.</li>
+          <li><b>Logic rewritten for nothing.</b> Two people solving the
+            same problem in two places, and one of them throwing their day
+            away at review.</li>
+          <li><b>Tokens burned on re-reading.</b> Every agent exploring the
+            same tree to learn what the last one already knew.</li>
+        </ul>
         <div class="hero-actions">
           <button class="btn" id="enterApp">Open the workspace</button>
           <button class="btn" id="pickProject" hidden>Choose a project</button>
@@ -1540,7 +1572,10 @@ $("stepN").textContent = `0 / ${STEPS.length}`;
         <p style="margin-top:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center">
           <a class="btn small" id="addToCursor" hidden href="#">Add to Cursor</a>
           <button class="btn small secondary" data-copy="mcp">Copy the settings</button>
+          <button class="btn small secondary" id="makeAgentToken" hidden>
+            Create an agent token</button>
           <span class="hint" id="agentSeen"></span></p>
+        <p class="hint" id="agentTokenOut" hidden></p>
         <p class="hint" id="mcpUrlHint"></p>
         <details style="margin-top:14px">
           <summary>Show what gets pasted</summary>
@@ -2000,8 +2035,9 @@ function api(cmd, params = {}) {
     if (d && d.error) {
       // A project with no GitHub remote is an ordinary state that the card
       // which asked already explains, so polling endpoints stay silent.
-      if (!quiet) showBanner(d.error);
-      throw new Error(d.error);
+      if (quiet && d.code !== 'not_signed_in' && d.code !== 'session_expired')
+        throw new Error(d.error);
+      throw reportApiError(d);
     }
     hideBanner();
     return d;
@@ -2011,6 +2047,11 @@ function api(cmd, params = {}) {
 /* Writing needs a body rather than a query string, and the things that write
    are the things worth being loud about when they fail: a save or a commit that
    quietly did nothing is worse than an error. */
+/* Who is signed in, when this instance asks anyone to. Filled at boot and
+   after anything that changes it; empty when sign in is switched off, which
+   is the default. */
+let ME = { auth: false, may_write: true, role: 'owner' };
+
 function apiPost(cmd, body = {}) {
   if (window.PROPHECY_STATIC) {
     showBanner('The published demo is read-only. Editing, committing and '
@@ -2019,13 +2060,34 @@ function apiPost(cmd, body = {}) {
   }
   return fetch(`/api/${cmd}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: Object.assign(
+      { 'Content-Type': 'application/json' },
+      // a cookie rides along on any request; this header only on ours
+      ME.csrf ? { 'X-Prophecy-CSRF': ME.csrf } : {}),
     body: JSON.stringify({ repo: REPO, ...body }),
   }).then(r => r.json()).then(d => {
-    if (d && d.error) { showBanner(d.error); throw new Error(d.error); }
+    if (d && d.error) { throw reportApiError(d); }
     hideBanner();
     return d;
   });
+}
+
+/* One reading of a failure for both callers.
+
+   A session that has gone is not a message to read, it is a door to walk
+   back through: the server answers / with the sign in page, so reloading is
+   the whole fix. Everything else is a sentence, plus the hint when the
+   server bothered to say what to do about it. */
+function reportApiError(d) {
+  const code = d.code || '';
+  if (code === 'not_signed_in' || code === 'session_expired') {
+    location.reload();
+    return new Error(code);
+  }
+  showBanner(d.hint ? `${d.error} ${d.hint}` : d.error);
+  const err = new Error(d.error);
+  err.code = code;
+  return err;
 }
 
 /* Nothing that reads as a crash ever reaches the banner. "see server log" is a
@@ -5693,7 +5755,48 @@ $('#runBackfill').onclick = () => {
   });
 };
 
+/* ── who is looking ───────────────────────────────────────── */
+/* Silent when this instance asks nobody to sign in, which is the default:
+   there is no account to show and no token anybody needs. */
+function loadMe() {
+  if (window.PROPHECY_STATIC) return Promise.resolve();
+  return api('me').then(d => {
+    ME = d;
+    const who = $('#who');
+    if (!d.auth || !who) return;
+    who.hidden = false;
+    $('#whoName').textContent = d.name || d.login;
+    $('#whoRole').textContent = d.role;
+    const make = $('#makeAgentToken');
+    if (make) make.hidden = false;
+    if (!d.may_write) {
+      // saying it once beats every write failing on its own later
+      showBanner('You are signed in as a viewer here, so nothing on this '
+                 + 'page will change the repository.');
+    }
+  }).catch(() => {});
+}
+
+/* An agent cannot sign in through a browser, so it carries a token that
+   belongs to you, and its work is attributed to you. Shown once: the server
+   keeps only what it hashes to. */
+if ($('#makeAgentToken')) $('#makeAgentToken').onclick = () => {
+  const btn = $('#makeAgentToken');
+  btn.disabled = true;
+  apiPost('agent_token', { label: 'agent for ' + (ME.login || 'me') })
+    .then(d => {
+      const out = $('#agentTokenOut');
+      out.hidden = false;
+      out.innerHTML = `Use this once, in your agent's config, and keep it:
+        <code>${esc(d.token)}</code><br>It belongs to you, so anything the
+        agent does here is recorded under your name. Prophecy does not
+        store the token itself and cannot show it again.`;
+    })
+    .finally(() => { btn.disabled = false; });
+};
+
 /* ── boot ─────────────────────────────────────────────────── */
+loadMe();
 loadLive();
 setInterval(() => { if (REPO) loadLive(); }, 8000);
 api('scan').then(d => {

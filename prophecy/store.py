@@ -63,6 +63,32 @@ CREATE TABLE IF NOT EXISTS messages (
     subject TEXT, body TEXT, sent_by TEXT DEFAULT 'dashboard',
     sent_at TEXT DEFAULT CURRENT_TIMESTAMP, delivered_at TEXT
 );
+-- Who may use this instance. `sessions` above is agents at work; these are
+-- people signed in, which is a different thing entirely.
+CREATE TABLE IF NOT EXISTS accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, login TEXT, github_id INT,
+    name TEXT, avatar TEXT, role TEXT,
+    first_seen TEXT DEFAULT CURRENT_TIMESTAMP,
+    last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(login)
+);
+-- The token itself is never stored, only what it hashes to, so this table
+-- is not a list of working credentials.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_hash TEXT PRIMARY KEY, account_id INT, expires_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP, user_agent TEXT
+);
+CREATE TABLE IF NOT EXISTS access_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT, value TEXT, role TEXT,
+    added_by TEXT, added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(kind, value)
+);
+-- An agent cannot sign in with a browser, so it carries a token belonging
+-- to a person, and its work is attributed to them.
+CREATE TABLE IF NOT EXISTS agent_tokens (
+    token_hash TEXT PRIMARY KEY, account_id INT, label TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP, last_used TEXT, revoked INT DEFAULT 0
+);
 """
 
 
@@ -568,3 +594,121 @@ def insights(db):
         "against merges that already happened; nothing else here can."
     )
     return out
+
+
+# ── who may use this instance ────────────────────────────────────────────
+# Sessions here are people signed in. The `sessions` table above is agents at
+# work, which is a different thing that happens to share a word.
+
+def upsert_account(db, person, role):
+    """Record the person, and return their row id."""
+    db.execute(
+        "INSERT INTO accounts (login, github_id, name, avatar, role) "
+        "VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(login) DO UPDATE SET name=excluded.name, "
+        "avatar=excluded.avatar, role=excluded.role, "
+        "last_seen=CURRENT_TIMESTAMP",
+        (person["login"].lower(), person.get("github_id"),
+         person.get("name") or person["login"], person.get("avatar", ""), role))
+    db.commit()
+    row = db.execute("SELECT id FROM accounts WHERE login = ?",
+                     (person["login"].lower(),)).fetchone()
+    return row["id"]
+
+
+def account(db, account_id):
+    row = db.execute("SELECT * FROM accounts WHERE id = ?",
+                     (account_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def accounts(db):
+    return [dict(r) for r in db.execute(
+        "SELECT * FROM accounts ORDER BY last_seen DESC")]
+
+
+def start_session(db, token_hash, account_id, expires_at, user_agent=""):
+    db.execute(
+        "INSERT OR REPLACE INTO auth_sessions "
+        "(token_hash, account_id, expires_at, user_agent) VALUES (?, ?, ?, ?)",
+        (token_hash, account_id, expires_at, user_agent[:200]))
+    db.commit()
+
+
+def session_account(db, token_hash):
+    """The account behind a session token, and whether it is still good.
+
+    Expiry is decided in SQL so a clock skew between processes cannot make
+    one of them disagree about a session the other has ended.
+    """
+    row = db.execute(
+        "SELECT a.*, s.expires_at, "
+        "       (s.expires_at > datetime('now')) AS live "
+        "FROM auth_sessions s JOIN accounts a ON a.id = s.account_id "
+        "WHERE s.token_hash = ?", (token_hash,)).fetchone()
+    return dict(row) if row else None
+
+
+def end_session(db, token_hash):
+    db.execute("DELETE FROM auth_sessions WHERE token_hash = ?", (token_hash,))
+    db.commit()
+
+
+def sweep_sessions(db):
+    """Expired rows are not credentials, just litter. Cheap to take out."""
+    db.execute("DELETE FROM auth_sessions WHERE expires_at <= datetime('now')")
+    db.commit()
+
+
+def access_rules(db):
+    return [dict(r) for r in db.execute(
+        "SELECT * FROM access_rules ORDER BY kind, value")]
+
+
+def add_access_rule(db, kind, value, role, added_by=""):
+    db.execute(
+        "INSERT INTO access_rules (kind, value, role, added_by) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(kind, value) DO UPDATE SET role=excluded.role",
+        (kind, value.lower(), role, added_by))
+    db.commit()
+
+
+def drop_access_rule(db, kind, value):
+    db.execute("DELETE FROM access_rules WHERE kind = ? AND value = ?",
+               (kind, value.lower()))
+    db.commit()
+
+
+def issue_agent_token(db, token_hash, account_id, label):
+    db.execute(
+        "INSERT OR REPLACE INTO agent_tokens (token_hash, account_id, label) "
+        "VALUES (?, ?, ?)", (token_hash, account_id, label[:80]))
+    db.commit()
+
+
+def agent_token_owner(db, token_hash):
+    """Whose token this is, if it is one and has not been revoked."""
+    row = db.execute(
+        "SELECT a.* FROM agent_tokens t JOIN accounts a ON a.id = t.account_id "
+        "WHERE t.token_hash = ? AND t.revoked = 0", (token_hash,)).fetchone()
+    if row:
+        db.execute("UPDATE agent_tokens SET last_used = CURRENT_TIMESTAMP "
+                   "WHERE token_hash = ?", (token_hash,))
+        db.commit()
+    return dict(row) if row else None
+
+
+def agent_tokens(db, account_id):
+    return [dict(r) for r in db.execute(
+        "SELECT token_hash, label, created_at, last_used, revoked "
+        "FROM agent_tokens WHERE account_id = ? ORDER BY created_at DESC",
+        (account_id,))]
+
+
+def revoke_agent_token(db, token_hash, account_id):
+    """Scoped to the account, so one person cannot revoke another's token."""
+    db.execute("UPDATE agent_tokens SET revoked = 1 "
+               "WHERE token_hash = ? AND account_id = ?",
+               (token_hash, account_id))
+    db.commit()

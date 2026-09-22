@@ -165,6 +165,19 @@ def build_parser():
 
     serve = sub.add_parser("serve", help="dashboard and MCP on the network")
     serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--auth", choices=["github"], help=(
+        "Require people to sign in with GitHub. Needs "
+        "PROPHECY_GITHUB_CLIENT_ID and PROPHECY_GITHUB_CLIENT_SECRET."))
+    serve.add_argument("--owner", help=(
+        "GitHub login of whoever runs this instance. They can always get "
+        "in, and they decide who else does."))
+    serve.add_argument("--allow-org", action="append", dest="allow_orgs",
+                       metavar="ORG", help=(
+                           "Let members of this GitHub organisation in. "
+                           "Repeatable."))
+    serve.add_argument("--allow-user", action="append", dest="allow_users",
+                       metavar="LOGIN",
+                       help="Let this GitHub user in. Repeatable.")
     serve.add_argument("--open", dest="open_served", action="store_true",
                        help=("Open the repository this was started for, "
                              "instead of asking which project to use. For "
@@ -230,8 +243,12 @@ def main(argv=None):
         return serve_mcp(args.repo)
     if args.cmd == "serve":
         from .server import serve
+        from .server import access_config
         return serve(args.repo, args.port, public=args.public,
-                     open_served=args.open_served)
+                     open_served=args.open_served,
+                     access=access_config(args.auth, args.owner,
+                                          args.allow_orgs, args.allow_users,
+                                          args.repo))
 
     repo = scan(args.repo)
     db = store.connect(args.repo)

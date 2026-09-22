@@ -3,6 +3,7 @@
 Run with: python test_prophecy.py
 """
 
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -112,6 +113,7 @@ def main():
 
     check_risk_engine()
     check_clone_urls()
+    check_auth()
 
     print("ok")
 
@@ -548,6 +550,114 @@ def check_branches(root, repo):
     assert store.insights(db)["merges_replayed"] == 1
 
 
+
+
+def check_auth():
+    """The gate, from outside: what an unsigned request can reach.
+
+    Every line here is a way in that should not be one. The GitHub half is
+    not exercised — that needs their servers — so this drives the sessions
+    the callback would have created and checks everything downstream of it.
+    """
+    import datetime
+    import threading
+    import urllib.error
+    import urllib.request
+    from functools import partial
+    from http.server import ThreadingHTTPServer
+
+    from prophecy import auth, store
+    from prophecy.mcp import Server as McpServer
+    from prophecy.server import Handler
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp) / "app"
+        assert "error" not in demo.build(root)
+
+        access = {"client_id": "id", "client_secret": "secret",
+                  "owner": "ada", "redirect_uri": ""}
+        httpd = ThreadingHTTPServer(
+            ("127.0.0.1", 0), partial(Handler, repo=str(root), access=access))
+        httpd.mcp = McpServer(str(root))
+        httpd.mcp_session = "test"
+        port = httpd.socket.getsockname()[1]
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+
+        def call(path, body=None, headers=None, cookie=None):
+            url = f"http://127.0.0.1:{port}{path}"
+            data = json.dumps(body).encode() if body is not None else None
+            request = urllib.request.Request(
+                url, data=data, method="POST" if data else "GET")
+            if data:
+                request.add_header("Content-Type", "application/json")
+            for key, value in (headers or {}).items():
+                request.add_header(key, value)
+            if cookie:
+                request.add_header("Cookie", f"prophecy_session={cookie}")
+            try:
+                with urllib.request.urlopen(request, timeout=15) as answer:
+                    return answer.status, json.loads(answer.read() or b"{}")
+            except urllib.error.HTTPError as exc:
+                raw = exc.read()
+                try:
+                    return exc.code, json.loads(raw or b"{}")
+                except json.JSONDecodeError:
+                    return exc.code, {}
+
+        db = store.connect(root)
+        expires = (datetime.datetime.now(datetime.timezone.utc)
+                   + datetime.timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+
+        def sign_in(login, role):
+            person = {"login": login, "github_id": 1, "name": login,
+                      "avatar": "", "orgs": [], "teams": []}
+            account_id = store.upsert_account(db, person, role)
+            token = auth.new_session_token()
+            store.start_session(db, auth.hash_token(token), account_id, expires)
+            return token
+
+        # nothing at all without a session, read or write
+        status, body = call("/api/risk")
+        assert status == 401 and body["code"] == "not_signed_in", body
+        assert call("/api/save", {"path": "a.py", "content": "x"})[0] == 401
+
+        owner = sign_in("ada", "owner")
+        status, me = call("/api/me", cookie=owner)
+        assert status == 200 and me["role"] == "owner" and me["may_write"], me
+
+        # a session alone is not enough to write: a cookie travels on any
+        # request, the header only on one this page made
+        assert call("/api/save", {"path": "app/models.py", "content": "# x"},
+                    cookie=owner)[1]["code"] == "bad_csrf"
+        csrf = {"X-Prophecy-CSRF": me["csrf"]}
+        assert call("/api/save", {"path": "app/models.py",
+                                  "content": "# written\n"},
+                    csrf, cookie=owner)[0] == 200
+
+        # expired is its own answer: sign in again, not ask for access
+        stale = auth.new_session_token()
+        store.start_session(db, auth.hash_token(stale),
+                            store.accounts(db)[0]["id"], "2020-01-01 00:00:00")
+        assert call("/api/risk", cookie=stale)[1]["code"] == "session_expired"
+
+        viewer = sign_in("vic", "viewer")
+        _, vme = call("/api/me", cookie=viewer)
+        assert call("/api/save", {"path": "app/models.py", "content": "# no"},
+                    {"X-Prophecy-CSRF": vme["csrf"]},
+                    cookie=viewer)[1]["code"] == "read_only"
+        assert call("/api/access", cookie=viewer)[1]["code"] == "not_allowed"
+
+        # an agent cannot sign in, so it carries a token belonging to a person
+        rpc = {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+        assert call("/mcp", rpc)[0] == 401
+        assert call("/mcp", rpc, {"Authorization": "Bearer nonsense"})[0] == 401
+        _, issued = call("/api/agent_token", {"label": "ada's agent"},
+                         csrf, cookie=owner)
+        status, answer = call(
+            "/mcp", rpc, {"Authorization": "Bearer " + issued["token"]})
+        assert status == 200 and len(answer["result"]["tools"]) == 8, answer
+
+        httpd.shutdown()
 
 
 def check_clone_urls():

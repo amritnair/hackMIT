@@ -311,6 +311,45 @@ for what reaches it, and double-click to edit and commit.
 **Ledger** is the record: what Prophecy said, who changed what, and a button
 that replays real merges to grade the forecasts, described above.
 
+## who gets in
+
+By default nobody signs in, because by default this is a process on your own
+machine acting as you. The moment it is somewhere a team can reach, that
+assumption is wrong, and the endpoints that matter write files, commit them
+and fetch repositories.
+
+```
+prophecy serve --auth github --owner your-login --allow-org your-org
+```
+
+Identity comes from GitHub rather than from a password table here. Nobody
+wants another password, and an organisation there is already the group this
+wants to talk about: members of `--allow-org` get in, `--allow-user` names
+individuals, and a rule naming a person beats a rule naming their org, so
+somebody removed by name stays removed.
+
+Three roles. `owner` decides who else gets in, `member` reads and writes,
+`viewer` reads. It needs `PROPHECY_GITHUB_CLIENT_ID` and
+`PROPHECY_GITHUB_CLIENT_SECRET` from an OAuth app whose callback is
+`<your-url>/auth/callback`, and it refuses to start if you turn sign-in on
+without saying who it is for, because an instance that asks for a login and
+then admits whoever arrives first is worse than one that asks for nothing.
+
+Sessions are random tokens stored hashed, in an HttpOnly SameSite cookie,
+`Secure` whenever the request is not plain local http. Writes carry a header
+derived from the session, because a cookie rides along on any request a
+browser is told to make and a header does not.
+
+**Agents cannot sign in.** So an agent carries a token belonging to a person,
+created from the MCP tab, and everything it does is recorded under that name.
+With sign-in on, `/mcp` requires one. With sign-in off, MCP stays open unless
+`PROPHECY_MCP_TOKEN` is set — which is right for a container on your own
+machine, and worth remembering before putting one anywhere else, since the
+server binds every interface.
+
+`serve --public` is the other direction: pinned to one repository, every
+write refused, for an instance that is meant to be read by strangers.
+
 ## running it
 
 Python 3.10 or newer. No dependencies.
