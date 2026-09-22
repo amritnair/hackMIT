@@ -35,13 +35,24 @@ jobs:
       - name: Install
         run: pip install -e .
 
-      - name: Build the demo project
+      # Cloning rather than rebuilding, so the commit shas stay put. Building
+      # the fixture fresh each run changed every sha, and every recorded
+      # answer that mentions one, which was most of them.
+      - name: Fetch the demo project
         run: |
-          # `prophecy demo` makes commits, and a runner has no git identity
-          git config --global user.email "demo@prophecy.local"
-          git config --global user.name "Prophecy demo"
-          git config --global init.defaultBranch main
-          prophecy demo /tmp/prophecy-demo
+          git clone --quiet https://github.com/amritnair/prophecy-demo.git /tmp/prophecy-demo
+          cd /tmp/prophecy-demo
+          # as local branches, the way somebody's own checkout has them:
+          # work in flight is read from local branches, not remote refs
+          for b in $(git branch -r | grep -v HEAD | sed 's|origin/||'); do
+            git branch --track "$b" "origin/$b" 2>/dev/null || true
+          done
+          git branch | wc -l
+
+      # Sessions go stale after 30 minutes, so this is seeded on every run
+      # rather than committed: a frozen database publishes an empty Crew tab.
+      - name: Seed the agent history
+        run: python3 -c "from prophecy import demo; print(demo.seed('/tmp/prophecy-demo'))"
 
       - name: Record every answer
         run: python3 tools/export_static.py /tmp/prophecy-demo
