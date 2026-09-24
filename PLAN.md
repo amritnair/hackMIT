@@ -73,12 +73,12 @@ earned the word "calibrated", and the tool should keep saying so.
 
 ## absent
 
-**GitHub and Linear.** `verify` already does the hard part; a GitHub Action
-is `prophecy predict --json` plus a comment-posting step, and PR analysis is
-branch analysis with a different name. Linear is an API call that turns
-issues into the task strings `plan` already takes. Both are afternoon jobs
-and neither proves anything the CLI does not already prove, which is why they
-are not done.
+**A GitHub Action, and Linear.** `github.py` reads pull requests, forecasts
+one and can post the comment; what is missing is the packaged action that
+runs `prophecy check` on a pull request and fails it above a threshold.
+Linear is an API call that turns issues into the task strings `plan` already
+takes. Both are afternoon jobs and neither proves anything the CLI does not
+already prove, which is why they are still not done.
 
 **Historical conflict learning.** Mine the repo's own merge history for files
 that have conflicted before, and weight risk scores by that. The backfill
@@ -102,20 +102,36 @@ dashboard grows past one screen of real interaction.
 Multi-repo graphs, runtime behavioural detection, agent orchestration — the
 P2 list. Nothing there is reachable from a working P0 in the time available.
 
-## deploying it
+## deploying it, and what that settled
 
-Worth knowing before anyone tries: **the dashboard is static, the engine is
-not.** Everything interesting shells out to git against a real checkout, so
-it cannot run on a serverless host with no repo on disk. Three options:
+**The dashboard is static, the engine is not.** Everything interesting shells
+out to git against a real checkout, so no serverless host can run it. That
+constraint shaped all three of the ways it ships now.
 
-1. **Local, as designed.** `prophecy serve`. This is the honest demo.
-2. **Static dashboard on Vercel, data baked in.** Run the commands, dump the
-   JSON, ship dashboard + JSON as a static site. Deploys free, demos fine,
-   but it is a recording, not a tool.
-3. **Dashboard on Vercel, engine on a box with the repo cloned.** A real
-   split, and the point at which auth stops being optional, since the API
-   would serve up a private repo's structure to anyone who asks.
+**The published site is a recording.** `tools/export_static.py` runs the real
+server, records every answer and writes them beside the page, so GitHub Pages
+serves the whole dashboard reading files instead of an API. Everything that
+reads works. Everything that writes says what it needs instead. A workflow
+rebuilds it on every change and a check refuses to publish an export that is
+broken in the ways nobody would notice.
 
-Vercel's free Hobby plan runs unlimited projects, so two sites under one
-account is fine — the limits that bite are account-wide bandwidth and the
-non-commercial-use terms, neither of which a hackathon touches.
+**Running it is one command.** A multi-architecture image on ghcr, built with
+the demo project inside it, started and exercised in CI before it is pushed.
+That is what makes the site an on-ramp rather than a brochure: the page hands
+somebody their MCP settings and the paste that gives them something to point
+at.
+
+**A box is `tools/deploy.sh`.** Clone, venv, systemd, Caddy for TLS. It runs
+with `serve --public`, which pins the instance to one repository and refuses
+every write, because the code assumes it is talking to the person who started
+it and that assumption is false on the internet.
+
+Auth stopped being optional at the same moment, and `serve --auth github` is
+the answer: org membership grants access, named people override it, three
+roles, and agents carry a token belonging to a person because they cannot
+sign in. The one part still untested against reality is the GitHub round
+trip itself, which needs a registered OAuth app.
+
+What is still true: a private repository's structure is exactly what this
+serves, so an instance reachable by anyone should either require sign-in or
+be `--public` and pinned to something you are happy to publish.

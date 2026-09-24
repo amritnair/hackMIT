@@ -1,0 +1,55 @@
+# Security
+
+## Reporting something
+
+Open a [security advisory](https://github.com/amritnair/prophecy/security/advisories/new),
+or email amritnair23@gmail.com. Please do not open a public issue for
+anything exploitable.
+
+## What this thing is, in security terms
+
+Prophecy shells out to git against a real checkout, reads every file that
+repository tracks, and — unless told otherwise — writes files, commits them
+and fetches other repositories. Treat an instance as having the access of
+the account running it.
+
+Three modes, and the difference matters:
+
+**On your own machine, the default.** No sign-in. The server acts as you,
+because it is you. It binds every interface, though, so anyone on the same
+network can reach it; that is fine on a laptop at home and not fine on
+shared wifi.
+
+**Reachable by a team: `serve --auth github`.** GitHub is the identity.
+Sessions are random tokens stored hashed, in an `HttpOnly`, `SameSite=Lax`
+cookie marked `Secure` off localhost. Writes carry a header derived from the
+session, because a cookie travels on any request a browser is told to make
+and a header does not. Agents cannot sign in, so they carry a token
+belonging to a person and their work is attributed to them. It refuses to
+start if sign-in is on and nobody is allowed in.
+
+**Read by strangers: `serve --public`.** Pinned to one repository, every
+write endpoint refused, the `repo` parameter ignored. Without it that
+parameter accepts any path on the host, which is correct for a tool running
+as you and wrong the moment it is not.
+
+## Known limits
+
+`--public` is about paths and writes, not about secrets. Anything in the
+repository it is pinned to — file names, symbols, commit history — is served
+to whoever asks, by design. Pin it to something you are content to publish.
+
+Fetching a repository by URL runs `git clone` on request. Local paths,
+`file://` and git's `ext::` transport are refused, and a public instance
+refuses the endpoint outright, but it will still use disk and reach the
+host the URL names.
+
+The optional model matcher in `llm.py` sends task text and file names to
+Anthropic or OpenAI. It is off unless asked for, and never on the MCP path.
+
+Nothing here observes runtime, and scores are heuristics. Do not wire
+`prophecy check` into anything that must not be wrong.
+
+## Supported versions
+
+Pre-1.0: fixes land on `main`.

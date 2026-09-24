@@ -1,5 +1,9 @@
 # Prophecy
 
+[![Tests](https://github.com/amritnair/prophecy/actions/workflows/tests.yml/badge.svg)](https://github.com/amritnair/prophecy/actions/workflows/tests.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Two people pick up two tickets on Monday. Neither finds out they both rewrite
 the same auth helper until Thursday, when one of them rebases. With coding
 agents in the mix it is worse, because three of them can be editing the same
