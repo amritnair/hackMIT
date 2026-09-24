@@ -2,8 +2,28 @@
 name = "prophecy"
 version = "0.1.0"
 description = "Forecast which parts of a repo a planned task will touch, and where two tasks collide."
+readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Amrit Nair" }]
+keywords = ["git", "code-review", "merge-conflicts", "mcp", "static-analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+# Deliberately empty, and a constraint rather than an oversight: see
+# CONTRIBUTING.md. The optional model matcher in llm.py imports behind a
+# guard and is never on the MCP path.
 dependencies = []
+
+[project.urls]
+Homepage = "https://amritnair.github.io/prophecy/"
+Source = "https://github.com/amritnair/prophecy"
 
 [project.scripts]
 prophecy = "prophecy.cli:main"
@@ -11,3 +31,9 @@ prophecy = "prophecy.cli:main"
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["prophecy"]
+
+[tool.setuptools.package-data]
+prophecy = ["dashboard.html", "mcp-demo.html", "logo.png"]

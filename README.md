@@ -390,12 +390,15 @@ environment makes `/mcp` demand a bearer token; it does not protect the
 dashboard.
 
 ```
-python test_prophecy.py
+python tests/test_prophecy.py
 ```
 
 builds fixture repositories in temp directories, drives the MCP server over
-its own wire protocol, replays a real conflicting merge, and checks that the
-cached prefix stays byte-identical between runs.
+its own wire protocol, replays a real conflicting merge, checks the sign-in
+gate from outside, and checks that the cached prefix stays byte-identical
+between runs. It runs on every push and pull request.
+
+`CONTRIBUTING.md` has the house rules and what lives where.
 
 ## what it does not do
 

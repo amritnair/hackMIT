@@ -1,12 +1,16 @@
 """Builds a small throwaway repo and checks the whole pipeline against it.
 
-Run with: python test_prophecy.py
+Run with: python tests/test_prophecy.py
 """
 
 import json
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
+# so the suite runs from a checkout without installing the package first
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import prophecy
 from prophecy import agent, backfill, branches, llm, mcp, merge, store

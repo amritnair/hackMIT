@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # the floor the project claims, and something current
+        python: ['3.10', '3.13']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Configure git
+        # the suite builds real repositories and commits to them, and a
+        # runner has no identity of its own
+        run: |
+          git config --global user.email "tests@prophecy.local"
+          git config --global user.name "Prophecy tests"
+          git config --global init.defaultBranch main
+
+      - name: Run the suite
+        run: python tests/test_prophecy.py
