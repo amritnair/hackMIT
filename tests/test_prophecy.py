@@ -657,9 +657,20 @@ def check_auth():
         assert call("/mcp", rpc, {"Authorization": "Bearer nonsense"})[0] == 401
         _, issued = call("/api/agent_token", {"label": "ada's agent"},
                          csrf, cookie=owner)
-        status, answer = call(
-            "/mcp", rpc, {"Authorization": "Bearer " + issued["token"]})
+        carried = {"Authorization": "Bearer " + issued["token"]}
+        status, answer = call("/mcp", rpc, carried)
         assert status == 200 and len(answer["result"]["tools"]) == 8, answer
+
+        # and it cannot file its work under somebody else's name: the token
+        # says whose agent this is, the argument is a string it chose
+        call("/mcp", {"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                      "params": {"name": "join_repo_session",
+                                 "arguments": {"agent": "vic",
+                                               "task": "impersonation"}}},
+             carried)
+        live = [s["agent"] for s in store.live_sessions(store.connect(root))]
+        assert "ada" in live, live
+        assert "vic" not in live, live
 
         httpd.shutdown()
 

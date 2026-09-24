@@ -638,8 +638,9 @@ class Handler(BaseHTTPRequestHandler):
             }).encode(), cors=True, headers=self._mcp_headers())
         batch = isinstance(payload, list)
         replies = []
+        owner = getattr(self, "mcp_person", None)
         for req in (payload if batch else [payload]):
-            reply = handle(self._mcp_server(), req)
+            reply = handle(self._mcp_server(), _attributed(req, owner))
             if reply is not None:
                 replies.append(reply)
         if not replies:
@@ -652,6 +653,35 @@ class Handler(BaseHTTPRequestHandler):
         body = json.dumps(replies if batch else replies[0]).encode()
         return self._send(200, "application/json", body, cors=True,
                           headers=self._mcp_headers())
+
+
+def _attributed(request, owner):
+    """Make a tool call say who is really making it.
+
+    The token proves which person an agent belongs to. The `agent` argument
+    is just a string the client chose, so without this an agent can file its
+    session, its findings and its warnings under somebody else's name — on
+    the one kind of instance where names are supposed to mean something.
+
+    Only reached when sign in is on. Anywhere else the caller names itself,
+    which is the right answer for a container on your own machine.
+    """
+    if not owner or not isinstance(request, dict):
+        return request
+    params = request.get("params")
+    if not isinstance(params, dict):
+        return request
+    arguments = params.get("arguments")
+    if not isinstance(arguments, dict) or "agent" not in arguments:
+        return request
+    login = owner.get("login")
+    if not login or arguments.get("agent") == login:
+        return request
+    # copied rather than mutated: the request came off the wire and the
+    # caller is entitled to see its own payload unchanged
+    return {**request,
+            "params": {**params,
+                       "arguments": {**arguments, "agent": login}}}
 
 
 SKIP = {"node_modules", "venv", ".venv", "vendor", "Library", "Applications"}
